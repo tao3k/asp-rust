@@ -4,10 +4,6 @@ use crate::cli::support::{run_search, write_search_fixture};
 
 #[test]
 fn cli_search_owner_items_graph_prioritizes_symbol_code_frontier() {
-    if crate::cli::support::skip_if_protocol_graph_renderer_unavailable() {
-        return;
-    }
-
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_search_fixture(root);
@@ -30,10 +26,21 @@ fn cli_search_owner_items_graph_prioritizes_symbol_code_frontier() {
         "{output}"
     );
     assert!(
-        output.contains("aliases: graph:{G=search,O=owner}"),
+        output.contains("aliases: graph:{G=search,O=owner,Q=query,I=item}"),
         "{output}"
     );
-    assert!(output.contains("G>{O:selects}"), "{output}");
-    assert!(output.contains("rank=O frontier=O.owner"), "{output}");
+    assert!(
+        output.contains("I=item:symbol(Thing)@rust://src/domain/mod.rs#item/struct/Thing!syntax"),
+        "{output}"
+    );
+    assert!(
+        output.contains("syntax I selector=rust://src/domain/mod.rs#item/struct/Thing"),
+        "{output}"
+    );
+    assert!(output.contains("rank=I,O frontier=I.syntax"), "{output}");
+    assert!(
+        !output.contains("syntax I selector=src/domain/mod.rs:"),
+        "{output}"
+    );
     assert!(!output.contains("S=symbol"), "{output}");
 }

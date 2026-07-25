@@ -2,9 +2,9 @@
 
 mod api;
 mod cargo;
-pub(crate) mod compact;
 mod compare;
 mod context;
+pub(crate) mod density;
 mod dependency;
 mod format;
 pub(crate) mod guide;

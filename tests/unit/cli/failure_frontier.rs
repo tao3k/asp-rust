@@ -34,10 +34,11 @@ fn cli_check_changed_renders_failure_frontier() {
     );
     assert!(
         stdout.contains(
-            "|next asp rust query --from-hook direct-source-read --selector 'src/lib.rs:1-14' --code ."
+            "|next asp rust query --from-hook direct-source-read --code --workspace . --selector 'src/lib.rs:1-14'"
         ),
         "{stdout}"
     );
+    assert!(!stdout.contains("--code ."), "{stdout}");
     assert!(!stdout.contains("[RUST-AGENT-PROJECT-003]"), "{stdout}");
 }
 

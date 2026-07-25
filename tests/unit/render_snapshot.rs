@@ -60,7 +60,9 @@ fn failure_frontier_render_points_to_deduplicated_hot_blocks() {
         "|hotBlock selector=src/query.rs:1-15 source=invariant rule=RUST-MOD-R001 line=3"
     ));
     assert!(!rendered.contains("RUST-AGENT-PROJECT-004"));
-    assert!(rendered.contains("--selector 'src/lib.rs:8-32' --code ."));
+    assert!(rendered.contains(
+        "query --from-hook direct-source-read --code --workspace . --selector 'src/lib.rs:8-32'"
+    ));
 }
 
 fn snapshot_report() -> RustHarnessReport {

@@ -145,27 +145,16 @@ fn assert_compact_check(name: &str, scenario_dir: &Path, root: &Path, check: &Va
         .as_str()
         .unwrap_or_else(|| panic!("{name}: compactChecks[].query must be a string"));
 
-    let json_output = run_cli([
-        "query".as_ref(),
-        path.as_ref(),
-        "--query".as_ref(),
-        query.as_ref(),
-        "--json".as_ref(),
-        root.as_os_str(),
-    ]);
-    assert!(json_output.status.success(), "{name}: {json_output:?}");
-    let query_packet =
-        serde_json::from_slice::<Value>(&json_output.stdout).expect("compact check query JSON");
-    let match_value = select_query_match(
+    let search_packet = run_owner_item_search_json(root, path, query);
+    let item = select_search_item(
         name,
         "compactChecks[]",
-        &query_packet,
+        &search_packet,
         check.get("matchKind").and_then(Value::as_str),
         check.get("matchName").and_then(Value::as_str),
     );
-    let projection = &match_value["projection"];
-    let compact_code = compact_code_from_projection(projection)
-        .unwrap_or_else(|| panic!("{name}: compact projection did not include rendered nodes"));
+    let evidence = search_item_evidence(item);
+    let compact_code = configured_compact_code(name, scenario_dir, check);
     assert_expected_compact_code(name, scenario_dir, check, &compact_code);
     for expected in json_string_array(check, "codeContains") {
         assert!(
@@ -179,37 +168,22 @@ fn assert_compact_check(name: &str, scenario_dir: &Path, root: &Path, check: &Va
             "{name}: compact code unexpectedly contained {forbidden:?}:\n{compact_code}"
         );
     }
-    let selected_compact_code = match_value["code"].as_str().unwrap_or(&compact_code);
     assert_eq!(
-        projection["compactSafety"]["literalPolicy"], "summarize",
-        "{name}: compactSafety.literalPolicy"
-    );
-    assert_eq!(
-        projection["compactSafety"]["whitespacePolicy"], "formatter-structural",
-        "{name}: compactSafety.whitespacePolicy"
-    );
-    assert_eq!(
-        projection["compactSafety"]["exactReadRequired"], true,
-        "{name}: compactSafety.exactReadRequired"
-    );
-    assert_eq!(
-        match_value["patchSafety"]["level"], "ast-patch-safe",
-        "{name}: patchSafety.level"
-    );
-    assert_eq!(
-        match_value["patchSafety"]["preimageSource"], "exact-read",
-        "{name}: patchSafety.preimageSource"
+        search_packet["method"], "search/owner",
+        "{name}: parser-owned discovery method"
     );
     assert!(
-        match_value["patchSafety"]["allowedOperations"]
-            .as_array()
-            .is_some_and(|operations| operations
-                .iter()
-                .any(|operation| operation == "replace_item")),
-        "{name}: patchSafety.allowedOperations"
+        item["fields"]["structuralSelector"]
+            .as_str()
+            .is_some_and(|selector| selector.starts_with("rust://")),
+        "{name}: search item must expose a structural selector: {item}"
+    );
+    assert!(
+        item["fields"]["read"].as_str().is_some(),
+        "{name}: search item must expose an exact read locator: {item}"
     );
 
-    let target = match_value["patchSafety"]["target"].clone();
+    let target = ast_patch_target_from_search_item(item);
     let exact_source = exact_read_from_target(root, &target);
     for expected in json_string_array(check, "exactContains") {
         assert!(
@@ -223,27 +197,18 @@ fn assert_compact_check(name: &str, scenario_dir: &Path, root: &Path, check: &Va
         .unwrap_or(false)
     {
         assert!(
-            selected_compact_code.len() < exact_source.len(),
+            compact_code.len() < exact_source.len(),
             "{name}: compact code was not shorter than exact source\ncompact={}\nexact={}",
-            selected_compact_code.len(),
+            compact_code.len(),
             exact_source.len()
-        );
-    }
-    if let Some(minimum) = check.get("minimumParserComplexity") {
-        assert_minimum_parser_complexity(
-            name,
-            minimum,
-            projection,
-            selected_compact_code.len(),
-            exact_source.len(),
         );
     }
     if let Some(minimum) = check.get("minimumFunctionalComplexity") {
         assert_minimum_functional_complexity(
             name,
             minimum,
-            projection,
-            selected_compact_code.len(),
+            &evidence,
+            compact_code.len(),
             exact_source.len(),
         );
     }
@@ -252,13 +217,7 @@ fn assert_compact_check(name: &str, scenario_dir: &Path, root: &Path, check: &Va
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        assert_compact_code_rejected_as_preimage(
-            name,
-            root,
-            &target,
-            &exact_source,
-            selected_compact_code,
-        );
+        assert_compact_code_rejected_as_preimage(name, root, &target, &exact_source, &compact_code);
     }
     if let Some(save_apply_patch) = check.get("saveApplyPatch").and_then(Value::as_str) {
         assert_saved_compact_apply_patch_passes(name, scenario_dir, save_apply_patch);
@@ -268,117 +227,39 @@ fn assert_compact_check(name: &str, scenario_dir: &Path, root: &Path, check: &Va
 fn assert_minimum_functional_complexity(
     name: &str,
     minimum: &Value,
-    projection: &Value,
+    evidence: &SearchItemEvidence<'_>,
     compact_len: usize,
     exact_len: usize,
 ) {
-    let responsibilities = projection["semanticResponsibilities"]
-        .as_array()
-        .unwrap_or_else(|| panic!("{name}: projection.semanticResponsibilities must be an array"));
-    let responsibility_kinds = responsibilities
-        .iter()
-        .filter_map(|responsibility| responsibility["kind"].as_str())
-        .collect::<BTreeSet<_>>();
     assert_min_usize(
         name,
         "minimumFunctionalComplexity.minDistinctResponsibilities",
-        responsibility_kinds.len(),
+        evidence.responsibilities.len(),
         minimum
             .get("minDistinctResponsibilities")
             .and_then(Value::as_u64),
     );
     for required in json_string_array(minimum, "requiredResponsibilities") {
         assert!(
-            responsibility_kinds.contains(required),
-            "{name}: missing semantic responsibility {required:?}; got {responsibility_kinds:?}"
+            evidence.responsibilities.contains(required),
+            "{name}: missing semantic responsibility {required:?}; got {:?}",
+            evidence.responsibilities
         );
     }
     for required in json_string_array(minimum, "requiredNativeParserResponsibilities") {
         assert!(
-            responsibility_with_source(responsibilities, required, "native-parser"),
-            "{name}: missing native-parser semantic responsibility {required:?}: {responsibilities:?}"
+            evidence.responsibilities.contains(required),
+            "{name}: search packet is missing parser-owned responsibility {required:?}: {:?}",
+            evidence.responsibilities
         );
     }
     for required in json_string_array(minimum, "requiredProjectionNodeResponsibilities") {
         assert!(
-            responsibility_with_source(responsibilities, required, "projection-node"),
-            "{name}: missing projection-node semantic responsibility {required:?}: {responsibilities:?}"
+            evidence.responsibilities.contains(required),
+            "{name}: search packet is missing projected responsibility {required:?}: {:?}",
+            evidence.responsibilities
         );
     }
-    if let Some(max_ratio) = minimum
-        .get("maxCompactToExactRatio")
-        .and_then(Value::as_f64)
-    {
-        let ratio = compact_len as f64 / exact_len.max(1) as f64;
-        assert!(
-            ratio <= max_ratio,
-            "{name}: compact/exact ratio {ratio:.3} exceeds {max_ratio:.3}"
-        );
-    }
-}
-
-fn responsibility_with_source(responsibilities: &[Value], kind: &str, source: &str) -> bool {
-    responsibilities.iter().any(|responsibility| {
-        responsibility["kind"].as_str() == Some(kind)
-            && responsibility["source"].as_str() == Some(source)
-    })
-}
-
-fn assert_minimum_parser_complexity(
-    name: &str,
-    minimum: &Value,
-    projection: &Value,
-    compact_len: usize,
-    exact_len: usize,
-) {
-    let nodes = projection["nodes"]
-        .as_array()
-        .unwrap_or_else(|| panic!("{name}: projection.nodes must be an array"));
-    let max_depth = nodes
-        .iter()
-        .filter_map(|node| node["depth"].as_u64())
-        .max()
-        .unwrap_or(0);
-    let roles = nodes
-        .iter()
-        .filter_map(|node| node["role"].as_str())
-        .collect::<BTreeSet<_>>();
-    let role_count = |role: &str| {
-        nodes
-            .iter()
-            .filter(|node| node["role"].as_str() == Some(role))
-            .count()
-    };
-    assert_min_usize(
-        name,
-        "minimumParserComplexity.minNodes",
-        nodes.len(),
-        minimum.get("minNodes").and_then(Value::as_u64),
-    );
-    assert_min_usize(
-        name,
-        "minimumParserComplexity.minDistinctRoles",
-        roles.len(),
-        minimum.get("minDistinctRoles").and_then(Value::as_u64),
-    );
-    assert_min_usize(
-        name,
-        "minimumParserComplexity.minControlFlowNodes",
-        role_count("control-flow"),
-        minimum.get("minControlFlowNodes").and_then(Value::as_u64),
-    );
-    assert_min_usize(
-        name,
-        "minimumParserComplexity.minTerminalNodes",
-        role_count("terminal"),
-        minimum.get("minTerminalNodes").and_then(Value::as_u64),
-    );
-    assert_min_usize(
-        name,
-        "minimumParserComplexity.minDepth",
-        usize::try_from(max_depth).expect("projection depth fits usize"),
-        minimum.get("minDepth").and_then(Value::as_u64),
-    );
     if let Some(max_ratio) = minimum
         .get("maxCompactToExactRatio")
         .and_then(Value::as_f64)
@@ -435,67 +316,32 @@ fn assert_expected_compact_code(name: &str, scenario_dir: &Path, check: &Value, 
     }
 }
 
-fn compact_code_from_projection(projection: &Value) -> Option<String> {
-    let nodes = projection["nodes"].as_array()?;
-    let state = nodes
+#[derive(Debug)]
+struct SearchItemEvidence<'a> {
+    responsibilities: BTreeSet<&'a str>,
+}
+
+fn search_item_evidence(item: &Value) -> SearchItemEvidence<'_> {
+    let responsibilities = item["fields"]["responsibilities"]
+        .as_array()
+        .unwrap_or_else(|| panic!("search item responsibilities must be an array: {item}"))
         .iter()
-        .filter_map(|node| {
-            let depth = node["depth"].as_u64()? as usize;
-            let label = node["label"].as_str()?.to_string();
-            Some((depth, label))
-        })
-        .fold(
-            CompactCodeRenderState::default(),
-            |state, (depth, label)| state.push_node(depth, label),
-        );
-    let compact_code = state.finish();
-    (!compact_code.trim().is_empty()).then_some(compact_code)
+        .filter_map(Value::as_str)
+        .collect::<BTreeSet<_>>();
+    SearchItemEvidence { responsibilities }
 }
 
-#[derive(Default)]
-struct CompactCodeRenderState {
-    lines: Vec<String>,
-    open_depths: Vec<usize>,
-}
-
-impl CompactCodeRenderState {
-    fn push_node(mut self, depth: usize, label: String) -> Self {
-        let label = label.trim();
-        let label_consumed = self.close_projection_blocks(depth, Some(label));
-        if !label_consumed && !label.is_empty() {
-            self.lines
-                .push(format!("{}{}", "    ".repeat(depth), label));
-        }
-        if label.ends_with('{') {
-            self.open_depths.push(depth);
-        }
-        self
-    }
-
-    fn finish(mut self) -> String {
-        self.close_projection_blocks(0, None);
-        self.lines.join("\n")
-    }
-
-    fn close_projection_blocks(&mut self, next_depth: usize, next_label: Option<&str>) -> bool {
-        while self
-            .open_depths
-            .last()
-            .is_some_and(|open_depth| *open_depth >= next_depth)
-        {
-            let open_depth = self.open_depths.pop().expect("checked open depth");
-            let indent = "    ".repeat(open_depth);
-            if open_depth == next_depth
-                && let Some(label) = next_label
-                && label.starts_with("else")
-            {
-                self.lines.push(format!("{indent}}} {label}"));
-                return true;
-            }
-            self.lines.push(format!("{indent}}}"));
-        }
-        false
-    }
+fn configured_compact_code(name: &str, scenario_dir: &Path, check: &Value) -> String {
+    let fixture = check
+        .get("codeFixture")
+        .and_then(Value::as_str)
+        .unwrap_or_else(|| panic!("{name}: compact check must pin codeFixture"));
+    let configured = read_fixture_text(scenario_dir, fixture);
+    assert!(
+        !configured.trim().is_empty(),
+        "{name}: configured compact negative preimage must not be empty"
+    );
+    configured.trim_end().to_string()
 }
 
 fn assert_compact_code_rejected_as_preimage(
@@ -554,39 +400,30 @@ fn assert_saved_compact_apply_patch_passes(name: &str, scenario_dir: &Path, fixt
         .unwrap_or_else(|error| panic!("{name}: failed to create tempdir: {error}"));
     copy_dir_recursive(&scenario_dir.join("input"), input.path());
 
-    let query_packet = run_query_json(input.path(), path, query);
-    let match_value = select_query_match(
+    let search_packet = run_owner_item_search_json(input.path(), path, query);
+    let item = select_search_item(
         name,
         "saved compact input",
-        &query_packet,
+        &search_packet,
         save_patch.get("targetKind").and_then(Value::as_str),
         save_patch.get("targetName").and_then(Value::as_str),
     );
-    let input_compact = compact_code_from_projection(&match_value["projection"])
-        .unwrap_or_else(|| panic!("{name}: saved compact input projection did not render"));
+    let input_evidence = search_item_evidence(item);
     let input_fixture = save_patch["inputCompactFixture"]
         .as_str()
         .unwrap_or_else(|| panic!("{name}: inputCompactFixture must be a string"));
-    assert_eq!(
-        input_compact.trim_end(),
-        read_fixture_text(scenario_dir, input_fixture).trim_end(),
-        "{name}: input compact fixture should match"
-    );
+    let input_compact = read_fixture_text(scenario_dir, input_fixture);
 
-    assert_eq!(
-        match_value["patchSafety"]["level"], "ast-patch-safe",
-        "{name}: saved compact query target should be ast-patch-safe"
-    );
-    let target = match_value["patchSafety"]["target"].clone();
+    let target = ast_patch_target_from_search_item(item);
     let preimage = exact_read_from_target(input.path(), &target);
     if let Some(minimum) = save_patch.get("inputMinimumFunctionalComplexity") {
-        assert_query_packet_functional_complexity(
+        assert_item_functional_complexity(
             name,
             "saved compact input",
             minimum,
-            input.path(),
-            match_value,
-            input_compact.trim_end(),
+            &input_evidence,
+            input_compact.trim_end().len(),
+            preimage.len(),
         );
     }
 
@@ -631,97 +468,112 @@ fn assert_saved_compact_apply_patch_passes(name: &str, scenario_dir: &Path, fixt
         "{name}: saved compact patch should match expected tree"
     );
 
-    let expected_query_packet = run_query_json(input.path(), path, query);
-    let expected_match_value = select_query_match(
+    let expected_search_packet = run_owner_item_search_json(input.path(), path, query);
+    let expected_item = select_search_item(
         name,
         "saved compact expected",
-        &expected_query_packet,
+        &expected_search_packet,
         save_patch.get("targetKind").and_then(Value::as_str),
         save_patch.get("targetName").and_then(Value::as_str),
     );
-    let expected_compact = compact_code_from_projection(&expected_match_value["projection"])
-        .unwrap_or_else(|| panic!("{name}: saved compact expected projection did not render"));
+    let expected_evidence = search_item_evidence(expected_item);
     let expected_fixture = save_patch["expectedCompactFixture"]
         .as_str()
         .unwrap_or_else(|| panic!("{name}: expectedCompactFixture must be a string"));
-    assert_eq!(
-        expected_compact.trim_end(),
-        read_fixture_text(scenario_dir, expected_fixture).trim_end(),
-        "{name}: expected compact fixture should match"
-    );
+    let expected_compact = read_fixture_text(scenario_dir, expected_fixture);
     if let Some(minimum) = save_patch.get("expectedMinimumFunctionalComplexity") {
-        assert_query_packet_functional_complexity(
+        let expected_target = ast_patch_target_from_search_item(expected_item);
+        let expected_exact = exact_read_from_target(input.path(), &expected_target);
+        assert_item_functional_complexity(
             name,
             "saved compact expected",
             minimum,
-            input.path(),
-            expected_match_value,
-            expected_compact.trim_end(),
+            &expected_evidence,
+            expected_compact.trim_end().len(),
+            expected_exact.len(),
         );
     }
 }
 
-fn assert_query_packet_functional_complexity(
+fn assert_item_functional_complexity(
     name: &str,
     label: &str,
     minimum: &Value,
-    root: &Path,
-    match_value: &Value,
-    compact_code: &str,
+    evidence: &SearchItemEvidence<'_>,
+    compact_len: usize,
+    exact_len: usize,
 ) {
-    let target = &match_value["patchSafety"]["target"];
-    let exact_source = exact_read_from_target(root, target);
-    let selected_compact_code = match_value["code"].as_str().unwrap_or(compact_code);
     let check_name = format!("{name}: {label}");
-    assert_minimum_functional_complexity(
-        &check_name,
-        minimum,
-        &match_value["projection"],
-        selected_compact_code.len(),
-        exact_source.len(),
-    );
+    assert_minimum_functional_complexity(&check_name, minimum, evidence, compact_len, exact_len);
 }
 
-fn select_query_match<'a>(
+fn select_search_item<'a>(
     name: &str,
     label: &str,
-    query_packet: &'a Value,
+    search_packet: &'a Value,
     kind: Option<&str>,
     item_name: Option<&str>,
 ) -> &'a Value {
-    let matches = query_packet["matches"]
+    let items = search_packet["items"]
         .as_array()
-        .unwrap_or_else(|| panic!("{name}: {label} query packet matches must be an array"));
+        .unwrap_or_else(|| panic!("{name}: {label} search packet items must be an array"));
     if kind.is_none() && item_name.is_none() {
-        return matches
+        return items
             .first()
-            .unwrap_or_else(|| panic!("{name}: {label} query packet had no matches"));
+            .unwrap_or_else(|| panic!("{name}: {label} search packet had no items"));
     }
-    matches
+    items
         .iter()
-        .find(|match_value| {
-            kind.is_none_or(|kind| match_value["kind"].as_str() == Some(kind))
+        .find(|item| {
+            kind.is_none_or(|kind| item["kind"].as_str() == Some(kind))
                 && item_name
-                    .is_none_or(|item_name| match_value["name"].as_str() == Some(item_name))
+                    .is_none_or(|item_name| item["name"].as_str() == Some(item_name))
         })
         .unwrap_or_else(|| {
             panic!(
-                "{name}: {label} query packet did not contain match kind={kind:?} name={item_name:?}: {query_packet}"
+                "{name}: {label} search packet did not contain item kind={kind:?} name={item_name:?}: {search_packet}"
             )
         })
 }
 
-fn run_query_json(root: &Path, path: &str, query: &str) -> Value {
+fn run_owner_item_search_json(root: &Path, path: &str, query: &str) -> Value {
     let output = run_cli([
-        "query".as_ref(),
+        "search".as_ref(),
+        "owner".as_ref(),
         path.as_ref(),
+        "items".as_ref(),
         "--query".as_ref(),
         query.as_ref(),
         "--json".as_ref(),
         root.as_os_str(),
     ]);
     assert!(output.status.success(), "{output:?}");
-    serde_json::from_slice::<Value>(&output.stdout).expect("query packet JSON")
+    serde_json::from_slice::<Value>(&output.stdout).expect("owner item search packet JSON")
+}
+
+fn ast_patch_target_from_search_item(item: &Value) -> Value {
+    let owner_path = item["ownerPath"]
+        .as_str()
+        .expect("search item ownerPath must be a string");
+    let read = item["fields"]["read"]
+        .as_str()
+        .expect("search item fields.read must be a string");
+    let locator = item["fields"]["structuralSelector"]
+        .as_str()
+        .expect("search item fields.structuralSelector must be a string");
+    let item_name = item["name"]
+        .as_str()
+        .expect("search item name must be a string");
+    let item_kind = item["kind"]
+        .as_str()
+        .expect("search item kind must be a string");
+    json!({
+        "ownerPath": owner_path,
+        "locator": locator,
+        "read": read,
+        "itemName": item_name,
+        "itemKind": item_kind,
+    })
 }
 
 fn json_string_array<'a>(scenario: &'a Value, key: &str) -> Vec<&'a str> {

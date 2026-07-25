@@ -51,7 +51,7 @@ fn render_header_only(rendered: &str) -> String {
 }
 
 fn render_search_both_view(rendered: &str) -> String {
-    blocks::render_blocks(blocks::compact_package_blocks(blocks::parse_blocks(
+    blocks::render_blocks(blocks::render_terse_package_blocks(blocks::parse_blocks(
         rendered,
     )))
 }
@@ -80,18 +80,18 @@ fn render_search_seed_view(rendered: &str, seed_limit: Option<usize>) -> String 
     let has_positive_header = headers
         .iter()
         .any(|header| header_has_positive_count(header));
-    let mut compact = String::new();
-    for header in compact_package_headers(headers.clone()) {
-        compact.push_str(&header);
-        compact.push('\n');
+    let mut terse = String::new();
+    for header in render_terse_package_headers(headers.clone()) {
+        terse.push_str(&header);
+        terse.push('\n');
     }
     for fact in facts {
-        compact.push_str(&fact);
-        compact.push('\n');
+        terse.push_str(&fact);
+        terse.push('\n');
     }
-    for line in compact_seed_lines(bounded_seeds(seeds, seed_limit)) {
-        compact.push_str(&line);
-        compact.push('\n');
+    for line in render_terse_seed_lines(bounded_seeds(seeds, seed_limit)) {
+        terse.push_str(&line);
+        terse.push('\n');
     }
     let notes = if has_positive_header {
         notes
@@ -102,10 +102,10 @@ fn render_search_seed_view(rendered: &str, seed_limit: Option<usize>) -> String 
         notes
     };
     for note in notes.into_iter().take(1) {
-        compact.push_str(&note);
-        compact.push('\n');
+        terse.push_str(&note);
+        terse.push('\n');
     }
-    compact
+    terse
 }
 
 fn seed_priority(seed: &str) -> usize {
@@ -218,7 +218,7 @@ struct PackageHeaderGroup {
     packages: Vec<String>,
 }
 
-fn compact_package_headers(headers: Vec<String>) -> Vec<String> {
+fn render_terse_package_headers(headers: Vec<String>) -> Vec<String> {
     let mut entries = Vec::<HeaderEntry>::new();
     let mut package_group_indices = BTreeMap::<(String, String), usize>::new();
     for header in headers {
@@ -284,7 +284,7 @@ enum SeedLine {
     Group { kind: String, targets: Vec<String> },
 }
 
-fn compact_seed_lines(seeds: Vec<String>) -> Vec<String> {
+fn render_terse_seed_lines(seeds: Vec<String>) -> Vec<String> {
     let mut entries = Vec::<SeedLine>::new();
     let mut seed_group_indices = BTreeMap::<String, usize>::new();
     for seed in seeds {

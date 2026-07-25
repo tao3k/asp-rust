@@ -3,32 +3,32 @@
 use std::collections::BTreeMap;
 
 #[must_use]
-pub(crate) fn compact_search_packet(rendered: &str) -> String {
-    let lines = compact_edge_blocks(compact_cfg_rows(rendered));
+pub(crate) fn render_terse_search_packet(rendered: &str) -> String {
+    let lines = render_terse_edge_blocks(render_terse_cfg_rows(rendered));
     if lines.is_empty() {
         String::new()
     } else {
-        let mut compact = lines.join("\n");
-        compact.push('\n');
-        compact
+        let mut terse = lines.join("\n");
+        terse.push('\n');
+        terse
     }
 }
 
-fn compact_cfg_rows(rendered: &str) -> Vec<String> {
+fn render_terse_cfg_rows(rendered: &str) -> Vec<String> {
     rendered
         .lines()
         .map(ToOwned::to_owned)
-        .fold(CfgCompactState::default(), CfgCompactState::push_line)
+        .fold(TerseCfgProjection::default(), TerseCfgProjection::push_line)
         .finish()
 }
 
 #[derive(Default)]
-struct CfgCompactState {
+struct TerseCfgProjection {
     rendered: Vec<String>,
     cfg_features: Vec<String>,
 }
 
-impl CfgCompactState {
+impl TerseCfgProjection {
     fn push_line(mut self, line: String) -> Self {
         if let Some(feature) = cfg_feature_token(&line) {
             if !self.cfg_features.contains(&feature) {
@@ -47,7 +47,7 @@ impl CfgCompactState {
     }
 
     fn flush_cfg_group(&mut self) {
-        if let Some(line) = compact_cfg_feature_line(&self.cfg_features) {
+        if let Some(line) = render_terse_cfg_feature_line(&self.cfg_features) {
             self.rendered.push(line);
         } else {
             self.rendered.extend(
@@ -60,7 +60,7 @@ impl CfgCompactState {
     }
 }
 
-fn compact_edge_blocks(lines: Vec<String>) -> Vec<String> {
+fn render_terse_edge_blocks(lines: Vec<String>) -> Vec<String> {
     lines
         .into_iter()
         .fold(
@@ -72,7 +72,7 @@ fn compact_edge_blocks(lines: Vec<String>) -> Vec<String> {
 
 #[derive(Default)]
 struct EdgeBlockAccumulator {
-    compact: Vec<String>,
+    rendered: Vec<String>,
     block: Vec<String>,
 }
 
@@ -82,23 +82,23 @@ impl EdgeBlockAccumulator {
             self.block.push(line);
         } else {
             self.flush_block();
-            self.compact.push(line);
+            self.rendered.push(line);
         }
         self
     }
 
     fn finish(mut self) -> Vec<String> {
         self.flush_block();
-        self.compact
+        self.rendered
     }
 
     fn flush_block(&mut self) {
-        self.compact
-            .extend(compact_edge_block(std::mem::take(&mut self.block)));
+        self.rendered
+            .extend(render_terse_edge_block(std::mem::take(&mut self.block)));
     }
 }
 
-fn compact_edge_block(lines: Vec<String>) -> Vec<String> {
+fn render_terse_edge_block(lines: Vec<String>) -> Vec<String> {
     if lines.len() < 3 {
         return lines;
     }
@@ -109,23 +109,23 @@ fn compact_edge_block(lines: Vec<String>) -> Vec<String> {
     let mut replacements = vec![None::<String>; lines.len()];
     let mut removed = vec![false; lines.len()];
     for group in groups {
-        let Some(compact_right) = compact_path_collection(&group.rights) else {
+        let Some(terse_right) = render_terse_path_collection(&group.rights) else {
             continue;
         };
-        let compact = format!("|edge {} {} {compact_right}", group.left, group.relation);
+        let terse = format!("|edge {} {} {terse_right}", group.left, group.relation);
         let expanded_len = group
             .rights
             .iter()
             .map(|right| format!("|edge {} {} {right}", group.left, group.relation).len())
             .sum::<usize>()
             + group.rights.len().saturating_sub(1);
-        if compact.len() >= expanded_len {
+        if terse.len() >= expanded_len {
             continue;
         }
         let Some(index) = group.indices.first().copied() else {
             continue;
         };
-        replacements[index] = Some(compact);
+        replacements[index] = Some(terse);
         for index in group.indices.into_iter().skip(1) {
             removed[index] = true;
         }
@@ -174,29 +174,29 @@ struct EdgeBlockGroup {
 fn cfg_feature_token(line: &str) -> Option<String> {
     let rest = line.strip_prefix("|cfg feature:")?;
     let (feature, next) = rest.split_once(' ')?;
-    (cfg_feature_token_is_compactable(feature) && next == format!("next=cfg:feature:{feature}"))
+    (cfg_feature_token_is_terse_safe(feature) && next == format!("next=cfg:feature:{feature}"))
         .then(|| feature.to_string())
 }
 
-fn cfg_feature_token_is_compactable(feature: &str) -> bool {
+fn cfg_feature_token_is_terse_safe(feature: &str) -> bool {
     !feature.is_empty()
         && feature
             .chars()
             .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
 }
 
-fn compact_cfg_feature_line(features: &[String]) -> Option<String> {
+fn render_terse_cfg_feature_line(features: &[String]) -> Option<String> {
     if features.len() < 2 {
         return None;
     }
     let joined = features.join(",");
-    let compact = format!("|cfg feature:{{{joined}}} next=cfg:feature:{{{joined}}}");
+    let terse = format!("|cfg feature:{{{joined}}} next=cfg:feature:{{{joined}}}");
     let expanded_len = features
         .iter()
         .map(|feature| format!("|cfg feature:{feature} next=cfg:feature:{feature}").len())
         .sum::<usize>()
         + features.len().saturating_sub(1);
-    (compact.len() < expanded_len).then_some(compact)
+    (terse.len() < expanded_len).then_some(terse)
 }
 
 fn edge_parts(line: &str) -> Option<(String, String, String)> {
@@ -209,7 +209,7 @@ fn edge_parts(line: &str) -> Option<(String, String, String)> {
     Some((left.to_string(), relation.to_string(), right.to_string()))
 }
 
-fn compact_path_collection(values: &[String]) -> Option<String> {
+fn render_terse_path_collection(values: &[String]) -> Option<String> {
     if values.len() < 3 {
         return None;
     }

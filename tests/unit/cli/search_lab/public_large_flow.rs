@@ -40,7 +40,7 @@ fn public_large_tokio_bytes_flow_connects_prime_to_dependency_api_and_docs_axes(
     assert_lab_packet(
         "public_tokio_bytes_prime_seeds",
         &prime_seeds,
-        9,
+        10,
         &[
             "[search-prime] root=.",
             "F=feature:feature(io-util)!features",
@@ -172,8 +172,8 @@ fn public_large_codex_web_search_flow_connects_prime_to_workspace_symbol_axes() 
         10,
         &[
             "[search-prime] root=ext/web-search",
-            "O=owner:path(src/tool.rs)!owner",
-            "frontier ID.next",
+            "owner:path(src/tool.rs)!owner",
+            "aliases: owner:{O=owner}",
             "entries=owner-tests",
         ],
         FORBIDDEN_FLOW_PATTERNS,
@@ -351,8 +351,8 @@ fn public_large_codex_web_search_flow_connects_prime_to_workspace_symbol_axes() 
         13,
         &[
             "O=owner:path(ext/web-search/src/tool.rs)!owner",
-            "G>{O:selects}",
-            "rank=O frontier=O.owner",
+            "G>{O:selects,I:matches",
+            "rank=I,I2,I3,O frontier=I.syntax,I2.syntax,I3.syntax",
         ],
         FORBIDDEN_FLOW_PATTERNS,
     );

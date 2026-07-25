@@ -165,15 +165,96 @@ pub(super) fn render_item_locator_line_with_read(
     item: &RustTopLevelItemSyntax,
 ) -> String {
     let read_path = display_project_path(package_root, path);
-    format!(
-        "{} read={}:{}:{} syn={} tsqRef={}",
-        render_item_core_line(item),
-        read_path,
+    let symbol = item_display_name(item).replace(char::is_whitespace, "-");
+    let kind = canonical_rust_item_kind(item.kind);
+    let mut identity =
+        agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+            "rust",
+            kind,
+            symbol.as_str(),
+        );
+    if let Some(implementation_owner) = item.impl_target_name.as_deref() {
+        identity = identity.with_scope("implementation-owner", "type", implementation_owner);
+    }
+    if let Some(trait_owner) = item.trait_owner_name.as_deref() {
+        identity = identity.with_scope("trait-owner", "trait", trait_owner);
+    }
+    for predicate in &item.cfg_predicates {
+        identity = identity.with_scope("conditional-compilation", "cfg", predicate.as_str());
+    }
+    render_canonical_item_locator_line(
+        read_path.as_str(),
+        item.kind,
         item.line,
         item.end_line,
-        syntax_atom_for_kind(item.kind),
+        &identity,
+        render_item_core_line(item),
+    )
+}
+
+pub(super) fn render_projection_item_locator_line_with_read(
+    package_root: &Path,
+    path: &Path,
+    item: &crate::parser::native_syntax::item_projection::RustItemProjectionNodeSyntax,
+) -> Option<String> {
+    let identity = item.canonical_item_identity.as_ref()?;
+    let read_path = display_project_path(package_root, path);
+    let symbol = identity.symbol.as_str();
+    let identity_kind = identity.kind.as_str();
+    Some(render_canonical_item_locator_line(
+        read_path.as_str(),
+        item.kind,
+        item.line,
+        item.end_line,
+        identity,
+        format!(
+            "|item {} kind={} next=syntax:{}",
+            symbol, identity_kind, symbol
+        ),
+    ))
+}
+
+fn render_canonical_item_locator_line(
+    read_path: &str,
+    kind: &str,
+    line: usize,
+    end_line: usize,
+    identity: &agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    core_line: String,
+) -> String {
+    let structural_selector = format!(
+        "rust://{read_path}#{}",
+        agent_semantic_content_identity::structural_selector::encode_canonical_item_identity_path(
+            identity
+        )
+    );
+    let canonical_item_selector =
+        agent_semantic_content_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
+            identity.clone(),
+            &structural_selector,
+        );
+    let canonical_item_selector = serde_json::to_string(&canonical_item_selector)
+        .expect("canonical Rust item selector must serialize");
+    format!(
+        "{} read={}:{}:{} structuralSelector={} canonicalItemSelector={} syn={} tsqRef={}",
+        core_line,
+        read_path,
+        line,
+        end_line,
+        structural_selector,
+        canonical_item_selector,
+        syntax_atom_for_kind(kind),
         RUST_OWNER_ITEMS_QUERY_REF
     )
+}
+
+pub(crate) fn canonical_rust_item_kind(kind: &str) -> &str {
+    match kind {
+        "fn" => "function",
+        "mod" => "module",
+        "use" | "import" => "reexport",
+        other => other,
+    }
 }
 
 pub(super) fn render_public_api_line(

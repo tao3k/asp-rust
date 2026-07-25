@@ -1,12 +1,11 @@
 use tempfile::TempDir;
 
 use crate::cli::support::{
-    normalize_temp_root, run_cli, write_clean_source, write_complex_dependency_fixture,
-    write_manifest,
+    run_cli, write_clean_source, write_complex_dependency_fixture, write_manifest,
 };
 
 #[test]
-fn cli_query_terms_require_asp_lexical_workspace_search() {
+fn cli_query_terms_require_parser_owned_owner_search() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_complex_dependency_fixture(root);
@@ -23,21 +22,16 @@ fn cli_query_terms_require_asp_lexical_workspace_search() {
         root.as_os_str(),
     ]);
     assert!(!output.status.success(), "{output:?}");
-    let stderr = normalize_temp_root(
-        &String::from_utf8(output.stderr).expect("utf8 stderr"),
-        root,
-    );
+    let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
     assert!(
-        stderr.contains(
-            "query workspace term discovery for `RuntimeClient send_bytes` is hook-managed"
-        ),
+        stderr.contains("rust query requires an exact --selector"),
         "{stderr}"
     );
-    assert!(!stderr.contains("asp rust search lexical"), "{stderr}");
+    assert!(stderr.contains("asp rust search owner"), "{stderr}");
 }
 
 #[test]
-fn cli_query_broad_glob_selector_routes_to_prime_seeds() {
+fn cli_query_broad_glob_selector_is_rejected() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_manifest(root, "cli-query-glob");
@@ -50,25 +44,11 @@ fn cli_query_broad_glob_selector_routes_to_prime_seeds() {
         "**/*.rs".as_ref(),
         root.as_os_str(),
     ]);
-    assert!(output.status.success(), "{output:?}");
-    let stdout = normalize_temp_root(
-        &String::from_utf8(output.stdout).expect("utf8 stdout"),
-        root,
-    );
+    assert!(!output.status.success(), "{output:?}");
+    let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
     assert!(
-        stdout.starts_with("[search-prime] root=. alg=budgeted-prime-frontier-v1"),
-        "{stdout}"
+        stderr.contains("rust query requires an exact --selector"),
+        "{stderr}"
     );
-    assert!(
-        stdout.contains("O=owner:path(src/lib.rs)!owner"),
-        "{stdout}"
-    );
-    assert!(!stdout.contains("G>{O:selects}"), "{stdout}");
-    assert!(!stdout.contains("rank=O frontier=O.owner"), "{stdout}");
-    assert!(stdout.contains("frontier ID.next"), "{stdout}");
-    assert!(
-        stdout.contains("entries=owner-tests(O=>covering-tests+test-entrypoints+fixtures)"),
-        "{stdout}"
-    );
-    assert!(!stdout.contains("|seed "), "{stdout}");
+    assert!(stderr.contains("asp rust search owner"), "{stderr}");
 }

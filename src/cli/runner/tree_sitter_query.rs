@@ -87,17 +87,43 @@ pub(super) fn run_tree_sitter_query(options: TreeSitterQuery) -> Result<ExitCode
                 agent_semantic_content_identity::exact_selector_merkle::parse_content_digest_v1(
                     query_pack_digest,
                 )?;
+            let packet_language_id =
+                agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketLanguageIdV1::from(
+                    "rust",
+                );
+            let packet_provider_id =
+                agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketProviderIdV1::from(
+                    provider_id,
+                );
+            let packet_owner_path =
+                agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketOwnerPathV1::from(
+                    owner_path,
+                );
+            let packet_structural_selector =
+                agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketStructuralSelectorV1::from(
+                    selector,
+                );
             let packet = agent_semantic_content_identity::exact_selector_projection_packet::build_exact_selector_projection_packet_v1(
-                "rust",
-                provider_id,
-                &parser_identity_digest,
-                &query_pack_digest,
-                owner_path,
-                selector,
-                agent_semantic_content_identity::exact_selector_merkle::ExactProjectionModeV1::Code,
-                parsed.source.as_bytes(),
-                &normalized_parser_facts,
-                rendered.as_bytes(),
+                agent_semantic_content_identity::exact_selector_projection_packet::ExactSelectorProjectionPacketV1Input {
+                    language_id: &packet_language_id,
+                    provider_id: &packet_provider_id,
+                    canonical_item_selector: agent_semantic_content_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
+                        agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+                            "rust",
+                            "syntax-query",
+                            selector,
+                        ),
+                        selector,
+                    ),
+                    parser_identity_digest: &parser_identity_digest,
+                    query_pack_digest: &query_pack_digest,
+                    owner_path: &packet_owner_path,
+                    structural_selector: &packet_structural_selector,
+                    projection_mode: agent_semantic_content_identity::exact_selector_merkle::ExactProjectionModeV1::Code,
+                    source: parsed.source.as_bytes(),
+                    normalized_parser_facts: &normalized_parser_facts,
+                    projection: rendered.as_bytes(),
+                },
             );
             println!(
                 "{}",

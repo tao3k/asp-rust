@@ -38,16 +38,30 @@ pub(in crate::cli) struct SemanticSearchJsonOptions {
     pub(in crate::cli) query_set: Vec<String>,
 }
 
+pub(in crate::cli) fn build_search_packet(
+    project_root: &Path,
+    options: &SemanticSearchJsonOptions,
+    rendered: &str,
+) -> Result<agent_semantic_search_projection::SemanticSearchPacketV1, String> {
+    agent_semantic_search_projection::SemanticSearchPacketV1::from_value(build_search_packet_value(
+        project_root,
+        options,
+        rendered,
+    ))
+    .map_err(|error| format!("failed to build semantic search packet: {error}"))
+}
+
 pub(in crate::cli) fn render_search_json(
     project_root: &Path,
     options: &SemanticSearchJsonOptions,
     rendered: &str,
 ) -> Result<String, String> {
-    let packet = build_search_packet(project_root, options, rendered);
-    serde_json::to_string(&packet).map_err(|error| format!("failed to render search JSON: {error}"))
+    let packet = build_search_packet(project_root, options, rendered)?;
+    serde_json::to_string(packet.as_value())
+        .map_err(|error| format!("failed to render search JSON: {error}"))
 }
 
-pub(super) fn build_search_packet(
+fn build_search_packet_value(
     project_root: &Path,
     options: &SemanticSearchJsonOptions,
     rendered: &str,

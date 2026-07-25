@@ -44,7 +44,7 @@ pub(super) fn parse_blocks(rendered: &str) -> Vec<SearchBlock> {
     blocks
 }
 
-pub(super) fn compact_package_blocks(blocks: Vec<SearchBlock>) -> Vec<SearchBlock> {
+pub(super) fn render_terse_package_blocks(blocks: Vec<SearchBlock>) -> Vec<SearchBlock> {
     let mut entries = Vec::<BlockEntry>::new();
     for block in blocks {
         let Some(parts) = package_header_parts(&block.header) else {

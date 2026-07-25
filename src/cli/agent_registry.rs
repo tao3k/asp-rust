@@ -119,7 +119,7 @@ fn agent_registry_json(project_root: &Path) -> Value {
             "evidence/graph".to_string(),
             "proof/pilot".to_string(),
             "query".to_string(),
-            "query/direct-source-read".to_string(),
+            "query/exact-selector".to_string(),
             "query/owner-items".to_string(),
             "review/packet".to_string(),
             "verification/performance-index".to_string(),
@@ -184,14 +184,12 @@ fn agent_registry_json(project_root: &Path) -> Value {
         json!({
             "cacheReplay": true,
             "command": "query",
-            "input": "owner-path",
-            "method": "query/direct-source-read",
+            "method": "query/exact-selector",
             "adapterModes": ["native-projection"],
             "executionBackends": ["native-parser"],
-            "outputModes": ["frontier", "json", "code", "names", "read-packet"],
+            "outputModes": ["frontier", "json", "code", "names"],
             "outputSchemaIds": [
-                "agent.semantic-protocols.semantic-query-packet",
-                "agent.semantic-protocols.semantic-read-packet"
+                "agent.semantic-protocols.semantic-query-packet"
             ],
             "packetSchemas": [
                 "semantic-query-packet.v1",
@@ -199,7 +197,7 @@ fn agent_registry_json(project_root: &Path) -> Value {
             ],
             "queryInputForms": ["selector"],
             "renderProfiles": ["corpus-locator"],
-            "requiredOptions": ["--from-hook", "--selector"],
+            "requiredOptions": ["--selector"],
             "sourceAuthorities": ["native-parser"],
             "unsupportedPatternBehavior": "diagnostic",
             "codeOutput": { "mode": "pure-code", "multiMatch": "deny", "requires": ["exact-selector"] },
@@ -381,14 +379,14 @@ fn method_invocation(descriptor: &Value) -> Value {
                 "--workspace".to_string(),
                 "{workspace}".to_string(),
             ]),
-            "query/direct-source-read" => argv.extend([
+            "query/exact-selector" => argv.extend([
                 "query".to_string(),
-                "--from-hook".to_string(),
-                "direct-source-read".to_string(),
                 "--selector".to_string(),
-                "{selector}".to_string(),
+                "{owner}".to_string(),
                 "--workspace".to_string(),
                 "{workspace}".to_string(),
+                "--view".to_string(),
+                "seeds".to_string(),
             ]),
             _ => {
                 argv.push(command.to_string());

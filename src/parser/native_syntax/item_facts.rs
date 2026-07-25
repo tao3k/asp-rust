@@ -25,6 +25,7 @@ pub(super) fn top_level_item_syntax(
         kind: item_kind(item),
         name: item_name(item),
         impl_target_name: impl_target_name_syntax(item),
+        trait_owner_name: trait_owner_name_syntax(item),
         has_doc: item_attrs(item)
             .iter()
             .any(|attr| attr.path().is_ident("doc")),
@@ -42,6 +43,18 @@ pub(super) fn top_level_item_syntax(
         macro_body_is_facade_boundary: macro_body_is_facade_boundary_syntax(item),
         include_target: include_target_syntax(item),
         module: module_declaration_syntax(item, source_file),
+        cfg_predicates: item_attrs(item)
+            .iter()
+            .filter_map(|attribute| {
+                if !attribute.path().is_ident("cfg") {
+                    return None;
+                }
+                let syn::Meta::List(meta) = &attribute.meta else {
+                    return None;
+                };
+                Some(quote::ToTokens::to_token_stream(&meta.tokens).to_string())
+            })
+            .collect(),
         projection_responsibilities: item_projection_responsibilities(item),
         projection_nodes: item_projection_nodes(item),
     }
@@ -71,6 +84,17 @@ fn impl_target_name_syntax(item: &syn::Item) -> Option<String> {
     type_terminal_name(&item_impl.self_ty)
 }
 
+fn trait_owner_name_syntax(item: &syn::Item) -> Option<String> {
+    let syn::Item::Impl(item_impl) = item else {
+        return None;
+    };
+    item_impl.trait_.as_ref().map(|(_, path, _)| {
+        quote::ToTokens::to_token_stream(path)
+            .to_string()
+            .replace(' ', "")
+    })
+}
+
 fn type_terminal_name(ty: &syn::Type) -> Option<String> {
     match ty {
         syn::Type::Path(path) => path
@@ -91,6 +115,7 @@ fn item_attrs(item: &syn::Item) -> &[syn::Attribute] {
         syn::Item::Enum(item) => &item.attrs,
         syn::Item::ExternCrate(item) => &item.attrs,
         syn::Item::Fn(item) => &item.attrs,
+        syn::Item::Impl(item) => &item.attrs,
         syn::Item::Macro(item) => &item.attrs,
         syn::Item::Mod(item) => &item.attrs,
         syn::Item::Static(item) => &item.attrs,

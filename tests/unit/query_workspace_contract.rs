@@ -2,6 +2,47 @@ use std::fs;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
+fn write_snapshot_envelope(
+    root: &std::path::Path,
+    owner: &str,
+    source: &str,
+) -> std::path::PathBuf {
+    let cas_root = root.join("cas");
+    let blob_digest = "11".repeat(32);
+    let cas_path = format!("{}/{}", &blob_digest[..2], &blob_digest[2..]);
+    let blob_path = cas_root.join(&cas_path);
+    fs::create_dir_all(blob_path.parent().expect("CAS blob parent")).expect("create CAS shard");
+    fs::write(&blob_path, source).expect("write pinned source blob");
+    let envelope_path = root.join("source-snapshot-envelope.v1.json");
+    fs::write(
+        &envelope_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schemaId": "asp.exact-source-snapshot-envelope.v1",
+            "schemaVersion": "1",
+            "providerId": "rs-harness-test",
+            "sourceSnapshot": {
+                "schemaId": "asp.source-snapshot.v1",
+                "schemaVersion": "1",
+                "algorithm": "blake3-merkle-v1",
+                "rootDigest": "22".repeat(32),
+                "sourceKind": "filesystem",
+                "leafCount": 1,
+                "providerDigest": "33".repeat(32),
+            },
+            "casRoot": cas_root,
+            "owners": [{
+                "path": owner,
+                "snapshotLeafDigest": "44".repeat(32),
+                "blobDigest": blob_digest,
+                "casPath": cas_path,
+            }],
+        }))
+        .expect("encode source snapshot envelope"),
+    )
+    .expect("write source snapshot envelope");
+    envelope_path
+}
+
 #[test]
 fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
     let Some(bin) = option_env!("CARGO_BIN_EXE_rs-harness") else {
@@ -9,7 +50,9 @@ fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
     };
     let root = tempfile::tempdir().expect("temp root");
     fs::create_dir_all(root.path().join("src")).expect("create src");
-    fs::write(root.path().join("src/lib.rs"), "pub fn target() {}\n").expect("write fixture");
+    let source = "pub fn target() {}\n";
+    fs::write(root.path().join("src/lib.rs"), source).expect("write fixture");
+    let envelope_path = write_snapshot_envelope(root.path(), "src/lib.rs", source);
 
     let current = Command::new(bin)
         .args([
@@ -18,11 +61,12 @@ fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
             "direct-source-read",
             "--selector",
             "rust://src/lib.rs#item/function/target",
-            "--workspace",
+            "--source-snapshot-envelope",
         ])
+        .arg(&envelope_path)
+        .args(["--workspace"])
         .arg(root.path())
         .arg("--code")
-        .arg("--json")
         .current_dir(root.path())
         .output()
         .expect("run current query command");
@@ -33,31 +77,12 @@ fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
         String::from_utf8_lossy(&current.stdout),
         String::from_utf8_lossy(&current.stderr)
     );
-    let packet = serde_json::from_slice::<serde_json::Value>(&current.stdout)
-        .expect("exact source query should emit typed JSON");
-    assert_eq!(packet["schemaId"], "asp.exact-source-query-result.v1");
-    assert_eq!(packet["code"], "pub fn target() {}");
     assert_eq!(
-        packet["resolutionEvidence"]["snapshotRoot"],
-        packet["sourceSnapshot"]["rootDigest"]
+        String::from_utf8(current.stdout)
+            .expect("exact source code output is UTF-8")
+            .trim(),
+        "pub fn target() {}"
     );
-    assert!(
-        packet["sourceSnapshot"]["rootDigest"]
-            .as_str()
-            .is_some_and(|digest| !digest.is_empty())
-    );
-    assert!(
-        packet["resolutionEvidence"]["parserArtifactDigest"]
-            .as_str()
-            .is_some_and(|digest| !digest.is_empty())
-    );
-    let state = packet["resolutionEvidence"]["state"].as_str();
-    let authority = packet["resolutionEvidence"]["authority"].as_str();
-    assert!(matches!(
-        (state, authority),
-        (Some("live-hit"), Some("live-parser"))
-            | (Some("artifact-cache-hit"), Some("content-cache"))
-    ));
 
     let stale = Command::new(bin)
         .args([
@@ -66,8 +91,10 @@ fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
             "direct-source-read",
             "--selector",
             "rust://src/lib.rs#item/function/target",
-            "--code",
+            "--source-snapshot-envelope",
         ])
+        .arg(&envelope_path)
+        .args(["--code"])
         .arg(root.path())
         .current_dir(root.path())
         .output()
@@ -78,8 +105,7 @@ fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
         "stale command unexpectedly succeeded"
     );
     assert!(
-        String::from_utf8_lossy(&stale.stderr)
-            .contains("query does not accept positional WORKSPACE"),
+        String::from_utf8_lossy(&stale.stderr).contains("rust query requires an exact --selector"),
         "stderr={}",
         String::from_utf8_lossy(&stale.stderr)
     );

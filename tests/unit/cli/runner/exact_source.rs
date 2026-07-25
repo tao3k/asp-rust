@@ -155,6 +155,77 @@ fn stale_exact_selector_reports_sorted_ambiguity() {
 }
 
 #[test]
+fn cfg_scoped_exact_selectors_resolve_same_name_variants_without_ambiguity() {
+    let (root, pinned) = pinned_workspace_with_sources(
+        "cfg-scoped",
+        &[(
+            "src/lib.rs",
+            "#[cfg(feature = \"json\")]\n\
+             fn run_search_view() {}\n\
+             #[cfg(not(feature = \"json\"))]\n\
+             fn run_search_view() {}\n",
+        )],
+    );
+    let enabled_selector = "rust://src/lib.rs#item/function/run_search_view/scope/conditional-compilation/cfg/feature%20%3D%20%22json%22";
+    let disabled_selector = "rust://src/lib.rs#item/function/run_search_view/scope/conditional-compilation/cfg/not%20%28feature%20%3D%20%22json%22%29";
+
+    for selector in [enabled_selector, disabled_selector] {
+        let selector = ExactSelector::parse(selector).expect("cfg selector parses");
+        let resolved = super::resolve_live_item(&pinned, &selector)
+            .expect("resolve succeeds")
+            .expect("cfg variant exists");
+        assert_eq!(
+            resolved.canonical_selector.structural_selector,
+            if selector.scopes[0].symbol.as_str().starts_with("not") {
+                disabled_selector
+            } else {
+                enabled_selector
+            }
+        );
+    }
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn impl_and_same_name_methods_require_canonical_owner_scopes() {
+    let (root, pinned) = pinned_workspace_with_sources(
+        "impl-method-owner-scopes",
+        &[(
+            "src/lib.rs",
+            "struct CliOptions;\n\
+             impl CliOptions { fn parse() {} }\n\
+             struct OtherOptions;\n\
+             impl OtherOptions { fn parse() {} }\n",
+        )],
+    );
+    let cli_impl =
+        "rust://src/lib.rs#item/impl/CliOptions/scope/implementation-owner/type/CliOptions";
+    let cli_parse =
+        "rust://src/lib.rs#item/method/parse/scope/implementation-owner/type/CliOptions";
+    let other_parse =
+        "rust://src/lib.rs#item/method/parse/scope/implementation-owner/type/OtherOptions";
+
+    for structural_selector in [cli_impl, cli_parse, other_parse] {
+        let selector =
+            ExactSelector::parse(structural_selector).expect("canonical selector parses");
+        let resolved = super::resolve_live_item(&pinned, &selector)
+            .expect("canonical selector resolution succeeds")
+            .expect("canonical owner-scoped item exists");
+        assert_eq!(
+            resolved.canonical_selector.structural_selector,
+            structural_selector
+        );
+    }
+
+    let unscoped = ExactSelector::parse("rust://src/lib.rs#item/method/parse")
+        .expect("unscoped method selector parses");
+    let error = super::resolve_live_item(&pinned, &unscoped)
+        .expect_err("two parse methods require an implementation owner scope");
+    assert!(error.contains("scopeRelaxedMatches=2"), "{error}");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn stale_exact_selector_distinguishes_kind_mismatch_from_absence() {
     let (root, pinned) = pinned_workspace_with_sources(
         "kind-mismatch",
@@ -179,15 +250,75 @@ fn stale_exact_selector_distinguishes_kind_mismatch_from_absence() {
 }
 
 #[test]
+fn item_missing_reports_owner_local_diagnostic_candidates() {
+    let (root, pinned) = pinned_workspace_with_sources(
+        "owner-local-diagnostics",
+        &[(
+            "src/document/org_elements.rs",
+            "pub struct OtherElement;\npub enum DocumentKind { Inline }\n",
+        )],
+    );
+    let selector =
+        ExactSelector::parse("rust://src/document/org_elements.rs#item/struct/DocumentElement")
+            .expect("selector parses");
+    assert!(
+        super::resolve_live_item(&pinned, &selector)
+            .expect("probe requested owner")
+            .is_none(),
+        "requested item must be missing from an otherwise live owner"
+    );
+
+    let source = pinned
+        .sources
+        .get("src/document/org_elements.rs")
+        .expect("owner is live");
+    let (candidates, actual_kinds) =
+        super::owner_live_item_diagnostics(source, "src/document/org_elements.rs", &selector);
+
+    assert!(actual_kinds.is_empty());
+    assert!(
+        candidates
+            .iter()
+            .any(|candidate| candidate.contains("OtherElement")),
+        "owner-local inventory must give the caller a recovery candidate, got {candidates:?}"
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn unscoped_unique_method_selector_reconciles_to_scoped_owner_item() {
+    let (root, pinned) = pinned_workspace_with_sources(
+        "method-scope-reconcile",
+        &[(
+            "src/cli/runner/exact_source.rs",
+            "struct PinnedWorkspace;\nimpl PinnedWorkspace { fn load() {} }\n",
+        )],
+    );
+    let selector = ExactSelector::parse("rust://src/cli/runner/exact_source.rs#item/method/load")
+        .expect("selector parses");
+    let resolved = super::resolve_live_item(&pinned, &selector)
+        .expect("resolve succeeds")
+        .expect("unique scoped method is reconciled");
+
+    assert_eq!(resolved.identity.symbol.as_str(), "load");
+    assert!(
+        resolved
+            .canonical_selector
+            .structural_selector
+            .contains("/scope/implementation-owner/type/PinnedWorkspace"),
+        "resolved selector must preserve canonical implementation owner scope"
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn inline_module_items_are_resolved_by_the_live_parser() {
     let source = "mod options { pub struct AgentOptions; }";
     let syntax = crate::parser::parse_rust_source_syntax(source).expect("parse inline module");
     let mut items = Vec::new();
     super::collect_parse_artifact_items(source, &syntax.items, &mut items);
 
-    assert!(
-        items
-            .iter()
-            .any(|item| item.kind == "struct" && item.name == "AgentOptions")
-    );
+    assert!(items.iter().any(|item| {
+        item.identity.kind.as_str() == "struct" && item.identity.symbol.as_str() == "AgentOptions"
+    }));
 }

@@ -208,7 +208,15 @@ fn render_item_lines(
             line.push_str(&parser_nodes);
         }
     }
-    vec![line]
+    let mut lines = vec![line];
+    lines.extend(item.projection_nodes.iter().filter_map(|node| {
+        super::format::render_projection_item_locator_line_with_read(
+            package_root,
+            &module.report.path,
+            node,
+        )
+    }));
+    lines
 }
 
 fn item_source_slice(module: &ParsedRustModule, item: &RustTopLevelItemSyntax) -> Option<String> {
@@ -614,6 +622,7 @@ fn item_matches_query_exact(item: &RustTopLevelItemSyntax, query: &str) -> bool 
         .into_iter()
         .flatten()
         .any(|candidate| candidate == query)
+        || item_projection_symbols(item).any(|candidate| candidate == query)
 }
 
 fn item_matches_query_fuzzy(item: &RustTopLevelItemSyntax, query: &str) -> bool {
@@ -621,6 +630,15 @@ fn item_matches_query_fuzzy(item: &RustTopLevelItemSyntax, query: &str) -> bool 
         .into_iter()
         .flatten()
         .any(|candidate| candidate.contains(query))
+        || item_projection_symbols(item).any(|candidate| candidate.contains(query))
+}
+
+fn item_projection_symbols(item: &RustTopLevelItemSyntax) -> impl Iterator<Item = &str> {
+    item.projection_nodes.iter().filter_map(|node| {
+        node.canonical_item_identity
+            .as_ref()
+            .map(|identity| identity.symbol.as_str())
+    })
 }
 
 fn item_query_candidates(item: &RustTopLevelItemSyntax) -> [Option<&str>; 6] {

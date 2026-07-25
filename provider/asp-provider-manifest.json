@@ -48,7 +48,7 @@
       "exactSelectorResolution": "pinned-live-module-graph",
       "overlayMode": "merkle-delta"
     },
-    "ownerItems": false,
+    "ownerItems": true,
     "semanticFacts": true,
     "dependencyTopology": true,
     "dependencyTopologyMetadata": true,
@@ -182,7 +182,7 @@
     "prime": "search/prime",
     "owner": "search/owner",
     "lexical": "search/lexical",
-    "query": "query/direct-source-read",
+    "query": "query/exact-selector",
     "ingest": "search/ingest",
     "checkChanged": "check/changed",
     "guide": "guide"

@@ -341,10 +341,20 @@ fn cli_rust_flow_drill_reduces_search_rounds_with_seeds_and_recipe_plan() {
         "{seeds}"
     );
     assert!(seeds.contains("T=test:path(.)!tests"), "{seeds}");
-    assert!(seeds.contains("rank=D,T,O,D2,I"), "{seeds}");
-    assert!(seeds.contains("I2=item:symbol(Thing)!syntax"), "{seeds}");
+    assert!(seeds.contains("U=doc-use:path(serde)!docs-use"), "{seeds}");
     assert!(
-        seeds.contains("frontier=D.dependency,T.tests,O.owner,D2.deps,I.import"),
+        seeds.contains("C=crate-source:pkg(serde)!crate-source"),
+        "{seeds}"
+    );
+    assert!(seeds.contains("I=import:path(serde)!import"), "{seeds}");
+    assert!(
+        seeds.contains("O2=owner:path(src/domain/mod.rs)!owner"),
+        "{seeds}"
+    );
+    assert!(
+        seeds.contains(
+            "frontier=D.dependency,U.docs-use,C.crate-source,T.tests,O.owner,D2.deps,I.import"
+        ),
         "{seeds}"
     );
     assert!(!seeds.contains("|owner src/lib.rs"), "{seeds}");
@@ -396,7 +406,10 @@ fn cli_rust_flow_drill_reduces_search_rounds_with_seeds_and_recipe_plan() {
         "{plan}"
     );
     assert!(plan.contains("T=test:path(.)!tests"), "{plan}");
-    assert!(plan.contains("frontier=D.dependency,T.tests"), "{plan}");
+    assert!(
+        plan.contains("frontier=D.dependency,U.docs-use,C.crate-source,T.tests"),
+        "{plan}"
+    );
 
     let ingest = run_search_with_stdin(
         root,

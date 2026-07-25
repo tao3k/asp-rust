@@ -139,6 +139,55 @@ pub(crate) fn configure_shared_asp_renderer(command: &mut Command) {
     }
 }
 
+pub(crate) fn write_source_snapshot_envelope(
+    root: &Path,
+    provider_id: &str,
+    sources: &[(&str, &str)],
+) -> std::path::PathBuf {
+    let cas_root = root.join(".asp-test-cas");
+    let owners = sources
+        .iter()
+        .enumerate()
+        .map(|(index, (owner, source))| {
+            let blob_digest = format!("{:064x}", index + 1);
+            let cas_path = format!("{}/{}", &blob_digest[..2], &blob_digest[2..]);
+            let blob_path = cas_root.join(&cas_path);
+            fs::create_dir_all(blob_path.parent().expect("CAS blob parent"))
+                .expect("create CAS shard");
+            fs::write(blob_path, source).expect("write pinned source blob");
+            serde_json::json!({
+                "path": owner,
+                "snapshotLeafDigest": format!("{:064x}", index + 1000),
+                "blobDigest": blob_digest,
+                "casPath": cas_path,
+            })
+        })
+        .collect::<Vec<_>>();
+    let envelope_path = root.join("source-snapshot-envelope.v1.json");
+    fs::write(
+        &envelope_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schemaId": "asp.exact-source-snapshot-envelope.v1",
+            "schemaVersion": "1",
+            "providerId": provider_id,
+            "sourceSnapshot": {
+                "schemaId": "asp.source-snapshot.v1",
+                "schemaVersion": "1",
+                "algorithm": "blake3-merkle-v1",
+                "rootDigest": format!("{:064x}", sources.len() + 10_000),
+                "sourceKind": "filesystem",
+                "leafCount": sources.len(),
+                "providerDigest": format!("{:064x}", 20_000),
+            },
+            "casRoot": cas_root,
+            "owners": owners,
+        }))
+        .expect("encode source snapshot envelope"),
+    )
+    .expect("write source snapshot envelope");
+    envelope_path
+}
+
 fn shared_asp_renderer_binary() -> Option<std::path::PathBuf> {
     let current_dir = std::env::current_dir().ok()?;
     current_dir

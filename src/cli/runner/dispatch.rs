@@ -1,6 +1,6 @@
 //! CLI runner, argument parsing, and semantic protocol dispatch.
 
-#[path = "exact_source.rs"]
+#[path = "exact_source/mod.rs"]
 mod exact_source;
 
 use std::env;
@@ -10,16 +10,15 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use crate::cli::{
-    QueryCommand, QuerySourceVersion, discover_rust_project_root, is_command, is_known_search_view,
-    is_search_pipe, parse_query, parse_usize_option, print_agent_doctor, print_agent_help,
-    print_agent_registry, print_check_help, print_guide, print_help, print_query_guide,
-    print_query_help, print_search_help, query_guide_kind, render_query_local_item_frontier,
-    run_flow_lite_query_catalog, rust_package_root_for_path, rust_project_root_for_path,
-    search_view_accepts_optional_query, search_view_requires_query, search_view_supports_query_set,
-    split_csv_values,
+    QueryCommand, discover_rust_project_root, is_command, is_known_search_view, is_search_pipe,
+    parse_query, parse_usize_option, print_agent_doctor, print_agent_help, print_agent_registry,
+    print_check_help, print_guide, print_help, print_query_guide, print_query_help,
+    print_search_help, query_guide_kind, run_flow_lite_query_catalog, rust_package_root_for_path,
+    rust_project_root_for_path, search_view_accepts_optional_query, search_view_requires_query,
+    search_view_supports_query_set, split_csv_values,
 };
 #[cfg(feature = "search")]
-use crate::cli::{SearchOutputControls, apply_search_output_controls, render_search_graph_packet};
+use crate::cli::{SearchOutputControls, apply_search_output_controls};
 #[cfg(feature = "search")]
 use crate::cli::{SearchPlanOptions, render_search_plan};
 #[cfg(feature = "search")]
@@ -268,11 +267,7 @@ fn run_search_view(options: &SearchOptions) -> Result<ExitCode, String> {
         );
         return Ok(ExitCode::SUCCESS);
     }
-    let raw_rendered = if let Some(rendered) =
-        render_search_owner_item_frontier_from_owner_file(&project_root, options)?
-    {
-        rendered
-    } else if options.view == "ingest" {
+    let raw_rendered = if options.view == "ingest" {
         let mut input = String::new();
         io::stdin()
             .read_to_string(&mut input)
@@ -308,7 +303,25 @@ fn run_search_view(options: &SearchOptions) -> Result<ExitCode, String> {
         )
     };
     let rendered = if options.output_view.as_deref() == Some("seeds") && options.view != "compare" {
-        render_search_graph_packet(&raw_rendered, options.seeds)?
+        let packet = crate::cli::semantic_search_json::build_search_packet(
+            &project_root,
+            &json_options,
+            &raw_rendered,
+        )?;
+        let mut projection_request =
+            agent_semantic_search_projection::SearchProjectionRequestV1::new(
+                "topology",
+                agent_semantic_search_projection::SearchProjectionDensityV1::Terse,
+            );
+        projection_request.max_rows = options.seeds;
+        let renderer = agent_semantic_search_projection::TopologySearchProjectionRenderer;
+        let projection = agent_semantic_search_projection::SearchProjectionRenderer::render(
+            &renderer,
+            &packet,
+            &projection_request,
+        )
+        .map_err(|error| format!("failed to render search topology projection: {error}"))?;
+        projection.content().to_owned()
     } else {
         rendered
     };
@@ -328,32 +341,6 @@ fn run_search_view(options: &SearchOptions) -> Result<ExitCode, String> {
         print!("{rendered}");
     }
     Ok(ExitCode::SUCCESS)
-}
-
-#[cfg(feature = "search")]
-fn render_search_owner_item_frontier_from_owner_file(
-    project_root: &std::path::Path,
-    options: &SearchOptions,
-) -> Result<Option<String>, String> {
-    if options.view != "owner"
-        || options.output_view.as_deref() != Some("seeds")
-        || options.json
-        || options.trace
-        || options.explain
-        || !options.pipes.iter().any(|pipe| pipe == "items")
-    {
-        return Ok(None);
-    }
-    let Some(selector) = options.query.as_deref() else {
-        return Ok(None);
-    };
-    render_query_local_item_frontier(
-        project_root,
-        selector,
-        options.item_query.as_deref().unwrap_or_default(),
-        options.source_version,
-        false,
-    )
 }
 
 #[cfg(not(feature = "search"))]
@@ -418,7 +405,6 @@ pub(super) struct SearchOptions {
     pub(super) item_names_only: bool,
     pub(super) item_code: bool,
     pub(super) item_projection_metadata: bool,
-    pub(super) source_version: QuerySourceVersion,
     pub(super) workspace_root: Option<PathBuf>,
 }
 

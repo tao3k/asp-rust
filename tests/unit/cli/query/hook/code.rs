@@ -1,17 +1,23 @@
 use tempfile::TempDir;
 
-use crate::cli::support::{run_cli, write_search_fixture};
+use crate::cli::support::{run_cli, write_search_fixture, write_source_snapshot_envelope};
 
 #[test]
 fn cli_query_code_output_is_source_slice() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_search_fixture(root);
+    let source = std::fs::read_to_string(root.join("src/lib.rs")).expect("read fixture source");
+    let envelope =
+        write_source_snapshot_envelope(root, "rs-harness-test", &[("src/lib.rs", &source)]);
     let output = run_cli([
         "query".as_ref(),
-        "src/lib.rs".as_ref(),
-        "--query".as_ref(),
-        "load".as_ref(),
+        "--from-hook".as_ref(),
+        "direct-source-read".as_ref(),
+        "--selector".as_ref(),
+        "rust://src/lib.rs#item/function/load".as_ref(),
+        "--source-snapshot-envelope".as_ref(),
+        envelope.as_os_str(),
         "--code".as_ref(),
         "--workspace".as_ref(),
         root.as_os_str(),

@@ -13,8 +13,6 @@ mod formal_proof_pilot;
 mod language_projection;
 mod query;
 mod query_options;
-mod query_source;
-mod query_window;
 mod review_packet;
 mod runner;
 mod runner_support;
@@ -47,10 +45,9 @@ pub(in crate::cli) use formal_proof_pilot::run_proof;
 #[cfg(feature = "search")]
 pub(in crate::cli) use language_projection::run_language_projection;
 pub(in crate::cli) use query::{
-    QueryCommand, parse_query, print_query_guide, print_query_help, query_guide_kind,
+    ExactSourceQuery, QueryCommand, parse_query, print_query_guide, print_query_help,
+    query_guide_kind,
 };
-pub(in crate::cli) use query_source::QuerySourceVersion;
-pub(in crate::cli) use query_window::render_query_local_item_frontier;
 pub(in crate::cli) use review_packet::run_review;
 pub(in crate::cli) use runner_support::{
     discover_rust_project_root, is_command, is_known_search_view, is_search_pipe,
@@ -60,9 +57,7 @@ pub(in crate::cli) use runner_support::{
     search_view_supports_query_set, split_csv_values,
 };
 #[cfg(feature = "search")]
-pub(in crate::cli) use search_output::{
-    SearchOutputControls, apply_search_output_controls, render_search_graph_packet,
-};
+pub(in crate::cli) use search_output::{SearchOutputControls, apply_search_output_controls};
 #[cfg(feature = "search")]
 pub(in crate::cli) use search_plan::{SearchPlanOptions, render_search_plan};
 #[cfg(feature = "search")]

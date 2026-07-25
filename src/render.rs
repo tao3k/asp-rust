@@ -66,7 +66,7 @@ pub fn render_rust_project_harness_failure_frontier(
         );
         let _ = writeln!(
             rendered,
-            "|next asp rust query --from-hook direct-source-read --selector {} --code .",
+            "|next asp rust query --from-hook direct-source-read --code --workspace . --selector {}",
             shell_single_quote(&hot_block.selector)
         );
     }

@@ -10,8 +10,8 @@ use crate::RustHarnessConfig;
 use crate::parser::{ParsedRustModule, RustTopLevelItemSyntax};
 
 use super::RustSearchOptions;
-use super::compact::compact_search_packet;
 use super::context::{PackageSearchContext, search_contexts};
+use super::density::render_terse_search_packet;
 use super::format::{
     compact_locations, display_project_path, owner_role_for_path, package_roots_for_request,
     render_item_line, sort_locations,
@@ -53,7 +53,7 @@ pub fn render_rust_project_harness_search_ingest_with_config(
     if options.output_view.as_deref() == Some("seeds") {
         Ok(rendered)
     } else {
-        Ok(compact_search_packet(&rendered))
+        Ok(render_terse_search_packet(&rendered))
     }
 }
 

@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::RustHarnessConfig;
 
 use super::{
-    cargo, compact, compare, dependency, format, guide, namespace, owner, owner_view, prime, query,
+    cargo, compare, density, dependency, format, guide, namespace, owner, owner_view, prime, query,
 };
 
 /// Options shared by RFC search renderers.
@@ -191,7 +191,7 @@ fn render_search_view_output(
     if options.output_view.as_deref() == Some("seeds") {
         Ok(rendered)
     } else {
-        Ok(compact::compact_search_packet(&rendered))
+        Ok(density::render_terse_search_packet(&rendered))
     }
 }
 
@@ -243,7 +243,7 @@ fn push_reasoning_body(rendered: &mut String, body: &str) {
     }
 }
 
-fn compact_field_value(value: &str) -> String {
+fn encode_line_protocol_field(value: &str) -> String {
     let mut escaped = String::new();
     for character in value.chars() {
         match character {
@@ -265,9 +265,9 @@ fn reasoning_block(
     let extra_fields = extra_fields
         .iter()
         .filter(|(_, value)| !value.trim().is_empty())
-        .map(|(name, value)| format!(" {name}={}", compact_field_value(value)))
+        .map(|(name, value)| format!(" {name}={}", encode_line_protocol_field(value)))
         .collect::<String>();
-    let selector = compact_field_value(selector);
+    let selector = encode_line_protocol_field(selector);
     let mut rendered = format!(
         "[search-reasoning] q={profile} selector={selector} alg={algorithm}{extra_fields}\n",
     );

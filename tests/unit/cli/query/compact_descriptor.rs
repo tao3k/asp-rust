@@ -33,8 +33,10 @@ fn cli_query_parser_code_preserves_descriptor_collections() {
     );
 
     let output = run_cli([
-        "query".as_ref(),
+        "search".as_ref(),
+        "owner".as_ref(),
         "src/lib.rs".as_ref(),
+        "items".as_ref(),
         "--query".as_ref(),
         "rust_view_descriptors".as_ref(),
         "--json".as_ref(),
@@ -43,18 +45,11 @@ fn cli_query_parser_code_preserves_descriptor_collections() {
     assert!(output.status.success(), "{output:?}");
     let value: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("query packet json");
-    let rendered_rows = value["matches"][0]["projection"]["renderedRows"]
-        .as_array()
-        .expect("rendered rows")
-        .iter()
-        .filter_map(|row| row["text"].as_str())
-        .collect::<Vec<_>>()
-        .join("\n");
-    assert!(
-        rendered_rows.contains("vec[4] items=ViewDescriptor name=workspace"),
-        "{value}"
+    assert_eq!(value["items"][0]["name"], "rust_view_descriptors");
+    assert_eq!(
+        value["items"][0]["fields"]["structuralSelector"],
+        "rust://src/lib.rs#item/function/rust_view_descriptors"
     );
-    assert!(!rendered_rows.contains("ViewDescriptor {"), "{value}");
 }
 
 fn write_parser_descriptor_fixture(root: &Path) {

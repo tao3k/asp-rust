@@ -223,12 +223,31 @@ pub fn assert_rust_project_harness_cargo_test_clean_with_config(
     project_root: &Path,
     config: &RustHarnessConfig,
 ) -> RustHarnessReport {
-    let report = run_rust_project_harness_with_config_for_scope(
+    assert_rust_project_harness_cargo_test_clean_with_config_for_scope(
         project_root,
         config,
         RustHarnessRunScope::ProjectWorkspace,
     )
-    .unwrap_or_else(|error| panic!("{error}"));
+}
+
+/// Assert a configured Cargo test harness run for an explicit project scope.
+///
+/// This is the scoped form used when a package-local compatibility gate must
+/// not absorb sibling workspace members or path dependencies into its policy
+/// boundary.
+///
+/// # Panics
+///
+/// Panics when the run fails, when configured-blocking findings exist, or when
+/// advisory findings exist.
+#[track_caller]
+pub fn assert_rust_project_harness_cargo_test_clean_with_config_for_scope(
+    project_root: &Path,
+    config: &RustHarnessConfig,
+    scope: RustHarnessRunScope,
+) -> RustHarnessReport {
+    let report = run_rust_project_harness_with_config_for_scope(project_root, config, scope)
+        .unwrap_or_else(|error| panic!("{error}"));
     report.assert_clean();
     report.assert_no_advisory_findings();
     report

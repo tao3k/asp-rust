@@ -271,7 +271,7 @@ fn cli_agent_registry_uses_rust_capability_vocabulary() {
     );
     assert_eq!(
         owner["packetSchemas"],
-        serde_json::json!(["semantic-search-packet.v1", "semantic-tree-sitter-query.v1"])
+        serde_json::json!(["semantic-search-packet.v1"])
     );
     assert_eq!(
         owner["acceptedQuerySetSelectors"],
@@ -336,35 +336,50 @@ fn cli_agent_registry_uses_rust_capability_vocabulary() {
         query_owner_items["querySetScopes"],
         serde_json::json!(["owner"])
     );
-    let direct_source_read = method_descriptor(methods, "query/direct-source-read");
-    assert_eq!(direct_source_read["command"], "query");
-    assert_eq!(direct_source_read["input"], "owner-path");
+    let exact_selector = method_descriptor(methods, "query/exact-selector");
+    assert_eq!(exact_selector["command"], "query");
     assert_eq!(
-        direct_source_read["requiredOptions"],
-        serde_json::json!(["--from-hook", "--selector"])
+        exact_selector["requiredOptions"],
+        serde_json::json!(["--selector"])
     );
     assert_eq!(
-        direct_source_read["outputSchemaIds"],
-        serde_json::json!([
-            "agent.semantic-protocols.semantic-query-packet",
-            "agent.semantic-protocols.semantic-read-packet"
-        ])
+        exact_selector["outputSchemaIds"],
+        serde_json::json!(["agent.semantic-protocols.semantic-query-packet"])
     );
     assert_eq!(
-        direct_source_read["executionBackends"],
+        exact_selector["executionBackends"],
         serde_json::json!(["native-parser"])
     );
     assert_eq!(
-        direct_source_read["packetSchemas"],
+        exact_selector["packetSchemas"],
         serde_json::json!(["semantic-query-packet.v1", "semantic-read-packet.v1"])
     );
     assert_eq!(
-        direct_source_read["queryInputForms"],
+        exact_selector["queryInputForms"],
         serde_json::json!(["selector"])
     );
     assert_eq!(
-        direct_source_read["outputModes"],
-        serde_json::json!(["frontier", "json", "code", "names", "read-packet"])
+        exact_selector["outputModes"],
+        serde_json::json!(["frontier", "json", "code", "names"])
+    );
+    assert_eq!(
+        exact_selector["invocation"]["argv"],
+        serde_json::json!([
+            "rs-harness",
+            "query",
+            "--selector",
+            "{owner}",
+            "--workspace",
+            "{workspace}",
+            "--view",
+            "seeds"
+        ])
+    );
+    assert!(
+        methods
+            .iter()
+            .all(|method| method["method"] != "query/direct-source-read"),
+        "direct-source-read is a hook fallback and must not reappear as a normal registry route"
     );
     let public_external_types = method_descriptor(methods, "search/public-external-types");
     assert_eq!(

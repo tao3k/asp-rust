@@ -5,9 +5,10 @@ use std::path::Path;
 use serde_json::{Value, json};
 
 use super::{
-    assert_receipt_verification_contains, ast_patch_scenarios_dir, copy_dir_recursive,
-    copy_target_file_to_temp, env_flag, env_path, env_string, exact_read_from_target, read_json,
-    run_ast_patch_scenario, run_cli, run_cli_with_stdin, snapshot_dir,
+    assert_receipt_verification_contains, ast_patch_scenarios_dir,
+    ast_patch_target_from_search_item, copy_dir_recursive, copy_target_file_to_temp, env_flag,
+    env_path, env_string, exact_read_from_target, read_json, run_ast_patch_scenario,
+    run_cli_with_stdin, run_owner_item_search_json, select_search_item, snapshot_dir,
 };
 
 #[test]
@@ -179,40 +180,22 @@ fn cli_ast_patch_scenarios_match_expected_trees_and_receipts() {
 }
 
 #[test]
-fn cli_ast_patch_scenario_uses_query_patch_safety_target_for_tokio_style_apply() {
+fn cli_ast_patch_scenario_uses_search_owner_target_for_tokio_style_apply() {
     let fixture = ast_patch_scenarios_dir().join("009_tokio_style_nested_async_fn_apply");
     let temp = tempfile::tempdir().expect("tempdir");
     copy_dir_recursive(&fixture.join("input"), temp.path());
 
-    let query = run_cli([
-        "query".as_ref(),
-        "src/runtime/scheduler/multi_thread/worker.rs".as_ref(),
-        "--query".as_ref(),
-        "park_timeout".as_ref(),
-        "--json".as_ref(),
-        temp.path().as_os_str(),
-    ]);
-    assert!(query.status.success(), "{query:?}");
-    let query_packet = serde_json::from_slice::<Value>(&query.stdout).expect("query packet");
-    let match_value = &query_packet["matches"][0];
-    assert_eq!(
-        match_value["patchSafety"]["level"], "ast-patch-safe",
-        "{query_packet}"
+    let owner_path = "src/runtime/scheduler/multi_thread/worker.rs";
+    let search_packet = run_owner_item_search_json(temp.path(), owner_path, "park_timeout");
+    let item = select_search_item(
+        "tokio_style_apply",
+        "owner item discovery",
+        &search_packet,
+        Some("fn"),
+        Some("park_timeout"),
     );
-    assert!(
-        match_value["patchSafety"]["allowedOperations"]
-            .as_array()
-            .is_some_and(|operations| operations
-                .iter()
-                .any(|operation| operation == "replace_item")),
-        "{query_packet}"
-    );
-    assert_eq!(
-        match_value["projection"]["compactSafety"]["exactReadRequired"], true,
-        "{query_packet}"
-    );
-
-    let target = match_value["patchSafety"]["target"].clone();
+    assert_eq!(search_packet["method"], "search/owner", "{search_packet}");
+    let target = ast_patch_target_from_search_item(item);
     let preimage = exact_read_from_target(temp.path(), &target);
     assert!(preimage.contains("pub(crate) async fn park_timeout"));
     let fixture_packet = read_json(&fixture.join("packet.json"));
@@ -251,13 +234,13 @@ fn cli_ast_patch_scenario_uses_query_patch_safety_target_for_tokio_style_apply()
     let actual = snapshot_dir(temp.path());
     assert_eq!(
         actual, expected,
-        "query-derived ast-patch target should apply cleanly"
+        "search-owner-derived ast-patch target should apply cleanly"
     );
 }
 
 #[test]
 #[ignore = "set ASP_AST_PATCH_REAL_ROOT/PATH/QUERY to exercise a real Rust checkout"]
-fn cli_ast_patch_real_checkout_query_target_dry_runs_from_env() {
+fn cli_ast_patch_real_checkout_search_owner_target_dry_runs_from_env() {
     let Some(root) = env_path("ASP_AST_PATCH_REAL_ROOT") else {
         eprintln!(
             "skipping real checkout ast-patch evidence; set ASP_AST_PATCH_REAL_ROOT, ASP_AST_PATCH_REAL_PATH, and ASP_AST_PATCH_REAL_QUERY"
@@ -273,44 +256,17 @@ fn cli_ast_patch_real_checkout_query_target_dry_runs_from_env() {
         return;
     };
 
-    let query = run_cli([
-        "query".as_ref(),
-        source_path.as_ref(),
-        "--query".as_ref(),
-        query_term.as_ref(),
-        "--json".as_ref(),
-        root.as_os_str(),
-    ]);
-    assert!(query.status.success(), "{query:?}");
-    let query_packet = serde_json::from_slice::<Value>(&query.stdout).expect("query packet JSON");
+    let search_packet = run_owner_item_search_json(&root, &source_path, &query_term);
     let target_kind = env_string("ASP_AST_PATCH_REAL_TARGET_KIND");
     let target_name = env_string("ASP_AST_PATCH_REAL_TARGET_NAME");
-    let matches = query_packet["matches"].as_array().unwrap_or_else(|| {
-        panic!("real checkout query packet matches must be an array: {query_packet}")
-    });
-    let match_value = matches
-        .iter()
-        .find(|match_value| {
-            match_value["patchSafety"]["level"] == "ast-patch-safe"
-                && target_kind.as_deref().is_none_or(|kind| {
-                    match_value["kind"].as_str() == Some(kind)
-                })
-                && target_name.as_deref().is_none_or(|name| {
-                    match_value["name"].as_str() == Some(name)
-                })
-        })
-        .unwrap_or_else(|| {
-            panic!(
-                "real checkout query packet had no ast-patch-safe match kind={target_kind:?} name={target_name:?}: {query_packet}"
-            )
-        });
-    assert_eq!(
-        match_value["patchSafety"]["allowedOperations"],
-        json!(["replace_item"]),
-        "{query_packet}"
+    let item = select_search_item(
+        "real_checkout_dry_run",
+        "owner item discovery",
+        &search_packet,
+        target_kind.as_deref(),
+        target_name.as_deref(),
     );
-
-    let target = match_value["patchSafety"]["target"].clone();
+    let target = ast_patch_target_from_search_item(item);
     let preimage = exact_read_from_target(&root, &target);
     assert!(!preimage.trim().is_empty(), "empty preimage from {target}");
     let packet = json!({
