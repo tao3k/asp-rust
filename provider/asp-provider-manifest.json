@@ -40,6 +40,7 @@
       "languageId": "rust",
       "packetSchemaId": "asp.source-snapshot.v1",
       "exactSourcePacketSchemaId": "asp.exact-source-query-result.v1",
+      "canonicalItemSelectorSchemaId": "asp.canonical-item-selector.v1",
       "sourceSnapshotEnvelopeSchemaId": "asp.exact-source-snapshot-envelope.v1",
       "derivedArtifactEvidenceSchemaId": "asp.derived-source-artifact-evidence.v1",
       "algorithm": "blake3-merkle-v1",
