@@ -18,7 +18,7 @@ use crate::cli::{
     search_view_supports_query_set, split_csv_values,
 };
 #[cfg(feature = "search")]
-use crate::cli::{SearchOutputControls, apply_search_output_controls};
+use crate::cli::{SearchOutputControls, apply_search_output_controls, render_search_graph_packet};
 #[cfg(feature = "search")]
 use crate::cli::{SearchPlanOptions, render_search_plan};
 #[cfg(feature = "search")]
@@ -303,25 +303,7 @@ fn run_search_view(options: &SearchOptions) -> Result<ExitCode, String> {
         )
     };
     let rendered = if options.output_view.as_deref() == Some("seeds") && options.view != "compare" {
-        let packet = crate::cli::semantic_search_json::build_search_packet(
-            &project_root,
-            &json_options,
-            &raw_rendered,
-        )?;
-        let mut projection_request =
-            agent_semantic_search_projection::SearchProjectionRequestV1::new(
-                "topology",
-                agent_semantic_search_projection::SearchProjectionDensityV1::Terse,
-            );
-        projection_request.max_rows = options.seeds;
-        let renderer = agent_semantic_search_projection::TopologySearchProjectionRenderer;
-        let projection = agent_semantic_search_projection::SearchProjectionRenderer::render(
-            &renderer,
-            &packet,
-            &projection_request,
-        )
-        .map_err(|error| format!("failed to render search topology projection: {error}"))?;
-        projection.content().to_owned()
+        render_search_graph_packet(&raw_rendered, options.seeds)?
     } else {
         rendered
     };

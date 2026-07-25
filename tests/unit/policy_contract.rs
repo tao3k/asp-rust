@@ -63,7 +63,6 @@ fn library_target_mounts_source_backed_self_apply_gate() {
 
     assert!(!lib_rs.contains("rust_project_harness_source_gate!"));
     assert!(self_policy.contains("rust_project_harness_cargo_test_gate!("));
-    assert!(self_policy.contains("scope = package"));
     assert!(self_policy.contains("config ="));
 }
 

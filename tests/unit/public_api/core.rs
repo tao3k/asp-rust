@@ -12,7 +12,6 @@ use tempfile::TempDir;
 
 mod embedded_cargo_test_gate_macro_smoke {
     rust_lang_project_harness::rust_project_harness_cargo_test_gate!(
-        scope = package,
         config = {
             let mut config = rust_lang_project_harness::default_rust_harness_config();
             config.ignored_dir_names.insert("scenarios".to_string());

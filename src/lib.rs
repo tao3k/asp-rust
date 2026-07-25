@@ -25,6 +25,7 @@ mod runner;
 #[cfg(feature = "search")]
 mod search;
 mod self_policy;
+mod semantic_identity;
 mod verification;
 mod workspace_evidence_graph;
 
@@ -212,12 +213,10 @@ pub use rules::{
 pub use runner::{
     RustHarnessRunScope, assert_rust_lang_harness_clean,
     assert_rust_project_harness_cargo_test_clean,
-    assert_rust_project_harness_cargo_test_clean_with_config,
-    assert_rust_project_harness_cargo_test_clean_with_config_for_scope,
-    assert_rust_project_harness_clean, assert_rust_project_harness_clean_with_config,
-    default_rust_harness_config, run_rust_lang_harness, run_rust_lang_harness_with_config,
-    run_rust_project_harness_for_scope, run_rust_project_harness_with_config_for_scope,
-    rust_harness_config_for_project,
+    assert_rust_project_harness_cargo_test_clean_with_config, assert_rust_project_harness_clean,
+    assert_rust_project_harness_clean_with_config, default_rust_harness_config,
+    run_rust_lang_harness, run_rust_lang_harness_with_config, run_rust_project_harness_for_scope,
+    run_rust_project_harness_with_config_for_scope, rust_harness_config_for_project,
 };
 #[cfg(feature = "search")]
 pub use search::{

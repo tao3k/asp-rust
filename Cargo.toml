@@ -1,3 +1,5 @@
+[workspace]
+
 [package]
 name = "rust-lang-project-harness"
 version = "0.1.2"
@@ -14,8 +16,7 @@ default = ["search"]
 search = []
 
 [dependencies]
-agent-semantic-search-projection = { path = "../../crates/agent-semantic-search-projection" }
-agent-semantic-content-identity = { path = "../../crates/agent-semantic-content-identity" }
+blake3 = "1"
 cargo-lock = "11.0"
 cargo_toml = "1.0.0"
 proc-macro2 = { version = "1", features = ["span-locations"] }

@@ -19,4 +19,4 @@ fn self_apply_harness_config() -> crate::RustHarnessConfig {
 }
 
 #[cfg(test)]
-crate::rust_project_harness_cargo_test_gate!(scope = package, config = self_apply_harness_config());
+crate::rust_project_harness_cargo_test_gate!(config = self_apply_harness_config());

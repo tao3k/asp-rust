@@ -92,13 +92,13 @@ pub(in super::super) fn run_exact_source_query(
             ));
         }
         let parser_identity_digest =
-            agent_semantic_content_identity::exact_selector_merkle::parse_content_digest_v1(
+            crate::semantic_identity::exact_selector_merkle::parse_content_digest_v1(
                 options.parser_identity_digest.as_deref().ok_or_else(|| {
                     "exact source projection requires --asp-parser-identity-digest".to_string()
                 })?,
             )?;
         let query_pack_digest =
-            agent_semantic_content_identity::exact_selector_merkle::parse_content_digest_v1(
+            crate::semantic_identity::exact_selector_merkle::parse_content_digest_v1(
                 options.query_pack_digest.as_deref().ok_or_else(|| {
                     "exact source projection requires --asp-query-pack-digest".to_string()
                 })?,
@@ -119,33 +119,33 @@ pub(in super::super) fn run_exact_source_query(
         .map_err(|error| format!("serialize exact source parser facts: {error}"))?;
         let (projection_mode, projection_payload) = if options.names_only {
             (
-                agent_semantic_content_identity::exact_selector_merkle::ExactProjectionModeV1::Names,
+                crate::semantic_identity::exact_selector_merkle::ExactProjectionModeV1::Names,
                 resolved.canonical_selector.symbol.as_str().as_bytes(),
             )
         } else {
             (
-                agent_semantic_content_identity::exact_selector_merkle::ExactProjectionModeV1::Code,
+                crate::semantic_identity::exact_selector_merkle::ExactProjectionModeV1::Code,
                 code.as_bytes(),
             )
         };
         let packet_language_id =
-            agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketLanguageIdV1::from(
+            crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketLanguageIdV1::from(
                 "rust",
             );
         let packet_provider_id =
-            agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketProviderIdV1::from(
+            crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketProviderIdV1::from(
                 provider_id,
             );
         let packet_owner_path =
-            agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketOwnerPathV1::from(
+            crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketOwnerPathV1::from(
                 resolved.owner_path.as_str(),
             );
         let packet_structural_selector =
-            agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketStructuralSelectorV1::from(
+            crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketStructuralSelectorV1::from(
                 options.selector.as_str(),
             );
-        let packet = agent_semantic_content_identity::exact_selector_projection_packet::build_exact_selector_projection_packet_v1(
-            agent_semantic_content_identity::exact_selector_projection_packet::ExactSelectorProjectionPacketV1Input {
+        let packet = crate::semantic_identity::exact_selector_projection_packet::build_exact_selector_projection_packet_v1(
+            crate::semantic_identity::exact_selector_projection_packet::ExactSelectorProjectionPacketV1Input {
                 language_id: &packet_language_id,
                 provider_id: &packet_provider_id,
                 canonical_item_selector: resolved.canonical_selector.clone(),
@@ -180,7 +180,7 @@ fn parse_exact_source_selector(
 ) -> Result<
     (
         &str,
-        agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1,
+        crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
     ),
     String,
 > {
@@ -194,15 +194,13 @@ fn parse_exact_source_selector(
         return Err(format!("exact source selector `{selector}` is incomplete"));
     }
     let language_id =
-        agent_semantic_content_identity::structural_selector::StructuralSelectorLanguageId::from(
-            "rust",
-        );
+        crate::semantic_identity::structural_selector::StructuralSelectorLanguageId::from("rust");
     let identity_path =
-        agent_semantic_content_identity::structural_selector::CanonicalItemIdentityPath::from(
+        crate::semantic_identity::structural_selector::CanonicalItemIdentityPath::from(
             item_selector,
         );
     let identity =
-        agent_semantic_content_identity::structural_selector::decode_canonical_item_identity_path(
+        crate::semantic_identity::structural_selector::decode_canonical_item_identity_path(
             &language_id,
             &identity_path,
         )
@@ -215,7 +213,7 @@ struct ExactSelector {
     owner_path: String,
     item_kind: String,
     item_name: String,
-    scopes: Vec<agent_semantic_content_identity::canonical_item_identity::CanonicalItemScopeV1>,
+    scopes: Vec<crate::semantic_identity::canonical_item_identity::CanonicalItemScopeV1>,
 }
 
 impl ExactSelector {
@@ -445,10 +443,9 @@ fn normalize_snapshot_owner_path(path: &str) -> Result<String, String> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ResolvedExactItem {
-    canonical_selector:
-        agent_semantic_content_identity::canonical_item_identity::CanonicalItemSelectorV1,
+    canonical_selector: crate::semantic_identity::canonical_item_identity::CanonicalItemSelectorV1,
     owner_path: String,
-    identity: agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    identity: crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
     code: String,
     owner_blob_digest: String,
     parser_artifact_digest: Option<String>,
@@ -617,7 +614,7 @@ fn resolved_exact_item(
     ResolvedExactItem {
         canonical_selector: {
             let structural_selector = rust_structural_selector(owner_path, &item.identity);
-            agent_semantic_content_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
+            crate::semantic_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
                 item.identity.clone(),
                 structural_selector,
             )
@@ -651,13 +648,13 @@ fn exact_item_name_matches(item: &ParseArtifactItem, requested: &str) -> bool {
 
 fn exact_item_scopes_match(
     item: &ParseArtifactItem,
-    requested: &[agent_semantic_content_identity::canonical_item_identity::CanonicalItemScopeV1],
+    requested: &[crate::semantic_identity::canonical_item_identity::CanonicalItemScopeV1],
 ) -> bool {
     item.identity.scopes == requested
 }
 
 fn rust_canonical_item_name(
-    identity: &agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    identity: &crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
 ) -> String {
     let impl_owner = identity
         .scopes
@@ -684,11 +681,11 @@ fn rust_canonical_item_name(
 
 fn rust_structural_selector(
     owner_path: &str,
-    identity: &agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    identity: &crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
 ) -> String {
     format!(
         "rust://{owner_path}#{}",
-        agent_semantic_content_identity::structural_selector::encode_canonical_item_identity_path(
+        crate::semantic_identity::structural_selector::encode_canonical_item_identity_path(
             identity
         )
     )

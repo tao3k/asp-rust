@@ -168,7 +168,7 @@ pub(super) fn render_item_locator_line_with_read(
     let symbol = item_display_name(item).replace(char::is_whitespace, "-");
     let kind = canonical_rust_item_kind(item.kind);
     let mut identity =
-        agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+        crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
             "rust",
             kind,
             symbol.as_str(),
@@ -219,17 +219,17 @@ fn render_canonical_item_locator_line(
     kind: &str,
     line: usize,
     end_line: usize,
-    identity: &agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    identity: &crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
     core_line: String,
 ) -> String {
     let structural_selector = format!(
         "rust://{read_path}#{}",
-        agent_semantic_content_identity::structural_selector::encode_canonical_item_identity_path(
+        crate::semantic_identity::structural_selector::encode_canonical_item_identity_path(
             identity
         )
     );
     let canonical_item_selector =
-        agent_semantic_content_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
+        crate::semantic_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
             identity.clone(),
             &structural_selector,
         );

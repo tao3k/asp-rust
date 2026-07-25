@@ -3,24 +3,6 @@
 version = 4
 
 [[package]]
-name = "agent-semantic-content-identity"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "agent-semantic-search-projection"
-version = "0.1.0"
-dependencies = [
- "agent-semantic-content-identity",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -483,8 +465,7 @@ dependencies = [
 name = "rust-lang-project-harness"
 version = "0.1.2"
 dependencies = [
- "agent-semantic-content-identity",
- "agent-semantic-search-projection",
+ "blake3",
  "cargo-lock",
  "cargo_toml",
  "insta",

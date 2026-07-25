@@ -57,7 +57,9 @@ pub(in crate::cli) use runner_support::{
     search_view_supports_query_set, split_csv_values,
 };
 #[cfg(feature = "search")]
-pub(in crate::cli) use search_output::{SearchOutputControls, apply_search_output_controls};
+pub(in crate::cli) use search_output::{
+    SearchOutputControls, apply_search_output_controls, render_search_graph_packet,
+};
 #[cfg(feature = "search")]
 pub(in crate::cli) use search_plan::{SearchPlanOptions, render_search_plan};
 #[cfg(feature = "search")]

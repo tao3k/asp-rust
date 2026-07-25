@@ -80,35 +80,35 @@ pub(super) fn run_tree_sitter_query(options: TreeSitterQuery) -> Result<ExitCode
             }))
             .map_err(|error| format!("failed to encode normalized parser facts: {error}"))?;
             let parser_identity_digest =
-                agent_semantic_content_identity::exact_selector_merkle::parse_content_digest_v1(
+                crate::semantic_identity::exact_selector_merkle::parse_content_digest_v1(
                     parser_identity_digest,
                 )?;
             let query_pack_digest =
-                agent_semantic_content_identity::exact_selector_merkle::parse_content_digest_v1(
+                crate::semantic_identity::exact_selector_merkle::parse_content_digest_v1(
                     query_pack_digest,
                 )?;
             let packet_language_id =
-                agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketLanguageIdV1::from(
+                crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketLanguageIdV1::from(
                     "rust",
                 );
             let packet_provider_id =
-                agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketProviderIdV1::from(
+                crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketProviderIdV1::from(
                     provider_id,
                 );
             let packet_owner_path =
-                agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketOwnerPathV1::from(
+                crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketOwnerPathV1::from(
                     owner_path,
                 );
             let packet_structural_selector =
-                agent_semantic_content_identity::exact_selector_projection_packet::ProjectionPacketStructuralSelectorV1::from(
+                crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketStructuralSelectorV1::from(
                     selector,
                 );
-            let packet = agent_semantic_content_identity::exact_selector_projection_packet::build_exact_selector_projection_packet_v1(
-                agent_semantic_content_identity::exact_selector_projection_packet::ExactSelectorProjectionPacketV1Input {
+            let packet = crate::semantic_identity::exact_selector_projection_packet::build_exact_selector_projection_packet_v1(
+                crate::semantic_identity::exact_selector_projection_packet::ExactSelectorProjectionPacketV1Input {
                     language_id: &packet_language_id,
                     provider_id: &packet_provider_id,
-                    canonical_item_selector: agent_semantic_content_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
-                        agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+                    canonical_item_selector: crate::semantic_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
+                        crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
                             "rust",
                             "syntax-query",
                             selector,
@@ -119,7 +119,7 @@ pub(super) fn run_tree_sitter_query(options: TreeSitterQuery) -> Result<ExitCode
                     query_pack_digest: &query_pack_digest,
                     owner_path: &packet_owner_path,
                     structural_selector: &packet_structural_selector,
-                    projection_mode: agent_semantic_content_identity::exact_selector_merkle::ExactProjectionModeV1::Code,
+                    projection_mode: crate::semantic_identity::exact_selector_merkle::ExactProjectionModeV1::Code,
                     source: parsed.source.as_bytes(),
                     normalized_parser_facts: &normalized_parser_facts,
                     projection: rendered.as_bytes(),

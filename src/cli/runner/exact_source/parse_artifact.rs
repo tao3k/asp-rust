@@ -92,7 +92,7 @@ fn collect_impl_items(item: &syn::ItemImpl, output: &mut Vec<ParseArtifactItem>)
             .replace(' ', "")
     });
     let mut impl_identity =
-        agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+        crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
             "rust",
             "impl",
             impl_owner.clone(),
@@ -107,7 +107,7 @@ fn collect_impl_items(item: &syn::ItemImpl, output: &mut Vec<ParseArtifactItem>)
         _ => None,
     }) {
         let mut method_identity =
-            agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+            crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
                 "rust",
                 "method",
                 method.sig.ident.to_string(),
@@ -130,7 +130,7 @@ fn collect_trait_items(item: &syn::ItemTrait, output: &mut Vec<ParseArtifactItem
     for trait_item in &item.items {
         if let syn::TraitItem::Fn(method) = trait_item {
             let identity = with_cfg_scopes(
-                agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+                crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
                     "rust",
                     "trait-function",
                     method.sig.ident.to_string(),
@@ -151,20 +151,22 @@ fn collect_reexport_items(
 ) {
     match tree {
         syn::UseTree::Name(name) => output.push(ParseArtifactItem {
-            identity: agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
-                "rust",
-                "reexport",
-                name.ident.to_string(),
-            ),
+            identity:
+                crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+                    "rust",
+                    "reexport",
+                    name.ident.to_string(),
+                ),
             start_line,
             end_line,
         }),
         syn::UseTree::Rename(rename) => output.push(ParseArtifactItem {
-            identity: agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
-                "rust",
-                "reexport",
-                rename.rename.to_string(),
-            ),
+            identity:
+                crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+                    "rust",
+                    "reexport",
+                    rename.rename.to_string(),
+                ),
             start_line,
             end_line,
         }),
@@ -181,9 +183,9 @@ fn collect_reexport_items(
 }
 
 fn with_cfg_scopes(
-    mut identity: agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    mut identity: crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
     attrs: &[syn::Attribute],
-) -> agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1 {
+) -> crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1 {
     for attribute in attrs {
         if !attribute.path().is_ident("cfg") {
             continue;
@@ -205,7 +207,7 @@ fn push_parse_artifact_item<T: syn::spanned::Spanned>(
     output: &mut Vec<ParseArtifactItem>,
 ) {
     let identity = with_cfg_scopes(
-        agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
+        crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
             "rust", kind, name,
         ),
         attrs,
@@ -214,7 +216,7 @@ fn push_parse_artifact_item<T: syn::spanned::Spanned>(
 }
 
 fn push_canonical_parse_artifact_item<T: syn::spanned::Spanned>(
-    identity: agent_semantic_content_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    identity: crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
     item: &T,
     output: &mut Vec<ParseArtifactItem>,
 ) {

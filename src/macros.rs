@@ -56,17 +56,6 @@ macro_rules! rust_project_harness_gate {
 /// auditable project decision instead of a silent harness escape.
 #[macro_export]
 macro_rules! rust_project_harness_cargo_test_gate {
-    (scope = package, config = $config:expr) => {
-        #[test]
-        fn enforce_rust_project_harness_gate() {
-            let config = $config;
-            $crate::assert_rust_project_harness_cargo_test_clean_with_config_for_scope(
-                std::path::Path::new(env!("CARGO_MANIFEST_DIR")),
-                &config,
-                $crate::RustHarnessRunScope::Package,
-            );
-        }
-    };
     () => {
         mod rust_project_harness_cargo_test_gate {
             #[test]
