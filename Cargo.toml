@@ -11,12 +11,12 @@ readme = "README.md"
 publish = []
 
 [features]
-cli = []
+cli = ["dep:blake3"]
 default = ["search"]
 search = []
 
 [dependencies]
-blake3 = "1"
+blake3 = { version = "1", optional = true }
 cargo-lock = "11.0"
 cargo_toml = "1.0.0"
 proc-macro2 = { version = "1", features = ["span-locations"] }

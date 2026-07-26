@@ -2,7 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(any(feature = "cli", feature = "search"))]
 const CANONICAL_ITEM_SELECTOR_SCHEMA_ID: &str = "asp.canonical-item-selector.v1";
+#[cfg(any(feature = "cli", feature = "search"))]
 const CANONICAL_ITEM_SELECTOR_SCHEMA_VERSION: &str = "v1";
 
 macro_rules! canonical_item_text {
@@ -11,6 +13,7 @@ macro_rules! canonical_item_text {
         pub(crate) struct $name(String);
 
         impl $name {
+            #[cfg(any(feature = "cli", feature = "search"))]
             pub(crate) fn as_str(&self) -> &str {
                 &self.0
             }
@@ -93,6 +96,7 @@ impl CanonicalItemIdentityV1 {
         self
     }
 
+    #[cfg(any(feature = "cli", feature = "search"))]
     fn validate(&self) -> Result<(), String> {
         for (field, value) in [
             ("languageId", self.language_id.as_str()),
@@ -120,6 +124,7 @@ impl CanonicalItemIdentityV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg(any(feature = "cli", feature = "search"))]
 pub(crate) struct CanonicalItemSelectorV1 {
     schema_id: String,
     schema_version: String,
@@ -130,6 +135,7 @@ pub(crate) struct CanonicalItemSelectorV1 {
     pub(crate) structural_selector: String,
 }
 
+#[cfg(any(feature = "cli", feature = "search"))]
 impl CanonicalItemSelectorV1 {
     pub(crate) fn new(
         identity: CanonicalItemIdentityV1,

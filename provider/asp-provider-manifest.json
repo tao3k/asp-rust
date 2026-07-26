@@ -185,6 +185,8 @@
     "query": "query/exact-selector",
     "ingest": "search/ingest",
     "checkChanged": "check/changed",
+    "dependencyTopology": "search/dependency-topology",
+    "dependencyTopologyMetadata": "search/dependency-topology-metadata",
     "guide": "guide"
   }
 }

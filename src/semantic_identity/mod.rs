@@ -4,6 +4,9 @@
 //! does not acquire a reverse filesystem dependency on its ASP host repository.
 
 pub(crate) mod canonical_item_identity;
+#[cfg(feature = "cli")]
 pub(crate) mod exact_selector_merkle;
+#[cfg(feature = "cli")]
 pub(crate) mod exact_selector_projection_packet;
+#[cfg(any(feature = "cli", feature = "search"))]
 pub(crate) mod structural_selector;
