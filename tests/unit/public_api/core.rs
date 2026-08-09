@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 
 use rust_lang_project_harness::{
     RustDiagnosticSeverity, RustRulePack, assert_rust_project_harness_cargo_test_clean,
-    assert_rust_project_harness_cargo_test_clean_with_config, default_rust_harness_config,
+    assert_rust_project_harness_cargo_test_clean_with_config,
+    assert_rust_project_harness_clean_with_config, default_rust_harness_config,
     render_rust_project_harness, render_rust_project_harness_advice,
     render_rust_project_harness_agent_snapshot, render_rust_project_harness_json,
     run_rust_lang_harness, run_rust_project_harness_for_scope,
@@ -53,6 +54,114 @@ mod embedded_cargo_test_gate_macro_smoke {
 }
 
 #[test]
+fn downstream_project_assertion_is_package_atomic_and_workspace_is_explicit() {
+    let temp = TempDir::new().expect("temp workspace");
+    let workspace = temp.path();
+    fs::write(
+        workspace.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"packages/clean\", \"packages/drift\"]\nresolver = \"2\"\n",
+    )
+    .expect("write workspace manifest");
+    let clean = workspace.join("packages/clean");
+    let drift = workspace.join("packages/drift");
+    for (root, name) in [(&clean, "clean"), (&drift, "drift")] {
+        fs::create_dir_all(root.join("src")).expect("create member source");
+        fs::write(
+            root.join("Cargo.toml"),
+            format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"),
+        )
+        .expect("write member manifest");
+    }
+    fs::write(
+        clean.join("src/lib.rs"),
+        "//! Clean package.\nmod implementation;\n",
+    )
+    .expect("write clean facade");
+    fs::write(
+        clean.join("src/implementation.rs"),
+        "pub(crate) fn local() {}\n",
+    )
+    .expect("write clean implementation");
+    fs::write(
+        drift.join("src/lib.rs"),
+        "//! Drift package.\n#[cfg(test)] mod tests { #[test] fn inline() {} }\n",
+    )
+    .expect("write drifting sibling");
+
+    let config = default_rust_harness_config();
+    let package_report = assert_rust_project_harness_clean_with_config(&clean, &config);
+    assert_eq!(package_report.file_count(), 2);
+    assert!(
+        package_report
+            .root_paths
+            .iter()
+            .all(|path| path.starts_with(&clean)),
+        "package assertion escaped into sibling owners: {:?}",
+        package_report.root_paths
+    );
+
+    let workspace_report = run_rust_project_harness_for_scope(
+        workspace,
+        rust_lang_project_harness::RustHarnessRunScope::ProjectWorkspace,
+    )
+    .expect("explicit workspace analysis");
+    assert!(
+        workspace_report
+            .findings
+            .iter()
+            .any(|finding| finding.rule_id == "RUST-AGENT-PROJECT-003"),
+        "explicit workspace scope must retain sibling policy coverage"
+    );
+}
+
+#[test]
+fn root_package_assertion_does_not_enter_nested_workspace_members() {
+    let temp = TempDir::new().expect("temp workspace");
+    let root_package = temp.path();
+    fs::write(
+        root_package.join("Cargo.toml"),
+        "[package]\nname = \"root-package\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\
+         [lib]\npath = \"lib.rs\"\n\
+         [workspace]\nmembers = [\"nested-member\"]\nresolver = \"2\"\n",
+    )
+    .expect("write root package manifest");
+    fs::write(
+        root_package.join("lib.rs"),
+        "//! Root package.\nmod implementation;\n",
+    )
+    .expect("write root package facade");
+    fs::write(
+        root_package.join("implementation.rs"),
+        "pub(crate) fn root() {}\n",
+    )
+    .expect("write root package implementation");
+    let nested = root_package.join("nested-member");
+    fs::create_dir_all(nested.join("src")).expect("create nested member");
+    fs::write(
+        nested.join("Cargo.toml"),
+        "[package]\nname = \"nested-member\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("write nested manifest");
+    fs::write(
+        nested.join("src/lib.rs"),
+        "#[cfg(test)] mod tests { #[test] fn escaped() {} }\n",
+    )
+    .expect("write nested drift");
+
+    let report =
+        assert_rust_project_harness_clean_with_config(root_package, &default_rust_harness_config());
+
+    assert_eq!(report.file_count(), 2, "{report:?}");
+    assert!(
+        report
+            .modules
+            .iter()
+            .all(|module| !module.path.starts_with(&nested)),
+        "root package assertion escaped into nested member: {report:?}"
+    );
+}
+
+#[test]
 fn explicit_path_runner_returns_compact_report() {
     let paths = vec![PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs")];
 
@@ -65,7 +174,7 @@ fn explicit_path_runner_returns_compact_report() {
 }
 
 #[test]
-fn explicit_path_runner_is_syntax_only_without_project_scope() {
+fn explicit_path_runner_is_syntax_only_without_project_resolution() {
     let temp = TempDir::new().expect("temp dir");
     let source = temp.path().join("lib.rs");
     fs::write(
@@ -77,7 +186,7 @@ fn explicit_path_runner_is_syntax_only_without_project_scope() {
     let report = run_rust_lang_harness(&[source]).expect("run explicit path harness");
 
     assert!(report.is_clean());
-    assert!(report.project_scope.is_none());
+    assert!(report.project_resolution.is_none());
     assert!(report.findings.is_empty());
 }
 
@@ -259,7 +368,7 @@ fn json_renderer_preserves_structured_report_fields() {
     );
     assert!(value["findings"][0]["summary"].as_str().is_some());
     assert!(value["findings"][0]["requirement"].as_str().is_some());
-    assert!(value["project_scope"].is_object());
+    assert!(value["project_resolution"].is_object());
 }
 
 fn normalize_temp_root(rendered: &str, root: &Path) -> String {

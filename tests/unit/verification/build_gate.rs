@@ -8,7 +8,8 @@ use rust_lang_project_harness::{
     RustProjectHarnessWorkspaceEvidenceGraphNodeKind, RustProjectHarnessWorkspacePolicy,
     RustProjectHarnessWorkspaceTrustLoopStepStatus,
     assert_rust_project_harness_dependency_baseline, assert_rust_project_harness_downstream_policy,
-    assert_rust_project_harness_verification_with_config, default_rust_harness_config,
+    assert_rust_project_harness_verification_with_config,
+    assert_rust_workspace_harness_downstream_policies, default_rust_harness_config,
     render_rust_project_harness_downstream_policy_receipt_json,
     render_rust_project_harness_workspace_evidence_graph_receipt_json,
     rust_downstream_verification_gate_guide_markdown,
@@ -578,6 +579,89 @@ fn workspace_policy_reuses_common_config_for_member_crates() {
             .as_deref(),
         Some(MEMBER_POLICY_ADVICE_ALLOW)
     );
+}
+
+#[test]
+fn explicit_workspace_builder_composes_cargo_admitted_package_atoms() {
+    let temp = TempDir::new().expect("temp dir");
+    let workspace = temp.path();
+    let api = workspace.join("api");
+    let worker = workspace.join("worker");
+    fs::write(
+        workspace.join("Cargo.toml"),
+        "[workspace]\nmembers=['api', 'worker']\nresolver='2'\n",
+    )
+    .expect("write workspace manifest");
+    fs::create_dir_all(&api).expect("create api member");
+    fs::create_dir_all(&worker).expect("create worker member");
+    write_api_project(&api);
+    write_api_project(&worker);
+    let config = default_rust_harness_config()
+        .with_cargo_check_advice_allow_explanation(WORKSPACE_POLICY_ADVICE_ALLOW);
+    let template = RustProjectHarnessWorkspacePolicy::new("fixture", config.clone());
+
+    let report = assert_rust_workspace_harness_downstream_policies(
+        workspace,
+        &config,
+        [
+            RustProjectHarnessWorkspaceEvidenceGraphMemberInput::new(
+                "api",
+                &api,
+                template.member_crate("api"),
+            ),
+            RustProjectHarnessWorkspaceEvidenceGraphMemberInput::new(
+                "worker",
+                &worker,
+                template.member_crate("worker"),
+            ),
+        ],
+    );
+
+    assert_eq!(report.members.len(), 2);
+    for member in report.members {
+        assert!(
+            member
+                .report
+                .root_paths
+                .iter()
+                .all(|path| path.starts_with(&member.project_root)),
+            "workspace composition escaped package atom: {member:?}"
+        );
+    }
+}
+
+#[test]
+fn explicit_workspace_builder_rejects_unregistered_directory() {
+    let temp = TempDir::new().expect("temp dir");
+    let workspace = temp.path();
+    let admitted = workspace.join("admitted");
+    let unregistered = workspace.join("unregistered");
+    fs::write(
+        workspace.join("Cargo.toml"),
+        "[workspace]\nmembers=['admitted']\nresolver='2'\n",
+    )
+    .expect("write workspace manifest");
+    fs::create_dir_all(&admitted).expect("create admitted member");
+    fs::create_dir_all(&unregistered).expect("create unregistered package");
+    write_api_project(&admitted);
+    write_api_project(&unregistered);
+    let config = default_rust_harness_config()
+        .with_cargo_check_advice_allow_explanation(WORKSPACE_POLICY_ADVICE_ALLOW);
+    let policy = RustProjectHarnessDownstreamPolicy::new("unregistered", config.clone());
+
+    let rejected = std::panic::catch_unwind(|| {
+        assert_rust_workspace_harness_downstream_policies(
+            workspace,
+            &config,
+            [RustProjectHarnessWorkspaceEvidenceGraphMemberInput::new(
+                "unregistered",
+                &unregistered,
+                policy,
+            )],
+        );
+    });
+
+    assert!(rejected.is_err(), "unregistered directory was admitted");
 }
 
 #[test]

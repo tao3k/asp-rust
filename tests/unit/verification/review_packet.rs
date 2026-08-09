@@ -47,7 +47,7 @@ fn p5_review_packet_summarizes_invariants_receipts_and_stale_waivers() {
         }],
         root_paths: vec![PathBuf::from(".")],
         blocking_severities: BTreeSet::new(),
-        project_scope: None,
+        project_resolution: None,
         workspace_member_scopes: Vec::new(),
     };
     let mut receipt = RustVerificationExecutionReceipt::from_exit_code(

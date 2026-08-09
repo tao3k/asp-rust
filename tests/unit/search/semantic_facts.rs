@@ -4,7 +4,6 @@ use rust_lang_project_harness::{
     render_rust_project_harness_dependency_topology_json,
     render_rust_project_harness_dependency_topology_metadata_json,
     render_rust_project_harness_search_semantic_facts_json,
-    render_rust_project_harness_workspace_scope_json,
 };
 use serde_json::Value as JsonValue;
 
@@ -423,76 +422,6 @@ fn dependency_topology_expands_cargo_workspace_members() {
             "missing dependency {dependency}"
         );
     }
-}
-
-#[test]
-fn workspace_scope_admits_cargo_member_outside_discovery_root() {
-    let tempdir = tempfile::tempdir().expect("tempdir");
-    let workspace = tempdir.path().join("workspace");
-    let external = tempdir.path().join("external-member");
-    fs::create_dir_all(workspace.join("src")).expect("create workspace source");
-    fs::create_dir_all(external.join("src")).expect("create external source");
-    fs::write(
-        workspace.join("Cargo.toml"),
-        "[workspace]\nmembers = [\"../external-member\"]\nresolver = \"2\"\n",
-    )
-    .expect("write workspace manifest");
-    fs::write(
-        external.join("Cargo.toml"),
-        "[package]\nname = \"external-member\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-    )
-    .expect("write external manifest");
-    fs::write(external.join("src/lib.rs"), "pub fn external() {}\n")
-        .expect("write external source");
-
-    let rendered =
-        render_rust_project_harness_workspace_scope_json(&workspace).expect("render scope");
-    let packet: JsonValue = serde_json::from_str(&rendered).expect("json");
-    let workspace = fs::canonicalize(workspace).expect("canonical workspace");
-    let external = fs::canonicalize(external).expect("canonical external");
-    let workspace_text = workspace.to_string_lossy().replace('\\', "/");
-    let external_text = external.to_string_lossy().replace('\\', "/");
-
-    assert_eq!(
-        packet["schemaId"].as_str(),
-        Some("agent.semantic-protocols.semantic-workspace-scope")
-    );
-    assert_eq!(packet["schemaVersion"].as_str(), Some("1"));
-    assert_eq!(packet["languageId"].as_str(), Some("rust"));
-    assert_eq!(packet["providerId"].as_str(), Some("rs-harness"));
-    assert_eq!(packet["packageManager"].as_str(), Some("cargo"));
-    assert_eq!(packet["sourceExtensions"], serde_json::json!([".rs"]));
-    assert_eq!(
-        packet["discoveryRoot"].as_str(),
-        Some(workspace_text.as_str())
-    );
-    assert_sha256(&packet["fingerprint"]);
-    assert!(packet["admittedRoots"].as_array().is_some_and(|roots| {
-        roots
-            .iter()
-            .any(|root| root.as_str() == Some(external_text.as_str()))
-    }));
-    assert!(packet["packages"].as_array().is_some_and(|packages| {
-        packages.iter().any(|package| {
-            package["name"].as_str() == Some("external-member")
-                && package["root"].as_str() == Some(external_text.as_str())
-                && package["manifestPath"]
-                    .as_str()
-                    .is_some_and(|path| path == format!("{external_text}/Cargo.toml"))
-        })
-    }));
-    assert!(packet["anchors"].as_array().is_some_and(|anchors| {
-        anchors.iter().any(|anchor| {
-            anchor["kind"].as_str() == Some("cargo-manifest")
-                && anchor["path"]
-                    .as_str()
-                    .is_some_and(|path| path == format!("{external_text}/Cargo.toml"))
-        })
-    }));
-    assert!(
-        !external.starts_with(&workspace),
-        "fixture must prove package-manager membership rather than path-prefix admission"
-    );
 }
 
 fn assert_sha256(value: &JsonValue) {

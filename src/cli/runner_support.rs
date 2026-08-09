@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 pub(super) fn print_help() {
     println!(
         "rs-harness [--json | --agent-snapshot] [PROJECT_ROOT]\n\
-             rs-harness search <view> [ARGS] [PIPE...] [--json] [--code] [--package PACKAGE] [PROJECT_ROOT]\n\
-             rs-harness query [SELECTOR] [--query SYMBOL | --term TERM] [--code] [PIPE...] [PROJECT_ROOT]\n\
+             rs-harness search <view> [ARGS] [PIPE...] [--json] [--package PACKAGE] [PROJECT_ROOT]\n\
+             rs-harness query --selector SELECTOR --projection source|callable-skeleton [--workspace PROJECT_ROOT]\n\
              rs-harness check <--changed|--full> [--json] [PROJECT_ROOT]\n\
              rs-harness behavior snapshot --path PATH [--json]\n\
              rs-harness determinism readiness [--include-tests] [--json] [PROJECT_ROOT]\n\
@@ -25,7 +25,7 @@ pub(super) fn print_help() {
          Use --json to emit the structured RustHarnessReport audit shape.\n\
           Use --agent-snapshot to emit a low-noise reasoning-tree summary.\n\
           Use search for RFC line-protocol exploration views.\n\
-          Use query for hook reroutes into parser-owned search/code extraction.\n\
+          Use query for exact parser-owned selector projection.\n\
           Use ast-patch dry-run/apply for provider-native structural patch receipts."
     );
 }
@@ -35,12 +35,11 @@ pub(super) fn print_search_help() {
         "rs-harness search prime [--workspace PROJECT_ROOT] [--package PACKAGE]\n\
 rs-harness search guide [PROJECT_ROOT]\n\
 rs-harness search owner <path-or-owner> [items tests] [--scope SCOPE] [PROJECT_ROOT]\n\
-         rs-harness search owner <path-or-owner> items --query SYMBOL [--names-only | --code] [PROJECT_ROOT]\n\
+         rs-harness search owner <path-or-owner> items --query SYMBOL [PROJECT_ROOT]\n\
          rs-harness search workspace [--package PACKAGE] [PROJECT_ROOT]\n\
          rs-harness search targets [--package PACKAGE] [PROJECT_ROOT]\n\
 rs-harness search deps [dep[/subpath][@version][::api]] [public-api] [PROJECT_ROOT]\n\
 rs-harness search dependency-topology --json [--workspace PROJECT_ROOT]\n\
-rs-harness search workspace-scope --json [--workspace PROJECT_ROOT]\n\
 rs-harness projection <relative-owner> --json --workspace PROJECT_ROOT\n\
 rs-harness search env [toolchain|cfg] [PROJECT_ROOT]\n\
 rs-harness search compare env stable nightly [PROJECT_ROOT]\n\
@@ -53,13 +52,12 @@ rs-harness search features [feature] [cfg owners tests] [PROJECT_ROOT]\n\
 rs-harness search <symbol|callsite|import|cfg|pattern|docs|docs-use|api> <query> [PROJECT_ROOT]\n\
 rs-harness search <owner|dependency|tests> --query-set TERM [--query-set TERM...] [PROJECT_ROOT]\n\
          rs-harness search public-external-types [--dependency DEP] [PROJECT_ROOT]\n\
-         rg -n '<query>' src tests | rs-harness search ingest [items tests] [PROJECT_ROOT]\n\n\
          Emits compact RFC line protocol for deterministic agent exploration.\n\
          Search discovers owner candidates; exact item identity belongs to query-item packets.\n\
          Compact text is the default; --json wraps the same packet for tools.\n\
          RFC controls accepted here: --trace, --explain, --view graph|hits|both|seeds,\n\
          --depth N, --dir out|in|both, --edge LIST, --item-slice, --dependency DEP,\n\
-         --seeds N, --query-set TERM, --query SYMBOL, --names-only, --code, --lines."
+         --seeds N, --query-set TERM, --query SYMBOL, --lines."
     );
 }
 
@@ -98,26 +96,27 @@ pub(super) fn print_guide(_project_root: &Path) {
         r#"[agent-guide] lang=rust provider=asp-rust protocol=agent-guide.v1 root=.
 |contract intent=agent-owned harness=typed-selectors no=--goal,--intent,nl-planning
 |surface search purpose=tool-map output=search-guide code=false
-|surface query purpose=locator-or-code output=frontier|pure-code
+|surface query purpose=exact-selector-projection output=pure-source|callable-skeleton
 |surface check purpose=verification output=receipt|compact-findings
 |surface patch purpose=mutation authority=agent-core|apply_patch|ast-patch
 |catalog reasoningProfiles=owner-query,query-deps,owner-tests,finding-frontier,feature-cfg entries=owner-query,query-deps,owner-tests,finding-frontier,feature-cfg routes=path,read-frontier
 
 |flow bootstrap start="search guide ." then="choose evidence-state route; prime only when owner map unknown" next="use search-guide command=search reasoning <profile> --owner/--query/--dependency ... --view seeds"
-|flow code-shaped-read start="query guide ." then="query --selector <exact-structural-selector> --workspace <workspace-root> --code"
+|flow exact-read start="search owner <owner-path> items --query <symbol> --view seeds" then="query --selector <exact-structural-selector> --projection source --workspace <workspace-root>"
 |flow wide-read-protection trigger="raw-source-denied" next="search owner <owner-path> items --workspace <workspace-root> --view seeds" output=owner-item-frontier code=false
 
 |cmd prime=asp rust search prime --workspace <workspace-root> --view seeds condition=owner-map-unknown
 |cmd pipe=asp rust search pipe '<term>' --workspace <workspace-root> --view seeds condition=ambiguous-query
-|cmd query-code=asp rust query --selector <exact-structural-selector> --workspace <workspace-root> --code
+|cmd query-source=asp rust query --selector <exact-structural-selector> --projection source --workspace <workspace-root>
+|cmd query-skeleton=asp rust query --selector <exact-structural-selector> --workspace <workspace-root> --projection callable-skeleton
 |cmd evidence-graph=asp rust evidence graph --review-packet-json <semantic-review-packet.json> --json <workspace-root>
 |cmd evidence-analyze=asp rust evidence analyze --evidence-graph-json <semantic-evidence-graph.json> --json <workspace-root>
 
 |refer search-guide="search guide ." use=low-frequency-tool-map
-|refer query-guide="query guide ." use=code-stdout|read-plan-contract
+|refer query-guide="query guide ." use=exact-projection-contract
 
 |rule search-no-code default=true reason=avoid-inline-code-token-bloat
-|rule query-code-stdout pure=true when="--code + exact-selector|unique-match"
+|rule query-source-stdout pure=true explicitProjection=required
 |rule displayLineRange/sourceLocatorHint are display hints; execute structural selectors or owner/symbol routes, not line ranges
 |avoid raw-read,manual-window-scan,inline-code-in-search,broad-lexical,search-json-in-prompt,repeat-wide-read
 "#
@@ -195,7 +194,6 @@ pub(super) fn is_known_search_view(view: &str) -> bool {
             | "semantic-facts"
             | "dependency-topology"
             | "dependency-topology-metadata"
-            | "workspace-scope"
             | "ingest"
     )
 }

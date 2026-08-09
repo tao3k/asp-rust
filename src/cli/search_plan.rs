@@ -105,9 +105,10 @@ fn append_owner_plan(rendered: &mut String, query: &str) {
 fn append_unknown_scope_plan(rendered: &mut String, view: &str, query: &str) {
     rendered.push_str("|recipe unknown-scope focus=bounded-candidates token=bounded\n");
     rendered.push_str(&format!("|prefer search:{view}:{query}\n"));
-    rendered.push_str(&format!("|fallback ingest=rg-n:{query}(scope=src,tests)\n"));
-    rendered.push_str("|next search:owner:<top-owner>(items),search:tests:<top-owner>\n");
-    rendered.push_str("|budget commands=3 rounds=2 output=bounded\n");
+    rendered.push_str(
+        "|next search:lexical:<query>,search:owner:<top-owner>(items),search:tests:<top-owner>\n",
+    );
+    rendered.push_str("|budget commands=2 rounds=2 output=bounded\n");
 }
 
 fn append_default_plan(rendered: &mut String) {
@@ -117,7 +118,8 @@ fn append_default_plan(rendered: &mut String) {
     rendered.push_str("|entry owner-tests selectors=O:owner returns=covering-tests,test-entrypoints,fixtures frontier=O.tests,T.owner cmd=asp rust search reasoning owner-tests --owner <path> --workspace . --view seeds\n");
     rendered.push_str("|entry finding-frontier selectors=F:finding,O:owner? returns=affected-owners,tests,verification-actions frontier=F.owner,F.tests,O.policy cmd=asp rust search reasoning finding-frontier --query <finding> [--owner <path>] --workspace . --view seeds\n");
     rendered.push_str("|entry feature-cfg selectors=F2:feature returns=cfg-gates,owners,verification-surfaces frontier=F2.cfg,F2.owner,F2.tests cmd=asp rust search reasoning feature-cfg --query <feature> --workspace . --view seeds\n");
-    rendered.push_str("|route read-frontier selectors=R:range returns=symbols,windows,tests,next-actions frontier=R.symbols,R.tests,R.code cmd=asp rust query --from-hook direct-source-read --selector <path[:line-range]> [--code] .\n");
+    rendered.push_str("|route exact-source selectors=structural-selector returns=source cmd=asp rust query --selector <structural-selector> --workspace . --projection source\n");
+    rendered.push_str("|route exact-callable-skeleton selectors=structural-selector returns=callable-skeleton cmd=asp rust query --selector <structural-selector> --workspace . --projection callable-skeleton\n");
 }
 
 fn dependency_root_from_query(query: &str) -> &str {

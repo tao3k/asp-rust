@@ -37,12 +37,25 @@ pub fn assert_rust_project_harness_downstream_policy(
     project_root: &Path,
     policy: &RustProjectHarnessDownstreamPolicy,
 ) -> RustHarnessReport {
-    run_rust_project_harness_downstream_policy(project_root, policy)
+    let cache_root = super::cache::build_gate_cache_root_from_env(project_root);
+    run_rust_project_harness_downstream_policy(project_root, policy, cache_root)
+}
+
+#[cfg(test)]
+pub(crate) fn assert_rust_project_harness_downstream_policy_with_state_home(
+    project_root: &Path,
+    policy: &RustProjectHarnessDownstreamPolicy,
+    state_home: &Path,
+) -> RustHarnessReport {
+    let cache_root =
+        super::cache::build_gate_cache_root(project_root, Some(state_home.as_os_str().to_owned()));
+    run_rust_project_harness_downstream_policy(project_root, policy, cache_root)
 }
 
 fn run_rust_project_harness_downstream_policy(
     project_root: &Path,
     policy: &RustProjectHarnessDownstreamPolicy,
+    cache_root: Option<std::path::PathBuf>,
 ) -> RustHarnessReport {
     let dependency_baseline_receipts = super::receipt::dependency_baseline_package_receipts(policy);
     let snapshot = super::cache::snapshot_build_gate_inputs(project_root, policy.config())
@@ -66,7 +79,6 @@ fn run_rust_project_harness_downstream_policy(
             downstream_build_gate_agent_guidance(policy.gate_label())
         )
     });
-    let cache_root = super::cache::build_gate_cache_root_from_env(project_root);
     if let Some(record) = cache_root
         .as_deref()
         .and_then(|cache_root| super::cache::load_build_gate_cache(cache_root, &cache_key))

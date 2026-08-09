@@ -1,6 +1,6 @@
 //! Workspace-level evidence graph receipts for multi-crate build gates.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,7 @@ use crate::build_gate::{
 use crate::verification::{
     RustVerificationPlan, RustVerificationTaskKind, plan_rust_project_verification_with_config,
 };
+use crate::{RustHarnessConfig, RustHarnessReport};
 
 /// Stable schema id for multi-crate workspace evidence graph receipts.
 pub const RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID: &str =
@@ -59,6 +60,90 @@ impl RustProjectHarnessWorkspaceEvidenceGraphMemberInput {
     #[must_use]
     pub fn policy(&self) -> &RustProjectHarnessDownstreamPolicy {
         &self.policy
+    }
+}
+
+/// Result of explicitly composing package-atomic downstream gates for a workspace.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RustProjectHarnessWorkspaceRunReport {
+    /// Cargo workspace root whose manifest admitted every selected member.
+    pub workspace_root: PathBuf,
+    /// Independently evaluated package reports.
+    pub members: Vec<RustProjectHarnessWorkspaceMemberRunReport>,
+}
+
+/// One package atom in an explicit workspace run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RustProjectHarnessWorkspaceMemberRunReport {
+    /// Caller-owned member label.
+    pub crate_label: String,
+    /// Cargo package root selected for this atom.
+    pub project_root: PathBuf,
+    /// Package-scoped harness report.
+    pub report: RustHarnessReport,
+}
+
+/// Assert explicitly selected workspace members as independent package atoms.
+///
+/// The Cargo manifest graph admits member roots before any package analysis.
+/// Each admitted member then runs through the ordinary downstream package API;
+/// no workspace-wide source traversal or shared member policy is introduced.
+///
+/// # Panics
+///
+/// Panics when a requested root is absent from the Cargo package graph, a root
+/// is selected twice, or one member policy fails.
+#[track_caller]
+pub fn assert_rust_workspace_harness_downstream_policies(
+    workspace_root: &Path,
+    workspace_config: &RustHarnessConfig,
+    members: impl IntoIterator<Item = RustProjectHarnessWorkspaceEvidenceGraphMemberInput>,
+) -> RustProjectHarnessWorkspaceRunReport {
+    let admitted_roots = crate::discovery::discover_cargo_package_roots(
+        workspace_root,
+        &workspace_config.ignored_dir_names,
+        &workspace_config.include_hidden_dir_names,
+    )
+    .into_iter()
+    .map(|root| crate::path::normalize_lexical_path(&root))
+    .collect::<BTreeSet<_>>();
+    let mut selected_roots = BTreeSet::new();
+    let mut reports = Vec::new();
+    for member in members {
+        let project_root = crate::path::normalize_lexical_path(member.project_root());
+        assert!(
+            admitted_roots.contains(&project_root),
+            "workspace member `{}` is not admitted by Cargo graph rooted at {}: {}",
+            member.crate_label(),
+            workspace_root.display(),
+            project_root.display()
+        );
+        assert!(
+            selected_roots.insert(project_root.clone()),
+            "workspace package selected more than once: {}",
+            project_root.display()
+        );
+        let report = crate::build_gate::assert_rust_project_harness_downstream_policy(
+            &project_root,
+            member.policy(),
+        );
+        assert!(
+            report
+                .root_paths
+                .iter()
+                .all(|path| path.starts_with(&project_root)),
+            "workspace member gate escaped package atom {}",
+            project_root.display()
+        );
+        reports.push(RustProjectHarnessWorkspaceMemberRunReport {
+            crate_label: member.crate_label().to_string(),
+            project_root,
+            report,
+        });
+    }
+    RustProjectHarnessWorkspaceRunReport {
+        workspace_root: crate::path::normalize_lexical_path(workspace_root),
+        members: reports,
     }
 }
 

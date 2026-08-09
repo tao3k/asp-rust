@@ -3,13 +3,12 @@ use std::fs;
 use serde_json::{Value, json};
 
 use super::{
-    assert_receipt_verification_contains, ast_patch_cli_test_guard, run_ast_patch_with_packet,
-    split_owner_items_packet, split_owner_items_packet_with_max_edits, write_split_owner_fixture,
+    assert_receipt_verification_contains, run_ast_patch_with_packet, split_owner_items_packet,
+    split_owner_items_packet_with_max_edits, write_split_owner_fixture,
 };
 
 #[test]
 fn cli_ast_patch_apply_splits_owner_item_without_agent_hunk() {
-    let _guard = ast_patch_cli_test_guard();
     let root = write_split_owner_fixture();
     let packet = split_owner_items_packet();
     let output = run_ast_patch_with_packet("apply", root.path(), &packet);
@@ -35,7 +34,6 @@ fn cli_ast_patch_apply_splits_owner_item_without_agent_hunk() {
 
 #[test]
 fn cli_ast_patch_dry_run_plans_split_without_mutating_files() {
-    let _guard = ast_patch_cli_test_guard();
     let root = write_split_owner_fixture();
     let packet = split_owner_items_packet();
     let source_path = root.path().join("src/lib.rs");
@@ -75,7 +73,6 @@ fn cli_ast_patch_dry_run_plans_split_without_mutating_files() {
 
 #[test]
 fn cli_ast_patch_dry_run_rejects_split_when_max_edits_too_low() {
-    let _guard = ast_patch_cli_test_guard();
     let root = write_split_owner_fixture();
     let packet = split_owner_items_packet_with_max_edits(1);
 

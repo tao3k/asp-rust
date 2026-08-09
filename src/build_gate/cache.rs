@@ -1,9 +1,8 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-#[cfg(test)]
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
@@ -21,8 +20,6 @@ pub(super) const RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_ID: &str =
 pub(super) const RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_VERSION: &str = "1";
 
 static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-#[cfg(test)]
-static TEST_CACHE_ROOT: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -78,26 +75,21 @@ struct RustProjectHarnessBuildGateCachePayload<'a> {
 }
 
 pub(super) fn build_gate_cache_root_from_env(project_root: &Path) -> Option<PathBuf> {
+    build_gate_cache_root(project_root, std::env::var_os("ASP_STATE_HOME"))
+}
+
+pub(super) fn build_gate_cache_root(
+    project_root: &Path,
+    state_home: Option<std::ffi::OsString>,
+) -> Option<PathBuf> {
     let canonical_root = project_root.canonicalize().ok()?;
     let project_identity = cache_digest_hex(
         b"rust-lang-project-harness.build-gate-cache.project.v1",
         canonical_root.as_os_str().as_encoded_bytes(),
     );
-    #[cfg(test)]
-    if let Some(base) = TEST_CACHE_ROOT
-        .lock()
-        .expect("test cache root lock")
-        .clone()
-    {
-        return Some(project_cache_root(base, &project_identity));
-    }
-    let base = if let Some(cache_home) = std::env::var_os("XDG_CACHE_HOME") {
-        PathBuf::from(cache_home).join("agent-semantic-protocols")
-    } else {
-        PathBuf::from(std::env::var_os("HOME")?)
-            .join(".agent-semantic-protocols")
-            .join("cache")
-    };
+    let base = PathBuf::from(state_home?)
+        .join("runtime")
+        .join("build-gates");
     Some(project_cache_root(base, &project_identity))
 }
 
@@ -108,9 +100,33 @@ pub(super) fn snapshot_build_gate_inputs(
     let project_root = project_root
         .canonicalize()
         .map_err(|error| format!("canonicalize build-gate project root: {error}"))?;
-    let mut files = Vec::new();
-    collect_snapshot_files(&project_root, &project_root, config, &mut files)?;
-    files.sort_by(|left, right| left.path.cmp(&right.path));
+    let scope = crate::discovery::rust_project_harness_scope(
+        &project_root,
+        config.include_tests,
+        &config.source_dir_names,
+        &config.test_dir_names,
+    );
+    let mut inputs = scope.monitored_paths();
+    let manifest = project_root.join("Cargo.toml");
+    if manifest.is_file() {
+        inputs.push(manifest);
+    }
+    let excluded_package_roots = crate::discovery::cargo_package_exclusion_roots(
+        &project_root,
+        &config.ignored_dir_names,
+        &config.include_hidden_dir_names,
+    );
+    let mut owned_files = BTreeMap::new();
+    for input in inputs {
+        collect_snapshot_path(
+            &project_root,
+            &input,
+            &excluded_package_roots,
+            config,
+            &mut owned_files,
+        )?;
+    }
+    let files = owned_files.into_values().collect::<Vec<_>>();
     let byte_count = files
         .iter()
         .try_fold(0_u64, |total, file| total.checked_add(file.byte_count))
@@ -217,11 +233,6 @@ fn project_cache_root(base: PathBuf, project_identity: &str) -> PathBuf {
         .join(project_identity_stem(project_identity))
 }
 
-#[cfg(test)]
-fn set_test_cache_root(cache_root: Option<PathBuf>) {
-    *TEST_CACHE_ROOT.lock().expect("test cache root lock") = cache_root;
-}
-
 pub(super) fn load_build_gate_cache(
     cache_root: &Path,
     cache_key: &str,
@@ -296,13 +307,41 @@ pub(super) fn store_build_gate_cache(
     Ok(())
 }
 
-fn collect_snapshot_files(
+fn collect_snapshot_path(
     project_root: &Path,
-    directory: &Path,
+    path: &Path,
+    excluded_package_roots: &BTreeSet<PathBuf>,
     config: &RustHarnessConfig,
-    files: &mut Vec<RustProjectHarnessBuildGateSnapshotFile>,
+    files: &mut BTreeMap<PathBuf, RustProjectHarnessBuildGateSnapshotFile>,
 ) -> Result<(), String> {
-    let mut entries = fs::read_dir(directory)
+    if crate::discovery::is_symlink_path(path) {
+        return Ok(());
+    }
+    if path.is_file() {
+        let content = fs::read(path).map_err(|error| {
+            format!("read build-gate snapshot file {}: {error}", path.display())
+        })?;
+        let relative_path = path
+            .strip_prefix(project_root)
+            .map_err(|error| format!("relativize build-gate snapshot path: {error}"))?
+            .to_path_buf();
+        files.insert(
+            relative_path.clone(),
+            RustProjectHarnessBuildGateSnapshotFile {
+                path: relative_path,
+                byte_count: content.len().min(u64::MAX as usize) as u64,
+                content_digest: content_digest(&content),
+            },
+        );
+        return Ok(());
+    }
+    if !path.is_dir() {
+        return Ok(());
+    }
+    if excluded_package_roots.contains(&crate::path::normalize_lexical_path(path)) {
+        return Ok(());
+    }
+    let mut entries = fs::read_dir(path)
         .map_err(|error| format!("read build-gate snapshot directory: {error}"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| format!("read build-gate snapshot entry: {error}"))?;
@@ -319,7 +358,7 @@ fn collect_snapshot_files(
             if should_skip_directory(&entry.file_name(), config) {
                 continue;
             }
-            collect_snapshot_files(project_root, &path, config, files)?;
+            collect_snapshot_path(project_root, &path, excluded_package_roots, config, files)?;
             continue;
         }
         if !file_type.is_file() {
@@ -332,11 +371,14 @@ fn collect_snapshot_files(
             .strip_prefix(project_root)
             .map_err(|error| format!("relativize build-gate snapshot path: {error}"))?
             .to_path_buf();
-        files.push(RustProjectHarnessBuildGateSnapshotFile {
-            path: relative_path,
-            byte_count: content.len().min(u64::MAX as usize) as u64,
-            content_digest: content_digest(&content),
-        });
+        files.insert(
+            relative_path.clone(),
+            RustProjectHarnessBuildGateSnapshotFile {
+                path: relative_path,
+                byte_count: content.len().min(u64::MAX as usize) as u64,
+                content_digest: content_digest(&content),
+            },
+        );
     }
     Ok(())
 }

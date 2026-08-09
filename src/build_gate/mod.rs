@@ -14,6 +14,8 @@ pub use dependency_baseline::{
     RustProjectHarnessDependencyBaseline, RustProjectHarnessDependencyBaselinePackage,
     assert_rust_project_harness_dependency_baseline,
 };
+#[cfg(test)]
+pub(crate) use downstream::assert_rust_project_harness_downstream_policy_with_state_home;
 pub use downstream::{
     assert_rust_project_harness_downstream_policy,
     assert_rust_project_harness_downstream_policy_from_env,

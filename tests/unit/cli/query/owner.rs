@@ -18,7 +18,7 @@ fn cli_help_separates_search_discovery_from_exact_query() {
     assert!(search.status.success(), "{search:?}");
     let stdout = String::from_utf8(search.stdout).expect("utf8 stdout");
     assert!(
-        stdout.contains("items --query SYMBOL [--names-only | --code]"),
+        stdout.contains("items --query SYMBOL [PROJECT_ROOT]"),
         "{stdout}"
     );
 
@@ -38,30 +38,4 @@ fn cli_help_separates_search_discovery_from_exact_query() {
         "{stdout}"
     );
     assert!(!stdout.contains("query <owner-path>"), "{stdout}");
-}
-
-#[test]
-fn cli_query_rejects_owner_symbol_discovery_compatibility_spellings() {
-    for args in [
-        vec![
-            "query",
-            "src/lib.rs",
-            "--query",
-            "load",
-            "--names-only",
-            "--workspace",
-            ".",
-        ],
-        vec!["query", "src/lib.rs", "--term", "load", "--workspace", "."],
-        vec!["query", "src/lib.rs", "--code", "--workspace", "."],
-    ] {
-        let output = run_cli(args);
-        assert!(!output.status.success(), "{output:?}");
-        let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
-        assert!(
-            stderr.contains("query requires an exact --selector"),
-            "{stderr}"
-        );
-        assert!(stderr.contains("asp rust search owner"), "{stderr}");
-    }
 }

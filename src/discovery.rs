@@ -41,6 +41,34 @@ pub fn discover_rust_files(
     files.into_iter().collect()
 }
 
+/// Discover Rust files owned by one Cargo package without entering nested packages.
+///
+/// A package root can also be a workspace root. A package-scoped walk must not
+/// silently absorb its workspace members; only the explicit workspace runner
+/// is allowed to expand those owners.
+#[must_use]
+pub(crate) fn discover_rust_package_files(
+    paths: &[PathBuf],
+    package_root: &Path,
+    ignored_dir_names: &BTreeSet<String>,
+    include_hidden_dir_names: &BTreeSet<String>,
+) -> Vec<PathBuf> {
+    let excluded_package_roots =
+        cargo_package_exclusion_roots(package_root, ignored_dir_names, include_hidden_dir_names);
+    let mut files = BTreeSet::new();
+    for path in paths {
+        discover_path_with_package_boundary(
+            path,
+            &excluded_package_roots,
+            ignored_dir_names,
+            include_hidden_dir_names,
+            &mut files,
+            false,
+        );
+    }
+    files.into_iter().collect()
+}
+
 /// Discover Cargo package roots under a project or workspace root.
 #[must_use]
 pub(crate) fn discover_cargo_package_roots(
@@ -49,25 +77,26 @@ pub(crate) fn discover_cargo_package_roots(
     include_hidden_dir_names: &BTreeSet<String>,
 ) -> Vec<PathBuf> {
     let manifest_path = project_root.join("Cargo.toml");
-    if manifest_path.is_file() {
-        return discover_package_roots_from_manifest(
-            project_root,
-            ignored_dir_names,
-            include_hidden_dir_names,
-        );
+    if !manifest_path.is_file() {
+        return Vec::new();
     }
+    discover_package_roots_from_manifest(project_root, ignored_dir_names, include_hidden_dir_names)
+}
 
-    let mut manifests = BTreeSet::new();
-    discover_cargo_manifests(
-        project_root,
-        ignored_dir_names,
-        include_hidden_dir_names,
-        &mut manifests,
-        false,
-    );
-    manifests
+/// Resolve manifest-declared package roots that are outside the anchored package.
+///
+/// This consumes parsed Cargo workspace/member/path-dependency facts. It does
+/// not infer ownership from arbitrary nested `Cargo.toml` files.
+pub(crate) fn cargo_package_exclusion_roots(
+    package_root: &Path,
+    ignored_dir_names: &BTreeSet<String>,
+    include_hidden_dir_names: &BTreeSet<String>,
+) -> BTreeSet<PathBuf> {
+    let package_root = normalize_lexical_path(package_root);
+    discover_cargo_package_roots(&package_root, ignored_dir_names, include_hidden_dir_names)
         .into_iter()
-        .filter_map(|manifest| manifest.parent().map(Path::to_path_buf))
+        .map(|root| normalize_lexical_path(&root))
+        .filter(|root| root != &package_root)
         .collect()
 }
 
@@ -99,6 +128,47 @@ fn discover_path(
     for entry in entries.flatten() {
         discover_path(
             &entry.path(),
+            ignored_dir_names,
+            include_hidden_dir_names,
+            files,
+            true,
+        );
+    }
+}
+
+fn discover_path_with_package_boundary(
+    path: &Path,
+    excluded_package_roots: &BTreeSet<PathBuf>,
+    ignored_dir_names: &BTreeSet<String>,
+    include_hidden_dir_names: &BTreeSet<String>,
+    files: &mut BTreeSet<PathBuf>,
+    ignore_current: bool,
+) {
+    if ignore_current && should_ignore(path, ignored_dir_names, include_hidden_dir_names) {
+        return;
+    }
+    if is_symlink_path(path) {
+        return;
+    }
+    if path.is_file() {
+        if is_rust_file(path) {
+            files.insert(path.to_path_buf());
+        }
+        return;
+    }
+    if !path.is_dir() {
+        return;
+    }
+    if excluded_package_roots.contains(&normalize_lexical_path(path)) {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(path) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        discover_path_with_package_boundary(
+            &entry.path(),
+            excluded_package_roots,
             ignored_dir_names,
             include_hidden_dir_names,
             files,

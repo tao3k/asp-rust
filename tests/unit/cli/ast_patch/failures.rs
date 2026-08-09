@@ -4,14 +4,13 @@ use serde_json::{Value, json};
 use tempfile::TempDir;
 
 use super::{
-    assert_receipt_verification_contains, ast_patch_cli_test_guard, replace_item_packet,
-    run_ast_patch_with_packet, run_ast_patch_with_packet_and_path, write_replace_item_fixture,
+    assert_receipt_verification_contains, replace_item_packet, run_ast_patch_with_packet,
+    run_ast_patch_with_packet_and_path, write_replace_item_fixture,
 };
 use crate::cli::support::write_manifest;
 
 #[test]
 fn cli_ast_patch_apply_does_not_write_when_rustfmt_fails() {
-    let _guard = ast_patch_cli_test_guard();
     let root = write_replace_item_fixture();
     let packet = replace_item_packet("pub fn demo() -> usize { 2 }");
     let source_path = root.path().join("src/lib.rs");
@@ -31,7 +30,6 @@ fn cli_ast_patch_apply_does_not_write_when_rustfmt_fails() {
 
 #[test]
 fn cli_ast_patch_apply_rejects_append_to_existing_module_file() {
-    let _guard = ast_patch_cli_test_guard();
     let root = TempDir::new().expect("tempdir");
     write_manifest(root.path(), "ast-patch-append-existing");
     fs::create_dir_all(root.path().join("src")).expect("mkdir src");
@@ -60,7 +58,6 @@ fn cli_ast_patch_apply_rejects_append_to_existing_module_file() {
 
 #[test]
 fn cli_ast_patch_apply_rejects_append_to_missing_file() {
-    let _guard = ast_patch_cli_test_guard();
     let root = TempDir::new().expect("tempdir");
     write_manifest(root.path(), "ast-patch-append-missing-file");
     fs::create_dir_all(root.path().join("src")).expect("mkdir src");

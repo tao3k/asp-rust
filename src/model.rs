@@ -920,7 +920,7 @@ pub struct RustHarnessReport {
     /// Severities that block assertions.
     pub blocking_severities: BTreeSet<RustDiagnosticSeverity>,
     /// Project scope, when the project runner was used.
-    pub project_scope: Option<RustProjectHarnessScope>,
+    pub project_resolution: Option<RustProjectHarnessScope>,
     /// Cargo member scopes, when a workspace or package collection was scanned.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub workspace_member_scopes: Vec<RustProjectHarnessScope>,

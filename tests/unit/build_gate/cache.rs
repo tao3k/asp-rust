@@ -12,11 +12,9 @@ use super::{
     BuildGateCacheContract, RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_ID,
     RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_VERSION, RustProjectHarnessBuildGateCacheRecord,
     RustProjectHarnessBuildGateSnapshot, TEMP_FILE_SEQUENCE, build_gate_cache_payload_digest,
-    cache_path, content_digest, load_build_gate_cache, snapshot_build_gate_inputs,
-    store_build_gate_cache,
+    build_gate_cache_root, cache_path, content_digest, load_build_gate_cache,
+    snapshot_build_gate_inputs, store_build_gate_cache,
 };
-
-static DOWNSTREAM_CACHE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn temp_root(name: &str) -> PathBuf {
     let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
@@ -54,7 +52,7 @@ fn empty_record(
                 invariant_candidates: Vec::new(),
                 root_paths: Vec::new(),
                 blocking_severities: BTreeSet::new(),
-                project_scope: None,
+                project_resolution: None,
                 workspace_member_scopes: Vec::new(),
             },
             &RustVerificationPlan::default(),
@@ -68,7 +66,7 @@ fn empty_record(
             invariant_candidates: Vec::new(),
             root_paths: Vec::new(),
             blocking_severities: BTreeSet::new(),
-            project_scope: None,
+            project_resolution: None,
             workspace_member_scopes: Vec::new(),
         },
         verification_plan: RustVerificationPlan::default(),
@@ -90,6 +88,59 @@ fn snapshot_hashes_complete_content_before_parse() {
     assert_ne!(first.digest, second.digest);
     assert_eq!(first.file_count, 2);
     assert_eq!(second.file_count, 2);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn package_snapshot_excludes_nested_workspace_member_inputs() {
+    let root = temp_root("package-atomic-snapshot");
+    let nested = root.join("nested-member");
+    fs::create_dir_all(nested.join("src")).expect("create nested member");
+    fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname='root-package'\nversion='0.1.0'\n\
+         [lib]\npath='lib.rs'\n\
+         [workspace]\nmembers=['nested-member']\n",
+    )
+    .expect("write root manifest");
+    fs::write(root.join("lib.rs"), "pub fn root() {}\n").expect("write root source");
+    fs::write(
+        nested.join("Cargo.toml"),
+        "[package]\nname='nested-member'\nversion='0.1.0'\n",
+    )
+    .expect("write nested manifest");
+    fs::write(nested.join("src/lib.rs"), "pub fn before() {}\n").expect("write nested source");
+    let config = RustHarnessConfig::default();
+
+    let before = snapshot_build_gate_inputs(&root, &config).expect("snapshot before");
+    fs::write(nested.join("src/lib.rs"), "pub fn after() {}\n").expect("change nested source");
+    let after = snapshot_build_gate_inputs(&root, &config).expect("snapshot after");
+
+    assert_eq!(before, after, "nested member invalidated package cache");
+    assert_eq!(
+        before
+            .files
+            .iter()
+            .map(|file| file.path.as_path())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([Path::new("Cargo.toml"), Path::new("lib.rs")])
+    );
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn build_gate_cache_requires_state_home_and_stays_under_runtime() {
+    let root = temp_root("state-home");
+    let state_home = root.join("state");
+    let project = root.join("project");
+    fs::create_dir_all(&project).expect("create project root");
+
+    assert_eq!(build_gate_cache_root(&project, None), None);
+    let cache_root = build_gate_cache_root(&project, Some(state_home.clone().into_os_string()))
+        .expect("resolve State Home build-gate cache");
+    assert!(cache_root.starts_with(state_home.join("runtime/build-gates/rph/bg/v1")));
+    assert!(!cache_root.starts_with(root.join(".agent-semantic-protocols/cache")));
+
     let _ = fs::remove_dir_all(root);
 }
 
@@ -314,9 +365,6 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
 
 #[test]
 fn downstream_cold_publish_then_warm_hit_parses_once() {
-    let _guard = DOWNSTREAM_CACHE_TEST_LOCK
-        .lock()
-        .expect("downstream cache test lock");
     let base = temp_root("downstream-hit");
     let project = base.join("project");
     let cache = base.join("cache");
@@ -346,7 +394,6 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         "//! Cached value implementation.\n\n/// Returns the cached fixture value.\npub fn cached_value() -> usize { 1 }\n",
     )
     .expect("write implementation");
-    set_test_cache_root(Some(cache.clone()));
     crate::runner::reset_analyze_rust_project_call_count();
     let policy = crate::RustProjectHarnessDownstreamPolicy::new(
         "cache-fixture",
@@ -368,10 +415,15 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         "snapshot and cache-key construction must not run the analyzer"
     );
 
-    let cold = crate::build_gate::assert_rust_project_harness_downstream_policy(&project, &policy);
+    let cold = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+        &project, &policy, &cache,
+    );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 1);
-    let resolved_cache_root = crate::build_gate::cache::build_gate_cache_root_from_env(&project)
-        .expect("resolve test cache root");
+    let resolved_cache_root = crate::build_gate::cache::build_gate_cache_root(
+        &project,
+        Some(cache.clone().into_os_string()),
+    )
+    .expect("resolve test cache root");
     let initial_cache_path = cache_path(&resolved_cache_root, &initial_key);
     assert!(
         crate::build_gate::cache::load_build_gate_cache(&resolved_cache_root, &initial_key)
@@ -394,7 +446,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         warm_key, initial_key,
         "warm cache key drifted after cold run"
     );
-    let warm = crate::build_gate::assert_rust_project_harness_downstream_policy(&project, &policy);
+    let warm = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+        &project, &policy, &cache,
+    );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 1);
     assert_eq!(warm, cold);
 
@@ -414,8 +468,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("build changed cache key");
     assert_ne!(changed_key, initial_key);
-    let changed =
-        crate::build_gate::assert_rust_project_harness_downstream_policy(&project, &policy);
+    let changed = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+        &project, &policy, &cache,
+    );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 2);
     assert_eq!(changed, cold);
     assert!(
@@ -425,7 +480,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     );
 
     let changed_warm =
-        crate::build_gate::assert_rust_project_harness_downstream_policy(&project, &policy);
+        crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+            &project, &policy, &cache,
+        );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 2);
     assert_eq!(changed_warm, changed);
 
@@ -450,8 +507,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("build renamed cache key");
     assert_ne!(renamed_key, changed_key);
-    let renamed =
-        crate::build_gate::assert_rust_project_harness_downstream_policy(&project, &policy);
+    let renamed = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+        &project, &policy, &cache,
+    );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 3);
     assert!(
         crate::build_gate::cache::load_build_gate_cache(&resolved_cache_root, &renamed_key)
@@ -459,7 +517,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         "renamed source must publish a new cache record"
     );
     let renamed_warm =
-        crate::build_gate::assert_rust_project_harness_downstream_policy(&project, &policy);
+        crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+            &project, &policy, &cache,
+        );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 3);
     assert_eq!(renamed_warm, renamed);
 
@@ -480,8 +540,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("build deleted cache key");
     assert_ne!(deleted_key, renamed_key);
-    let deleted =
-        crate::build_gate::assert_rust_project_harness_downstream_policy(&project, &policy);
+    let deleted = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+        &project, &policy, &cache,
+    );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 4);
     assert!(
         crate::build_gate::cache::load_build_gate_cache(&resolved_cache_root, &deleted_key)
@@ -489,11 +550,12 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         "deleted source must publish a new cache record"
     );
     let deleted_warm =
-        crate::build_gate::assert_rust_project_harness_downstream_policy(&project, &policy);
+        crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+            &project, &policy, &cache,
+        );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 4);
     assert_eq!(deleted_warm, deleted);
 
-    set_test_cache_root(None);
     let _ = fs::remove_dir_all(base);
 }
 
@@ -537,7 +599,5 @@ fn same_key_concurrent_publish_is_valid_and_leaves_no_temporary_files() {
     );
     let _ = fs::remove_dir_all(root.as_ref());
 }
-use crate::build_gate::cache::{
-    build_gate_cache_key, build_gate_cache_key_with_contract, set_test_cache_root,
-};
+use crate::build_gate::cache::{build_gate_cache_key, build_gate_cache_key_with_contract};
 use crate::{RustHarnessRunScope, RustProjectHarnessDependencyBaselinePackageReceipt};

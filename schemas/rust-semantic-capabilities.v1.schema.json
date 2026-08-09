@@ -46,7 +46,6 @@
           "workspace-router",
           "cargo-workspace-search",
           "cargo-workspace-membership",
-          "package-manager-workspace-scope",
           "package-prime-map",
             "rust-module-tree-prime",
             "reasoning-owner-search",

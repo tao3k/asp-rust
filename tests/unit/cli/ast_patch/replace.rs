@@ -3,14 +3,13 @@ use std::fs;
 use serde_json::{Value, json};
 
 use super::{
-    assert_receipt_verification_contains, ast_patch_cli_test_guard, replace_item_packet,
-    run_ast_patch_with_packet, write_replace_item_fixture,
+    assert_receipt_verification_contains, replace_item_packet, run_ast_patch_with_packet,
+    write_replace_item_fixture,
 };
 use crate::cli::support::run_cli_with_stdin;
 
 #[test]
 fn cli_ast_patch_dry_run_returns_provider_unsupported_operation_receipt() {
-    let _guard = ast_patch_cli_test_guard();
     let packet = json!({
         "target": { "ownerPath": "src/lib.rs", "locator": "src/lib.rs#fn:demo", "read": "src/lib.rs:1:4" },
         "operation": { "op": "remove_statement", "snippet": "return;" }
@@ -44,7 +43,6 @@ fn cli_ast_patch_dry_run_returns_provider_unsupported_operation_receipt() {
 
 #[test]
 fn cli_ast_patch_dry_run_verifies_replace_item_without_mutating_file() {
-    let _guard = ast_patch_cli_test_guard();
     let root = write_replace_item_fixture();
     let packet = replace_item_packet("fn demo() -> usize { 2 }");
     let source_path = root.path().join("src/lib.rs");
@@ -90,7 +88,6 @@ fn cli_ast_patch_dry_run_verifies_replace_item_without_mutating_file() {
 
 #[test]
 fn cli_ast_patch_apply_replaces_item_and_formats_file() {
-    let _guard = ast_patch_cli_test_guard();
     let root = write_replace_item_fixture();
     let packet = replace_item_packet("pub fn demo() -> usize { 2 }");
     let output = run_ast_patch_with_packet("apply", root.path(), &packet);

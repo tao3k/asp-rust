@@ -965,6 +965,6 @@ fn failure_next_guidance(project_root: &Path, packet: Option<&Value>) -> String 
         .unwrap_or("<path:start:end>");
     let project_root = project_root.display();
     format!(
-        "rust provider supports provider-native split_owner_items and snippet-verified replace_item; inspect exact source with `asp rust query --from-hook direct-source-read --selector {read} --code {project_root}`; build an AST packet with `asp ast-patch template --language rust --owner {owner} --read {read} --op split_owner_items --field destinationPath=<new-module.rs> --field moduleName=<module_name> > semantic-ast-patch.json`; verify with `asp rust ast-patch dry-run --packet semantic-ast-patch.json {project_root}`; apply natively with `asp rust ast-patch apply --packet semantic-ast-patch.json {project_root}`; check `asp rust check --changed {project_root}`"
+        "rust provider supports provider-native split_owner_items and snippet-verified replace_item; inspect exact source with `asp rust query --selector {read} --workspace {project_root} --projection source`; build an AST packet with `asp ast-patch template --language rust --owner {owner} --read {read} --op split_owner_items --field destinationPath=<new-module.rs> --field moduleName=<module_name> > semantic-ast-patch.json`; verify with `asp rust ast-patch dry-run --packet semantic-ast-patch.json {project_root}`; apply natively with `asp rust ast-patch apply --packet semantic-ast-patch.json {project_root}`; check `asp rust check --changed {project_root}`"
     )
 }

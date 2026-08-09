@@ -59,6 +59,5 @@ pub use semantic_facts::{
     render_rust_project_harness_dependency_topology_json,
     render_rust_project_harness_dependency_topology_metadata_json,
     render_rust_project_harness_search_semantic_facts_json,
-    render_rust_project_harness_workspace_scope_json,
 };
 pub(in crate::search) use version::version_requirement_matches_request;

@@ -373,11 +373,7 @@ fn fast_prime_owner_seed_paths(package_root: &Path, seed_limit: usize) -> Vec<Pa
             }
         }
     }
-    paths.sort_by(|left, right| {
-        owner_rank_for_path(package_root, right)
-            .cmp(&owner_rank_for_path(package_root, left))
-            .then_with(|| compare_paths_by_recency(package_root, left, right))
-    });
+    paths.sort_by(|left, right| compare_paths_by_recency(package_root, left, right));
     paths.truncate(seed_limit);
     paths
 }
@@ -529,10 +525,6 @@ fn ranked_frontier_owner_paths(
     frontier.sort_by(|(left_path, left_count), (right_path, right_count)| {
         right_count
             .cmp(left_count)
-            .then_with(|| {
-                owner_rank_for_path(package_root, right_path)
-                    .cmp(&owner_rank_for_path(package_root, left_path))
-            })
             .then_with(|| compare_paths_by_recency(package_root, left_path, right_path))
     });
     frontier
@@ -575,17 +567,6 @@ fn graph_edge_count(reasoning_tree: &RustReasoningTreeFacts) -> usize {
             .iter()
             .filter(|dependency| !dependency.is_test_context)
             .count()
-}
-
-fn owner_rank_for_path(package_root: &Path, path: &Path) -> usize {
-    let displayed = display_project_path(package_root, path);
-    match displayed.as_str() {
-        _ if displayed.ends_with("/mod.rs") => 110,
-        "src/lib.rs" | "src/main.rs" => 100,
-        _ if displayed.starts_with("src/") => 60,
-        _ if displayed.starts_with("tests/") => 30,
-        _ => 10,
-    }
 }
 
 fn ranked_owner_branches<'a>(

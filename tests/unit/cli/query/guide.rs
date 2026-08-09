@@ -16,7 +16,9 @@ fn cli_agent_guide_advertises_query_reroute() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("|surface query purpose=locator-or-code output=frontier|pure-code"),
+        stdout.contains(
+            "|surface query purpose=exact-selector-projection output=pure-source|callable-skeleton"
+        ),
         "{stdout}"
     );
     assert!(
@@ -28,7 +30,7 @@ fn cli_agent_guide_advertises_query_reroute() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("|avoid raw-read,manual-window-scan,inline-code-in-search"),
+        stdout.contains("|avoid raw-read,manual-window-scan"),
         "{stdout}"
     );
 }
@@ -68,16 +70,17 @@ fn cli_query_guide_prints_query_contract() {
         "{stdout}"
     );
     assert!(
-        stdout
-            .contains(r#"|contract stdout=frontier unless="--code + exact-selector|unique-match""#),
+        stdout.contains("|contract projectionRequired=true"),
         "{stdout}"
     );
     assert!(
-        stdout.contains(r#"|mode exact-range command="query --from-hook direct-source-read --selector <path:start-end> --code" output=pure-code maxWindow=40"#),
+        stdout.contains(
+            r#"|mode source command="query --selector <exact-structural-selector> --projection source --workspace <WORKSPACE>" output=pure-source"#
+        ),
         "{stdout}"
     );
     assert!(
-        stdout.contains("|read-plan avoid=repeat-wide-read,manual-window-scan,raw-read"),
+        stdout.contains("|contract jsonOutput=explicit-only"),
         "{stdout}"
     );
 }

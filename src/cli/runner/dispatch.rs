@@ -2,6 +2,10 @@
 
 #[path = "exact_source/mod.rs"]
 mod exact_source;
+#[path = "owner_search.rs"]
+mod owner_search;
+#[path = "project_resolution.rs"]
+mod project_resolution;
 
 use std::env;
 #[cfg(feature = "search")]
@@ -18,7 +22,9 @@ use crate::cli::{
     search_view_supports_query_set, split_csv_values,
 };
 #[cfg(feature = "search")]
-use crate::cli::{SearchOutputControls, apply_search_output_controls, render_search_graph_packet};
+use crate::cli::{
+    SearchOutputControls, apply_search_output_controls, render_compact_graph_seed_packet,
+};
 #[cfg(feature = "search")]
 use crate::cli::{SearchPlanOptions, render_search_plan};
 #[cfg(feature = "search")]
@@ -38,7 +44,6 @@ use crate::{
     render_rust_project_harness_search_ingest_with_config,
     render_rust_project_harness_search_semantic_facts_json,
     render_rust_project_harness_search_view_with_config,
-    render_rust_project_harness_workspace_scope_json,
 };
 use exact_source::run_exact_source_query;
 
@@ -59,6 +64,15 @@ pub fn run_cli_from_env() -> ExitCode {
 
 fn run(args: impl IntoIterator<Item = std::ffi::OsString>) -> Result<ExitCode, String> {
     let args = args.into_iter().collect::<Vec<_>>();
+    if is_command(&args, "owner-search-stdin") {
+        return owner_search::run_owner_search(&args);
+    }
+    if is_command(&args, "project-resolution-stdin") {
+        return project_resolution::run_project_resolution(&args);
+    }
+    if is_command(&args, "projection-batch-stdin") {
+        return crate::cli::run_language_projection([std::ffi::OsString::from("--batch-stdin")]);
+    }
     if is_command(&args, "search") {
         return run_search(args.into_iter().skip(1));
     }
@@ -223,16 +237,6 @@ fn run_search_view(options: &SearchOptions) -> Result<ExitCode, String> {
         );
         return Ok(ExitCode::SUCCESS);
     }
-    if options.view == "workspace-scope" {
-        if !options.json {
-            return Err("search workspace-scope requires --json".to_string());
-        }
-        print!(
-            "{}",
-            render_rust_project_harness_workspace_scope_json(&project_root)?
-        );
-        return Ok(ExitCode::SUCCESS);
-    }
     if options.view == "compare" && options.json {
         let query = options
             .query
@@ -289,8 +293,13 @@ fn run_search_view(options: &SearchOptions) -> Result<ExitCode, String> {
         render_rust_project_harness_search_view_with_config(&request)?
     };
     let json_options = options.semantic_json_options();
-    let rendered = if options.view == "compare" {
+    let rendered = if options.json {
+        String::new()
+    } else if options.view == "compare" {
         raw_rendered.clone()
+    } else if options.output_view.as_deref() == Some("seeds") {
+        let packet_json = render_search_json(&project_root, &json_options, &raw_rendered)?;
+        render_compact_graph_seed_packet(&packet_json, options.seeds)?
     } else {
         apply_search_output_controls(
             SearchOutputControls {
@@ -301,11 +310,6 @@ fn run_search_view(options: &SearchOptions) -> Result<ExitCode, String> {
             },
             &raw_rendered,
         )
-    };
-    let rendered = if options.output_view.as_deref() == Some("seeds") && options.view != "compare" {
-        render_search_graph_packet(&raw_rendered, options.seeds)?
-    } else {
-        rendered
     };
     if options.json {
         println!(
@@ -384,10 +388,80 @@ pub(super) struct SearchOptions {
     pub(super) pipes: Vec<String>,
     pub(super) query_set: Vec<String>,
     pub(super) item_query: Option<String>,
-    pub(super) item_names_only: bool,
-    pub(super) item_code: bool,
     pub(super) item_projection_metadata: bool,
     pub(super) workspace_root: Option<PathBuf>,
+}
+
+#[cfg(test)]
+#[path = "../../../tests/unit/cli/runner/dispatch.rs"]
+mod tests;
+
+fn resolve_search_workspace_root(
+    cwd: &std::path::Path,
+    input: &std::path::Path,
+) -> Result<PathBuf, String> {
+    if !cwd.is_absolute() {
+        return Err(format!(
+            "search workspace current directory must be absolute: cwd={}",
+            cwd.display()
+        ));
+    }
+    if input.as_os_str().is_empty() {
+        return Err(format!(
+            "search workspace root must not be empty: cwd={}",
+            cwd.display()
+        ));
+    }
+
+    let candidate = if input.is_absolute() {
+        input.to_path_buf()
+    } else if input == std::path::Path::new(".") || cwd.ends_with(input) {
+        cwd.to_path_buf()
+    } else {
+        cwd.join(input)
+    };
+    let normalized = normalize_absolute_search_workspace_root(&candidate)?;
+    if normalized.exists() {
+        std::fs::canonicalize(&normalized).map_err(|error| {
+            format!(
+                "failed to canonicalize search workspace root input={} cwd={} resolved={}: {error}",
+                input.display(),
+                cwd.display(),
+                normalized.display()
+            )
+        })
+    } else {
+        Ok(normalized)
+    }
+}
+
+fn normalize_absolute_search_workspace_root(path: &std::path::Path) -> Result<PathBuf, String> {
+    if !path.is_absolute() {
+        return Err(format!(
+            "search workspace root must resolve to an absolute path: {}",
+            path.display()
+        ));
+    }
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+            std::path::Component::RootDir => {
+                normalized.push(std::path::Component::RootDir.as_os_str())
+            }
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                if !normalized.pop() {
+                    return Err(format!(
+                        "search workspace root escapes its absolute root: {}",
+                        path.display()
+                    ));
+                }
+            }
+            std::path::Component::Normal(part) => normalized.push(part),
+        }
+    }
+    Ok(normalized)
 }
 
 impl SearchOptions {
@@ -454,8 +528,6 @@ impl SearchOptions {
                 "--json" => options.json = true,
                 "--help" | "-h" => options.help = true,
                 "--lines" => options.lines = true,
-                "--names-only" => options.item_names_only = true,
-                "--code" => options.item_code = true,
                 "--trace" => options.trace = true,
                 "--explain" => options.explain = true,
                 "--item-slice" => options.pipes.push("items".to_string()),
@@ -475,9 +547,6 @@ impl SearchOptions {
         }
         if options.help {
             return Ok(options);
-        }
-        if options.item_names_only && options.item_code {
-            return Err("search --names-only and --code cannot be combined".to_string());
         }
         options.apply_positionals(positionals)?;
         if options.view.is_empty() {
@@ -604,18 +673,19 @@ impl SearchOptions {
             seeds: self.seeds,
             query_set: self.query_set(),
             item_query: self.item_query.clone(),
-            item_names_only: self.item_names_only,
-            item_code: self.item_code,
             item_projection_metadata: self.item_projection_metadata,
         }
     }
 
     #[cfg(feature = "search")]
     fn project_root(&self) -> Result<PathBuf, String> {
-        if let Some(path) = self.workspace_root.as_ref() {
-            return Ok(path.clone());
-        }
-        discover_rust_project_root()
+        let cwd = std::env::current_dir()
+            .map_err(|error| format!("failed to resolve provider current directory: {error}"))?;
+        let root = match self.workspace_root.as_ref() {
+            Some(path) => path.clone(),
+            None => discover_rust_project_root()?,
+        };
+        resolve_search_workspace_root(&cwd, &root)
     }
 
     fn query_set(&self) -> Vec<String> {

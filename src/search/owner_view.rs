@@ -2,8 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
-const BROAD_ITEM_QUERY_CODE_LIMIT: usize = 3;
-
 use crate::RustHarnessConfig;
 use crate::parser::{ParsedRustModule, RustReasoningOwnerBranchFacts, parse_rust_file};
 
@@ -77,12 +75,7 @@ fn render_exact_path_owner_query_set(
     let package_roots =
         package_roots_for_request(project_root, config, options.package.as_deref())?;
     let include_items = has_pipe(options, "items");
-    let needs_context = !include_items || !options.item_names_only;
-    let contexts = if needs_context {
-        search_contexts(project_root, config, options)?
-    } else {
-        Vec::new()
-    };
+    let contexts = search_contexts(project_root, config, options)?;
     let mut rendered = String::new();
     for package_root in package_roots {
         let modules = query_terms
@@ -116,12 +109,7 @@ fn render_exact_path_owner_query_set(
         for module in &modules {
             append_parser_visible_owner_line(&mut block, &package_root, module);
         }
-        append_item_query_line(
-            &mut block,
-            &module_refs,
-            options.item_query.as_deref(),
-            options.item_names_only,
-        );
+        append_item_query_line(&mut block, &module_refs, options.item_query.as_deref());
         append_owner_item_hot_lines(
             &mut block,
             &package_root,
@@ -131,11 +119,11 @@ fn render_exact_path_owner_query_set(
         );
         append_owner_item_lines(
             &mut block,
+            project_root,
             &package_root,
             &module_refs,
             include_items,
             options.item_query.as_deref(),
-            options.item_names_only,
             options.item_projection_metadata,
         );
         append_unique_lines(
@@ -165,7 +153,6 @@ fn render_exact_path_owner(
         return render_exact_path_owner_seed_view(project_root, config, query, options);
     }
     if include_items
-        && options.item_names_only
         && options.package.is_none()
         && let Some((package_root, path)) = direct_exact_owner_path_match(project_root, query)
     {
@@ -178,8 +165,6 @@ fn render_exact_path_owner(
             include_items,
             include_tests: false,
             item_query: options.item_query.as_deref(),
-            item_names_only: options.item_names_only,
-            item_code: options.item_code,
             item_projection_metadata: options.item_projection_metadata,
             test_lines: Vec::new(),
             synthesis_lines: Vec::new(),
@@ -192,12 +177,7 @@ fn render_exact_path_owner(
         return Ok(None);
     }
 
-    let needs_context = !include_items || !options.item_names_only;
-    let contexts = if needs_context {
-        search_contexts(project_root, config, options)?
-    } else {
-        Vec::new()
-    };
+    let contexts = search_contexts(project_root, config, options)?;
     let mut rendered = String::new();
     for (package_root, path) in matches {
         let module = parse_rust_file(&path);
@@ -213,8 +193,6 @@ fn render_exact_path_owner(
             include_items,
             include_tests: !include_items || has_pipe(options, "tests"),
             item_query: options.item_query.as_deref(),
-            item_names_only: options.item_names_only,
-            item_code: options.item_code,
             item_projection_metadata: options.item_projection_metadata,
             test_lines,
             synthesis_lines,
@@ -247,22 +225,12 @@ struct ExactPathOwnerBlock<'a> {
     include_items: bool,
     include_tests: bool,
     item_query: Option<&'a str>,
-    item_names_only: bool,
-    item_code: bool,
     item_projection_metadata: bool,
     test_lines: Vec<String>,
     synthesis_lines: Vec<String>,
 }
 
 fn render_exact_path_owner_block(input: ExactPathOwnerBlock<'_>) -> String {
-    if input.include_items && input.item_code && input.item_query.is_some() {
-        return super::item_query::render_owner_item_code_lines(
-            input.package_root,
-            &[input.module],
-            input.item_query,
-        )
-        .join("\n");
-    }
     let mut block = render_exact_path_owner_header(
         input.project_root,
         input.package_root,
@@ -276,12 +244,7 @@ fn render_exact_path_owner_block(input: ExactPathOwnerBlock<'_>) -> String {
     } else {
         append_parser_visible_owner_line(&mut block, input.package_root, input.module);
     }
-    append_item_query_line(
-        &mut block,
-        &[input.module],
-        input.item_query,
-        input.item_names_only,
-    );
+    append_item_query_line(&mut block, &[input.module], input.item_query);
     append_owner_item_hot_lines(
         &mut block,
         input.package_root,
@@ -297,11 +260,11 @@ fn render_exact_path_owner_block(input: ExactPathOwnerBlock<'_>) -> String {
     );
     append_owner_item_lines(
         &mut block,
+        input.project_root,
         input.package_root,
         &[input.module],
         input.include_items,
         input.item_query,
-        input.item_names_only,
         input.item_projection_metadata,
     );
     if input.include_tests {
@@ -323,14 +286,6 @@ fn render_search_owner_block(
     let include_tests = options.pipes.iter().any(|pipe| pipe == "tests");
     let matching_branches = matching_owner_branches(context, query);
     let matching_modules = matching_owner_modules(context, query);
-    if include_items && options.item_code && options.item_query.is_some() {
-        return super::item_query::render_owner_item_code_lines(
-            &context.package_root,
-            &matching_modules,
-            options.item_query.as_deref(),
-        )
-        .join("\n");
-    }
     let mut block = render_search_owner_header(
         project_root,
         context,
@@ -347,12 +302,7 @@ fn render_search_owner_block(
         &matching_branches,
         &matching_modules,
     );
-    append_item_query_line(
-        &mut block,
-        &matching_modules,
-        options.item_query.as_deref(),
-        options.item_names_only,
-    );
+    append_item_query_line(&mut block, &matching_modules, options.item_query.as_deref());
     append_owner_item_hot_lines(
         &mut block,
         &context.package_root,
@@ -368,11 +318,11 @@ fn render_search_owner_block(
     );
     append_owner_item_lines(
         &mut block,
+        project_root,
         &context.package_root,
         &matching_modules,
         include_items,
         options.item_query.as_deref(),
-        options.item_names_only,
         options.item_projection_metadata,
     );
     if include_tests {
@@ -407,6 +357,7 @@ fn render_search_owner_query_set_block(
         .iter()
         .map(|term| {
             owner_query_details(
+                project_root,
                 context,
                 term,
                 include_items,
@@ -437,6 +388,7 @@ struct OwnerQueryDetails {
 }
 
 fn owner_query_details(
+    locator_root: &Path,
     context: &PackageSearchContext,
     query: &str,
     include_items: bool,
@@ -464,11 +416,11 @@ fn owner_query_details(
     );
     append_owner_item_lines(
         &mut lines,
+        locator_root,
         &context.package_root,
         &matching_modules,
         include_items,
         None,
-        false,
         item_projection_metadata,
     );
     append_owner_item_frontier_lines(
@@ -711,49 +663,33 @@ fn has_pipe(options: &RustSearchOptions, pipe: &str) -> bool {
 
 fn append_owner_item_lines(
     block: &mut String,
+    locator_root: &Path,
     package_root: &Path,
     matching_modules: &[&ParsedRustModule],
     include_items: bool,
     item_query: Option<&str>,
-    item_names_only: bool,
     item_projection_metadata: bool,
 ) {
-    let item_names_only =
-        item_names_only || broad_item_query_should_use_names_only(matching_modules, item_query);
     if !include_items {
         return;
     }
     for line in render_owner_item_lines(
+        locator_root,
         package_root,
         matching_modules,
         item_query,
-        item_names_only,
         item_projection_metadata,
     ) {
         let _ = writeln!(block, "{line}");
     }
 }
 
-fn broad_item_query_should_use_names_only(
-    matching_modules: &[&ParsedRustModule],
-    item_query: Option<&str>,
-) -> bool {
-    let Some(query) = item_query else {
-        return false;
-    };
-    query.contains('|')
-        && owner_item_count(matching_modules, true, Some(query)) > BROAD_ITEM_QUERY_CODE_LIMIT
-}
-
 fn append_item_query_line(
     block: &mut String,
     matching_modules: &[&ParsedRustModule],
     item_query: Option<&str>,
-    item_names_only: bool,
 ) {
-    let item_names_only =
-        item_names_only || broad_item_query_should_use_names_only(matching_modules, item_query);
-    if let Some(line) = render_item_query_line(matching_modules, item_query, item_names_only) {
+    if let Some(line) = render_item_query_line(matching_modules, item_query) {
         let _ = writeln!(block, "{line}");
     }
 }

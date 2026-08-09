@@ -84,12 +84,6 @@ pub(super) fn run_flow_lite_query_catalog(args: &[OsString]) -> Result<Option<Ex
                 print_query_help();
                 return Ok(Some(ExitCode::SUCCESS));
             }
-            "--code" => {
-                return Err(
-                    "query --catalog flow-lite is a locator/provenance surface; select an exact frontier locator and run query --selector <path-or-range> --code"
-                        .to_string(),
-                );
-            }
             option if option.starts_with('-') => {
                 return Err(format!("unsupported flow-lite query option: {option}"));
             }

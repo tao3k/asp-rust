@@ -25,7 +25,7 @@ pub(super) fn module_allowed(
 }
 
 pub(super) fn path_allowed_by_scope(
-    project_scope: &RustProjectHarnessScope,
+    project_resolution: &RustProjectHarnessScope,
     package_root: &Path,
     path: &Path,
     options: &RustSearchOptions,
@@ -33,7 +33,7 @@ pub(super) fn path_allowed_by_scope(
     options.scope.as_deref().is_none_or(|scope| {
         scope_terms(scope).any(|term| {
             term == "all"
-                || path_is_scope(project_scope, path, term)
+                || path_is_scope(project_resolution, path, term)
                 || owner_path_matches(package_root, path, term)
         })
     })

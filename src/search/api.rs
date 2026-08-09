@@ -31,10 +31,6 @@ pub struct RustSearchOptions {
     pub query_set: Vec<String>,
     /// Optional parser-native item query inside an owner/module result.
     pub item_query: Option<String>,
-    /// Suppress compact code for item queries and render only parser item names.
-    pub item_names_only: bool,
-    /// Render only compact parser-owned code for item queries.
-    pub item_code: bool,
     /// Include parser projection metadata for schema packet rendering.
     pub item_projection_metadata: bool,
 }
@@ -227,8 +223,6 @@ fn clone_reasoning_options(options: &RustSearchOptions) -> RustSearchOptions {
         seeds: options.seeds,
         query_set: options.query_set.clone(),
         item_query: options.item_query.clone(),
-        item_names_only: options.item_names_only,
-        item_code: options.item_code,
         item_projection_metadata: options.item_projection_metadata,
     }
 }

@@ -11,7 +11,7 @@ mod flow_lite_query;
 mod formal_proof_pilot;
 #[cfg(feature = "search")]
 mod language_projection;
-mod query;
+pub(crate) mod query;
 mod query_options;
 mod review_packet;
 mod runner;
@@ -58,7 +58,7 @@ pub(in crate::cli) use runner_support::{
 };
 #[cfg(feature = "search")]
 pub(in crate::cli) use search_output::{
-    SearchOutputControls, apply_search_output_controls, render_search_graph_packet,
+    SearchOutputControls, apply_search_output_controls, render_compact_graph_seed_packet,
 };
 #[cfg(feature = "search")]
 pub(in crate::cli) use search_plan::{SearchPlanOptions, render_search_plan};

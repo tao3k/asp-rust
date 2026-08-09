@@ -2,39 +2,12 @@ mod rfc_line_protocol;
 use std::fs;
 use std::process::Command;
 
-use serde_json::Value;
 use tempfile::TempDir;
 
 use crate::cli::support::{
     configure_shared_asp_renderer, normalize_temp_root, run_cli, run_search, run_search_with_stdin,
     write_manifest, write_search_fixture,
 };
-
-#[test]
-fn cli_search_workspace_scope_emits_standalone_json_packet() {
-    let temp = TempDir::new().expect("temp dir");
-    let root = temp.path();
-    write_manifest(root, "workspace-scope-cli");
-    fs::create_dir_all(root.join("src")).expect("create src");
-    fs::write(root.join("src/lib.rs"), "pub fn api() {}\n").expect("write lib");
-
-    let rendered = run_search(root, &["workspace-scope", "--json"]);
-    let packet: Value = serde_json::from_str(&rendered).expect("workspace scope json");
-
-    assert_eq!(
-        packet["schemaId"].as_str(),
-        Some("agent.semantic-protocols.semantic-workspace-scope")
-    );
-    assert_eq!(packet["languageId"].as_str(), Some("rust"));
-    assert_eq!(packet["packageManager"].as_str(), Some("cargo"));
-    assert_eq!(packet["sourceExtensions"], serde_json::json!([".rs"]));
-    assert_eq!(packet["discoveryRoot"].as_str(), Some("$TEMP"));
-    assert_eq!(
-        packet["packages"][0]["name"].as_str(),
-        Some("workspace-scope-cli")
-    );
-    assert_eq!(packet["admittedRoots"][0].as_str(), Some("$TEMP"));
-}
 
 #[test]
 fn cli_search_prime_seeds_omit_owner_only_frontier() {

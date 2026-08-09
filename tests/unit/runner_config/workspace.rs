@@ -9,9 +9,14 @@ use super::support::{
 };
 
 #[test]
-fn project_runner_discovers_member_crates_under_package_collection_root() {
+fn project_runner_discovers_only_manifest_registered_member_crates() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
+    fs::write(
+        root.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/gated\", \"crates/inline\"]\nresolver = \"2\"\n",
+    )
+    .expect("write workspace manifest");
     let gated = root.join("crates/gated");
     let inline = root.join("crates/inline");
     create_member_crate(&gated, "gated");

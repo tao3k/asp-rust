@@ -119,7 +119,7 @@ fn include_tests_false_skips_test_root_parsing_not_test_layout_policy() {
     assert_eq!(report.file_count(), 1);
     assert!(
         report
-            .project_scope
+            .project_resolution
             .as_ref()
             .is_some_and(|scope| scope.test_paths.is_empty())
     );

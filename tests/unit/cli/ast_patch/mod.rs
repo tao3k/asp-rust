@@ -4,19 +4,11 @@ mod split_owner;
 use std::ffi::OsString;
 use std::fs;
 use std::io::Write;
-use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use serde_json::{Value, json};
 use tempfile::TempDir;
 
 use super::support::{run_cli_with_stdin, write_clean_source, write_manifest};
-
-pub(super) fn ast_patch_cli_test_guard() -> MutexGuard<'static, ()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
 
 pub(super) fn write_replace_item_fixture() -> TempDir {
     let root = TempDir::new().expect("tempdir");
