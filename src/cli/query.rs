@@ -11,30 +11,26 @@ pub(super) enum QueryCommand {
 }
 
 pub(crate) struct ExactSourceQuery {
-    pub(crate) projection: String,
     pub(crate) selector: String,
-    pub(crate) source_snapshot_envelope: Option<std::path::PathBuf>,
-    pub(crate) exact_request_stdin: bool,
+    pub(crate) projection: String,
     pub(crate) json: bool,
-    pub(crate) provider_id: Option<String>,
+    pub(crate) provider_id: String,
+    pub(crate) exact_request_stdin: bool,
+    pub(crate) source_snapshot_envelope: Option<std::path::PathBuf>,
 }
 
 #[derive(Default)]
 struct ExactQueryAuthority {
-    source_snapshot_envelope: Option<std::path::PathBuf>,
     exact_request_stdin: bool,
-    provider_id: Option<String>,
-    parser_identity_digest: Option<String>,
-    query_pack_digest: Option<String>,
+    from_hook: Option<String>,
+    source_snapshot_envelope: Option<std::path::PathBuf>,
 }
 
 impl ExactQueryAuthority {
     fn is_empty(&self) -> bool {
-        self.source_snapshot_envelope.is_none()
-            && !self.exact_request_stdin
-            && self.provider_id.is_none()
-            && self.parser_identity_digest.is_none()
-            && self.query_pack_digest.is_none()
+        !self.exact_request_stdin
+            && self.from_hook.is_none()
+            && self.source_snapshot_envelope.is_none()
     }
 }
 
@@ -67,9 +63,6 @@ pub(super) fn parse_query(
     if options.help {
         return Ok(QueryCommand::Help);
     }
-    let projection = options
-        .projection
-        .ok_or_else(|| "exact query requires an explicit projection".to_string())?;
     let wants_direct_source_items = options
         .selector
         .as_deref()
@@ -79,13 +72,20 @@ pub(super) fn parse_query(
             .selector
             .clone()
             .ok_or_else(|| "exact source query requires a selector".to_string())?;
+        let provider_id = options.provider_id.ok_or_else(|| {
+            "exact source query requires --asp-provider-id v1 authority".to_string()
+        })?;
+        let projection = options
+            .projection
+            .clone()
+            .ok_or_else(|| "exact source query requires --projection".to_string())?;
         return Ok(QueryCommand::ExactSource(ExactSourceQuery {
-            projection,
             selector,
-            source_snapshot_envelope: authority.source_snapshot_envelope,
-            exact_request_stdin: authority.exact_request_stdin,
+            projection,
             json: options.json,
-            provider_id: authority.provider_id,
+            provider_id,
+            exact_request_stdin: authority.exact_request_stdin,
+            source_snapshot_envelope: authority.source_snapshot_envelope,
         }));
     }
     if !authority.is_empty() {
@@ -198,7 +198,26 @@ fn extract_exact_query_authority(
     let mut authority = ExactQueryAuthority::default();
     let mut args = args.into_iter();
     while let Some(argument) = args.next() {
-        if argument == "--source-snapshot-envelope" {
+        if argument == "--asp-exact-request-stdin" {
+            if authority.exact_request_stdin {
+                return Err("--asp-exact-request-stdin may be supplied only once".to_string());
+            }
+            authority.exact_request_stdin = true;
+        } else if argument == "--from-hook" {
+            if authority.from_hook.is_some() {
+                return Err("--from-hook may be supplied only once".to_string());
+            }
+            let provenance = args
+                .next()
+                .ok_or_else(|| "--from-hook requires a provenance kind".to_string())?;
+            let provenance = provenance
+                .into_string()
+                .map_err(|_| "--from-hook provenance must be UTF-8".to_string())?;
+            if provenance.is_empty() {
+                return Err("--from-hook provenance must not be empty".to_string());
+            }
+            authority.from_hook = Some(provenance);
+        } else if argument == "--source-snapshot-envelope" {
             if authority.source_snapshot_envelope.is_some() {
                 return Err("--source-snapshot-envelope may be supplied only once".to_string());
             }
@@ -206,47 +225,11 @@ fn extract_exact_query_authority(
                 "--source-snapshot-envelope requires a JSON file path".to_string()
             })?;
             authority.source_snapshot_envelope = Some(std::path::PathBuf::from(path));
-        } else if argument == "--asp-exact-request-stdin" {
-            if authority.exact_request_stdin {
-                return Err("--asp-exact-request-stdin may be supplied only once".to_string());
-            }
-            authority.exact_request_stdin = true;
-        } else if argument == "--asp-provider-id" {
-            if authority.provider_id.is_some() {
-                return Err("--asp-provider-id may be supplied only once".to_string());
-            }
-            authority.provider_id = Some(exact_query_option_value(&mut args, "--asp-provider-id")?);
-        } else if argument == "--asp-parser-identity-digest" {
-            if authority.parser_identity_digest.is_some() {
-                return Err("--asp-parser-identity-digest may be supplied only once".to_string());
-            }
-            authority.parser_identity_digest = Some(exact_query_option_value(
-                &mut args,
-                "--asp-parser-identity-digest",
-            )?);
-        } else if argument == "--asp-query-pack-digest" {
-            if authority.query_pack_digest.is_some() {
-                return Err("--asp-query-pack-digest may be supplied only once".to_string());
-            }
-            authority.query_pack_digest = Some(exact_query_option_value(
-                &mut args,
-                "--asp-query-pack-digest",
-            )?);
         } else {
             filtered.push(argument);
         }
     }
     Ok((filtered, authority))
-}
-
-fn exact_query_option_value(
-    args: &mut impl Iterator<Item = OsString>,
-    option: &str,
-) -> Result<String, String> {
-    args.next()
-        .ok_or_else(|| format!("{option} requires a UTF-8 value"))?
-        .into_string()
-        .map_err(|_| format!("{option} requires a UTF-8 value"))
 }
 
 fn is_exact_item_selector(selector: &str) -> bool {
@@ -281,12 +264,12 @@ pub(super) fn print_query_guide() {
 
 pub(super) fn print_query_help() {
     println!(
-        "rs-harness query --selector 'rust://OWNER#item/KIND/NAME' --projection source|callable-skeleton [--workspace WORKSPACE] [--source-snapshot-envelope JSON-FILE]\n\
-rs-harness query --treesitter-query QUERY [--workspace WORKSPACE]\n\
-rs-harness query --catalog flow-lite --where 'source.call=NAME sink.constructs=TYPE scope.fn=FUNCTION' [<workspace-root>] [--json] [--workspace WORKSPACE]\n\
-rs-harness query --from-hook KIND --selector SELECTOR --source-snapshot-envelope JSON-FILE --projection source --json --asp-provider-id ID --asp-parser-identity-digest DIGEST --asp-query-pack-digest DIGEST [--workspace WORKSPACE]\n\
-rs-harness search dependency <crate-or-package> [items docs-use tests] [--view seeds] [--workspace WORKSPACE]\n\
-rs-harness search guide [--workspace WORKSPACE]\n\n\
+        "asp-rust query --selector 'rust://OWNER#item/KIND/NAME' --projection source|callable-skeleton [--workspace WORKSPACE] [--source-snapshot-envelope JSON-FILE]\n\
+asp-rust query --treesitter-query QUERY [--workspace WORKSPACE]\n\
+asp-rust query --catalog flow-lite --where 'source.call=NAME sink.constructs=TYPE scope.fn=FUNCTION' [<workspace-root>] [--json] [--workspace WORKSPACE]\n\
+asp-rust query --from-hook KIND --selector SELECTOR --source-snapshot-envelope JSON-FILE --projection source --json --asp-provider-id ID --asp-parser-identity-digest DIGEST --asp-query-pack-digest DIGEST [--workspace WORKSPACE]\n\
+asp-rust search dependency <crate-or-package> [items docs-use tests] [--view seeds] [--workspace WORKSPACE]\n\
+asp-rust search guide [--workspace WORKSPACE]\n\n\
 Maps hook-denied raw reads and broad searches into parser-owned search output.\n\
 Owner and symbol discovery is owned by `search owner`; `query` accepts only exact structural selectors or exact Tree-sitter/relation contracts.\n\
 Dependency search is manifest-first: inspect Cargo.toml/Cargo.lock facts, import owners, public API/docs-use, and tests before web or docs.rs search.\n\

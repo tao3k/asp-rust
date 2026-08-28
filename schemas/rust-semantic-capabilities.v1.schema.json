@@ -8,7 +8,7 @@
   "required": ["schemaId", "schemaVersion", "languageId", "providerId"],
   "properties": {
     "schemaId": {
-      "const": "agent.semantic-protocols.languages.rust.rs-harness.capabilities"
+      "const": "agent.semantic-protocols.languages.rust.asp-rust.capabilities"
     },
     "schemaVersion": {
       "const": "1"
@@ -17,7 +17,7 @@
       "const": "rust"
     },
     "providerId": {
-      "const": "rs-harness"
+      "const": "asp-rust"
     },
     "capability": {
       "$ref": "#/$defs/capabilityDescriptor"
@@ -46,6 +46,7 @@
           "workspace-router",
           "cargo-workspace-search",
           "cargo-workspace-membership",
+          "package-manager-workspace-scope",
           "package-prime-map",
             "rust-module-tree-prime",
             "reasoning-owner-search",

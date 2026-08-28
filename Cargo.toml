@@ -11,14 +11,25 @@ readme = "README.md"
 publish = []
 
 [features]
-cli = ["dep:blake3"]
+cli = [
+    "search",
+    "dep:agent-semantic-provider-transport",
+    "dep:base64",
+    "dep:clap",
+    "dep:tokio",
+]
 default = ["search"]
 search = []
 
 [dependencies]
-blake3 = { version = "1", optional = true }
+agent-semantic-content-identity = { path = "../../crates/agent-semantic-content-identity" }
+agent-semantic-provider-transport = { path = "../../crates/agent-semantic-provider-transport", optional = true }
+base64 = { version = "0.22.1", optional = true }
+clap = { version = "4.6.1", features = ["derive"], optional = true }
+blake3 = "1"
 cargo-lock = "11.0"
 cargo_toml = "1.0.0"
+libc = "0.2"
 proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
 regex = "1"
@@ -26,6 +37,7 @@ semver = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
+tokio = { version = "1", features = ["net", "rt-multi-thread", "sync"], optional = true }
 syn = { version = "2", features = ["extra-traits", "full", "parsing", "visit"] }
 toml = "1.1"
 
@@ -35,8 +47,8 @@ rs-harness = { path = "rs-harness" }
 tempfile = "3"
 
 [[bin]]
-name = "rs-harness"
-path = "src/bin/rs-harness.rs"
+name = "asp-rust"
+path = "src/bin/asp-rust.rs"
 required-features = ["cli"]
 
 [[bench]]

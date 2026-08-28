@@ -10,5 +10,7 @@ mod owner_search_stdin;
 mod project_resolution_scope;
 #[path = "integration/project_resolution_stdin.rs"]
 mod project_resolution_stdin;
+#[path = "integration/provider_serve_cli.rs"]
+mod provider_serve_cli;
 #[path = "integration/removed_query_surface.rs"]
 mod removed_query_surface;

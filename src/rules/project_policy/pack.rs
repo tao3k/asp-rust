@@ -7,7 +7,6 @@ use crate::{RustHarnessConfig, RustHarnessFinding, RustHarnessRule, RustProjectH
 
 use super::build_gate::build_gate_findings;
 use super::catalog::rules_by_id;
-use super::config::load_layout_policy;
 use super::manifest::manifest_findings;
 use super::quality::quality_findings;
 use super::source_scope::source_scope_findings;
@@ -82,11 +81,10 @@ pub(crate) fn evaluate(
     };
     let rules = rules_by_id();
     let mut findings = Vec::new();
-    let policy = load_layout_policy(&scope.project_root);
     let cargo_manifest = parse_cargo_manifest(&scope.project_root);
     let cargo_test_targets = parse_cargo_test_targets(&scope.project_root, &cargo_manifest);
     let reasoning_tree = rust_reasoning_tree_facts(scope, modules);
-    findings.extend(test_layout_findings(&scope.project_root, &policy, &rules));
+    findings.extend(test_layout_findings(&scope.project_root, &rules));
     findings.extend(manifest_findings(
         &scope.project_root,
         &cargo_manifest,
@@ -113,7 +111,6 @@ pub(crate) fn evaluate(
     findings.extend(test_target_module_mount_findings(
         &scope.project_root,
         &cargo_test_targets,
-        &policy,
         &rules,
     ));
     findings.extend(retired_test_target_gate_findings(

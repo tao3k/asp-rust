@@ -13,19 +13,29 @@ mod build_gate;
 mod cli;
 mod discovery;
 mod downstream_gate_guide;
+#[cfg(feature = "cli")]
+mod exact_source_parse_artifact;
+#[cfg(feature = "cli")]
+mod exact_source_projection;
 mod harness_rules;
 mod invariant_catalog;
 mod macros;
 mod model;
+pub mod nested_item_facts;
 mod parser;
 mod path;
+#[cfg(feature = "cli")]
+mod project_resolution;
+pub mod provider_workspace_search_identity;
 mod render;
 mod rules;
 mod runner;
 #[cfg(feature = "search")]
 mod search;
 mod self_policy;
+#[cfg(feature = "cli")]
 mod semantic_identity;
+pub mod structural_selector;
 mod verification;
 mod workspace_evidence_graph;
 
@@ -214,9 +224,10 @@ pub use runner::{
     RustHarnessRunScope, assert_rust_lang_harness_clean,
     assert_rust_project_harness_cargo_test_clean,
     assert_rust_project_harness_cargo_test_clean_with_config, assert_rust_project_harness_clean,
-    assert_rust_project_harness_clean_with_config, default_rust_harness_config,
-    run_rust_lang_harness, run_rust_lang_harness_with_config, run_rust_project_harness_for_scope,
-    run_rust_project_harness_with_config_for_scope, rust_harness_config_for_project,
+    assert_rust_project_harness_clean_with_config, assert_rust_workspace_harness_clean_with_config,
+    default_rust_harness_config, run_rust_lang_harness, run_rust_lang_harness_with_config,
+    run_rust_project_harness_for_scope, run_rust_project_harness_with_config_for_scope,
+    rust_harness_config_for_project,
 };
 #[cfg(feature = "search")]
 pub use search::{
@@ -231,7 +242,6 @@ pub use search::{
     render_rust_project_harness_dependency_topology_json,
     render_rust_project_harness_dependency_topology_metadata_json,
     render_rust_project_harness_search_semantic_facts_json,
-    render_rust_project_harness_workspace_scope_json,
 };
 pub use verification::{
     RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_ID, RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_VERSION,
@@ -322,8 +332,10 @@ pub use workspace_evidence_graph::{
     RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt,
     RustProjectHarnessWorkspaceEvidenceGraphReceipt,
     RustProjectHarnessWorkspaceEvidenceGraphSummaryReceipt,
+    RustProjectHarnessWorkspaceMemberRunReport, RustProjectHarnessWorkspaceRunReport,
     RustProjectHarnessWorkspaceTrustLoopStepReceipt,
     RustProjectHarnessWorkspaceTrustLoopStepStatus,
+    assert_rust_workspace_harness_downstream_policies,
     render_rust_project_harness_workspace_evidence_graph_receipt_json,
     rust_project_harness_workspace_evidence_graph_receipt,
 };

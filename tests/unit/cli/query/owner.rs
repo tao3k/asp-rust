@@ -6,7 +6,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .args(args)
         .output()
         .expect("run rs-harness")

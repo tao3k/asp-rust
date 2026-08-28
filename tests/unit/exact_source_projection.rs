@@ -24,7 +24,7 @@ fn provider_native_exact_projection_carries_exact_source_byte_range() {
     };
     let resolved = resolved_exact_item("src/lib.rs", &pinned, &selected);
     let requested_selector = "rust://src/lib.rs#item/function/selected";
-    let authority = super::super::ExactProjectionAuthority {
+let authority = super::super::ExactProjectionAuthority {
         projection_kind: "source".to_string(),
         generation_identity_digest: "a".repeat(64),
         parser_identity_digest: "b".repeat(64),
@@ -73,7 +73,7 @@ fn reexport_projection_carries_the_complete_use_item_byte_range() {
             item.identity.kind.as_str(),
             item.identity.symbol.as_str()
         );
-        let authority = super::super::ExactProjectionAuthority {
+let authority = super::super::ExactProjectionAuthority {
             projection_kind: "source".to_string(),
             generation_identity_digest: "a".repeat(64),
             parser_identity_digest: "b".repeat(64),
@@ -105,6 +105,10 @@ fn callable_skeleton_projection_returns_queryable_parser_nodes() {
             total += value;
         }
     }
+    match values.first() {
+        Some(value) => total += value,
+        None => {}
+    }
     total
 }
 "#;
@@ -124,7 +128,7 @@ fn callable_skeleton_projection_returns_queryable_parser_nodes() {
         items,
     };
     let resolved = resolved_exact_item("src/lib.rs", &pinned, &selected);
-    let authority = super::super::ExactProjectionAuthority {
+let authority = super::super::ExactProjectionAuthority {
         projection_kind: "callable-skeleton".to_string(),
         generation_identity_digest: "a".repeat(64),
         parser_identity_digest: "b".repeat(64),
@@ -143,8 +147,10 @@ fn callable_skeleton_projection_returns_queryable_parser_nodes() {
     assert_eq!(packet["projectionMode"], "callable-skeleton");
     assert!(packet.get("projectionText").is_none());
     let payload = &packet["projectionPayload"];
-    assert_eq!(payload["schemaVersion"], "1");
-    assert_eq!(payload["projectionKind"], "callable-skeleton");
+    assert!(payload.get("schemaId").is_none());
+    assert!(payload.get("schemaVersion").is_none());
+    assert!(payload.get("projectionKind").is_none());
+    assert!(payload.get("languageId").is_none());
     assert_eq!(payload["rootNodeId"], "callable:root");
     let nodes = payload["nodes"].as_array().expect("skeleton nodes");
     assert!(nodes.len() >= 4);
@@ -157,6 +163,7 @@ fn callable_skeleton_projection_returns_queryable_parser_nodes() {
     assert!(nodes.iter().any(|node| node["kind"] == "binding"));
     assert!(nodes.iter().any(|node| node["kind"] == "loop"));
     assert!(nodes.iter().any(|node| node["kind"] == "branch"));
+    assert!(nodes.iter().any(|node| node["kind"] == "match-arm"));
     assert!(!nodes.iter().any(|node| node["kind"] == "invocation"));
     assert!(!nodes.iter().any(|node| node["kind"] == "exception"));
 
@@ -166,7 +173,7 @@ fn callable_skeleton_projection_returns_queryable_parser_nodes() {
         .and_then(|node| node["exactSelector"]["selector"].as_str())
         .expect("queryable branch selector");
     let parsed_selector = ExactSelector::parse(branch_selector).expect("parse branch selector");
-    let materialized = crate::cli::runner::dispatch::exact_source::exact_source_projection::resolve_callable_segment(
+let materialized = crate::cli::runner::dispatch::exact_source::exact_source_projection::resolve_callable_segment(
         &resolved,
         parsed_selector.segment.as_ref().expect("branch segment"),
     )
@@ -175,5 +182,23 @@ fn callable_skeleton_projection_returns_queryable_parser_nodes() {
     assert_eq!(
         materialized.canonical_selector.structural_selector,
         branch_selector
+    );
+
+    let match_arm_selector = nodes
+        .iter()
+        .find(|node| node["kind"] == "match-arm")
+        .and_then(|node| node["exactSelector"]["selector"].as_str())
+        .expect("queryable match-arm selector");
+    let parsed_match_arm =
+        ExactSelector::parse(match_arm_selector).expect("parse match-arm selector");
+    let materialized_match_arm = crate::cli::runner::dispatch::exact_source::exact_source_projection::resolve_callable_segment(
+        &resolved,
+        parsed_match_arm.segment.as_ref().expect("match-arm segment"),
+    )
+    .expect("materialize match-arm segment");
+    assert!(materialized_match_arm.code.starts_with("Some(value) =>"));
+    assert_eq!(
+        materialized_match_arm.canonical_selector.structural_selector,
+        match_arm_selector
     );
 }

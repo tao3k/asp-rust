@@ -696,9 +696,9 @@ fn summary_for_category(
 fn default_producer() -> RustDeterminismReadinessProducer {
     RustDeterminismReadinessProducer {
         language_id: RustDeterminismReadinessLanguageId("rust".to_owned()),
-        provider_id: RustDeterminismReadinessProviderId("rs-harness".to_owned()),
+        provider_id: RustDeterminismReadinessProviderId("asp-rust".to_owned()),
         namespace: RustDeterminismReadinessNamespace(
-            "agent.semantic-protocols.languages.rust.rs-harness".to_owned(),
+            "agent.semantic-protocols.languages.rust.asp-rust".to_owned(),
         ),
     }
 }

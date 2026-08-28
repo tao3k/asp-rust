@@ -46,7 +46,7 @@ impl DevCommandLog {
         let event_id = make_event_id(started_at_system, session_ordinal);
         let log_file = log_root
             .join("rust")
-            .join("rs-harness")
+            .join("asp-rust")
             .join("commands")
             .join(command_log_file_name(
                 started_at_system,
@@ -57,7 +57,7 @@ impl DevCommandLog {
         let binary = argv
             .first()
             .map(|arg| binary_name(arg))
-            .unwrap_or_else(|| "rs-harness".to_string());
+            .unwrap_or_else(|| "asp-rust".to_string());
         let command = normalize_command(&argv);
 
         Self::Active(Box::new(ActiveCommandLog {
@@ -138,7 +138,7 @@ fn write_event(active: &ActiveCommandLog, exit_code: i32) -> io::Result<()> {
         push_string_field(&mut line, &mut first, "parentEventId", parent_event_id);
     }
     push_string_field(&mut line, &mut first, "languageId", "rust");
-    push_string_field(&mut line, &mut first, "providerId", "rs-harness");
+    push_string_field(&mut line, &mut first, "providerId", "asp-rust");
     push_string_field(&mut line, &mut first, "binary", &active.binary);
     push_array_field(&mut line, &mut first, "argv", &active.argv);
     push_string_field(

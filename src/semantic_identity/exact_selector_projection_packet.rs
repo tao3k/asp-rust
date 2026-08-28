@@ -2,11 +2,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::canonical_item_identity::CanonicalItemSelectorV1;
 use super::exact_selector_merkle::{
     ContentDigestV1, ExactProjectionModeV1, ParserLanguageIdV1, blake3_content_digest_v1,
     canonical_content_digest_v1,
 };
+use agent_semantic_content_identity::CanonicalItemSelector;
 
 const SCHEMA_ID: &str = "agent.semantic-protocols.exact-selector-projection-packet";
 const SCHEMA_VERSION: &str = "1";
@@ -53,7 +53,7 @@ pub(crate) struct ExactSelectorProjectionPacketV1 {
     digest_algorithm: String,
     language_id: ProjectionPacketLanguageIdV1,
     provider_id: ProjectionPacketProviderIdV1,
-    canonical_item_selector: CanonicalItemSelectorV1,
+    canonical_item_selector: CanonicalItemSelector,
     parser_identity_digest: ContentDigestV1,
     query_pack_digest: ContentDigestV1,
     owner_path: ProjectionPacketOwnerPathV1,
@@ -68,7 +68,7 @@ pub(crate) struct ExactSelectorProjectionPacketV1 {
 pub(crate) struct ExactSelectorProjectionPacketV1Input<'a> {
     pub(crate) language_id: &'a ProjectionPacketLanguageIdV1,
     pub(crate) provider_id: &'a ProjectionPacketProviderIdV1,
-    pub(crate) canonical_item_selector: CanonicalItemSelectorV1,
+    pub(crate) canonical_item_selector: CanonicalItemSelector,
     pub(crate) parser_identity_digest: &'a ContentDigestV1,
     pub(crate) query_pack_digest: &'a ContentDigestV1,
     pub(crate) owner_path: &'a ProjectionPacketOwnerPathV1,

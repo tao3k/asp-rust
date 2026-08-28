@@ -24,7 +24,7 @@ pub(in crate::cli) fn run_ast_patch(
         .collect::<Result<_, _>>()?;
     let Some(mode) = args.first().map(String::as_str) else {
         return Err(
-            "usage: rs-harness ast-patch <dry-run|apply> --packet <path|-> [PROJECT_ROOT]"
+            "usage: asp-rust ast-patch <dry-run|apply> --packet <path|-> [PROJECT_ROOT]"
                 .to_string(),
         );
     };

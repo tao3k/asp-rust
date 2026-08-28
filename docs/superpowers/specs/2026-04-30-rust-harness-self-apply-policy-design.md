@@ -91,12 +91,11 @@ Focused policy tests should cover:
 These tests live under `tests/unit` and are included by `tests/unit_test.rs`, so
 adding coverage does not introduce a new root test target that must be justified.
 
-## Exception Policy
+## Fixed Layout Policy
 
-`tests/rust-project-harness-rules.toml` may allow non-standard root test files
-or suite directories only when each exception includes a non-empty explanation.
-Empty explanations are ignored, so exception entries stay auditable instead of
-becoming silent allowlists.
+The harness accepts no project-local layout allowlist. A package that needs an
+isolated test process declares a Cargo test target whose source lives below a
+standard suite directory; all other findings are repaired directly.
 
 ## Render Policy
 

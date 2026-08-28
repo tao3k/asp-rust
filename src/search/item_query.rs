@@ -123,25 +123,6 @@ pub(super) fn render_owner_item_frontier_lines(
         .collect()
 }
 
-pub(super) fn render_owner_item_code_lines(
-    _package_root: &Path,
-    matching_modules: &[&ParsedRustModule],
-    item_query: Option<&str>,
-) -> Vec<String> {
-    matching_modules
-        .iter()
-        .take(SEARCH_OWNER_LIMIT)
-        .flat_map(|module| {
-            module_items_for_query(module, item_query)
-                .into_iter()
-                .take(SEARCH_ITEM_LIMIT)
-                .filter_map(|item| item_source_slice(module, item))
-                .filter(|text| !text.is_empty())
-                .collect::<Vec<_>>()
-        })
-        .collect()
-}
-
 pub(super) fn render_item_query_line(
     matching_modules: &[&ParsedRustModule],
     item_query: Option<&str>,
@@ -217,22 +198,6 @@ fn render_item_lines(
         )
     }));
     lines
-}
-
-fn item_source_slice(module: &ParsedRustModule, item: &RustTopLevelItemSyntax) -> Option<String> {
-    let start_line = item.line.max(1);
-    let end_line = item.end_line.max(start_line);
-    let lines = module
-        .source
-        .lines()
-        .skip(start_line.saturating_sub(1))
-        .take(end_line.saturating_sub(start_line).saturating_add(1))
-        .collect::<Vec<_>>();
-    if lines.is_empty() {
-        None
-    } else {
-        Some(lines.join("\n"))
-    }
 }
 
 fn projection_node_tokens(nodes: &[RustItemProjectionNodeSyntax]) -> String {

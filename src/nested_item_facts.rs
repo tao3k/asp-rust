@@ -9,9 +9,8 @@ use sha2::{Digest, Sha256};
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
-use crate::canonical_item_identity::{
-    CanonicalItemKindV1, CanonicalItemScopeKindV1, CanonicalItemScopeSymbolV1,
-    CanonicalItemSymbolV1,
+use agent_semantic_content_identity::{
+    CanonicalItemKind, CanonicalItemScopeKind, CanonicalItemScopeSymbol, CanonicalItemSymbol,
 };
 
 /// Schema identifier for provider-native nested Rust item facts.
@@ -69,9 +68,9 @@ nested_text_identity!(
 #[serde(rename_all = "camelCase")]
 pub struct RustItemScopeFactV1 {
     /// Provider-native scope kind.
-    pub kind: CanonicalItemScopeKindV1,
+    pub kind: CanonicalItemScopeKind,
     /// Scope symbol as emitted by the Rust parser.
-    pub symbol: CanonicalItemScopeSymbolV1,
+    pub symbol: CanonicalItemScopeSymbol,
 }
 
 /// Provider-native fact for one top-level or nested Rust item.
@@ -85,15 +84,15 @@ pub struct RustNestedItemFactV1 {
     /// Workspace-relative source owner.
     pub owner_path: RustNestedItemOwnerPathV1,
     /// Provider-native Rust item kind.
-    pub item_kind: CanonicalItemKindV1,
+    pub item_kind: CanonicalItemKind,
     /// Item symbol.
-    pub symbol: CanonicalItemSymbolV1,
+    pub symbol: CanonicalItemSymbol,
     /// Ordered lexical and ownership scopes.
     pub scopes: Vec<RustItemScopeFactV1>,
     /// Implementation owner when the item is nested in an `impl`.
-    pub impl_owner: Option<CanonicalItemScopeSymbolV1>,
+    pub impl_owner: Option<CanonicalItemScopeSymbol>,
     /// Trait owner when the item is declared in a trait or trait implementation.
-    pub trait_owner: Option<CanonicalItemScopeSymbolV1>,
+    pub trait_owner: Option<CanonicalItemScopeSymbol>,
     /// Inclusive source byte start.
     pub source_byte_start: usize,
     /// Exclusive source byte end.
@@ -127,8 +126,8 @@ pub fn rust_nested_item_facts_v1(
         left.source_byte_start
             .cmp(&right.source_byte_start)
             .then_with(|| left.source_byte_end.cmp(&right.source_byte_end))
-            .then_with(|| left.item_kind.cmp(&right.item_kind))
-            .then_with(|| left.symbol.cmp(&right.symbol))
+            .then_with(|| left.item_kind.as_str().cmp(right.item_kind.as_str()))
+            .then_with(|| left.symbol.as_str().cmp(right.symbol.as_str()))
     });
     Ok(visitor.facts)
 }

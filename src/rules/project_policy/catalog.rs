@@ -20,7 +20,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             PACK_ID,
             RustDiagnosticSeverity::Warning,
             "Root test file lacks explicit harness role",
-            "Move root-level test files under tests/unit or tests/integration, or justify an explicit harness entry point in tests/rust-project-harness-rules.toml.",
+            "Move root-level test files under tests/unit or tests/integration and declare nonstandard isolated targets directly in Cargo.toml.",
             labels("project-policy"),
         ),
         RustHarnessRule::new(
@@ -28,7 +28,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             PACK_ID,
             RustDiagnosticSeverity::Warning,
             "Unexpected tests directory",
-            "Keep only standard suite directories directly under tests, or document the exception in tests/rust-project-harness-rules.toml.",
+            "Keep only standard suite directories directly under tests; project-local layout exceptions are not accepted.",
             labels("project-policy"),
         ),
         RustHarnessRule::new(

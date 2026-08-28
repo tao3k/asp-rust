@@ -24,7 +24,7 @@ pub(super) fn run_review(args: impl IntoIterator<Item = OsString>) -> Result<Exi
         return Ok(ExitCode::SUCCESS);
     }
     if options.command.as_deref() != Some("packet") {
-        return Err("expected `rs-harness review packet`".to_owned());
+        return Err("expected `asp-rust review packet`".to_owned());
     }
 
     let project_root = options.project_root.unwrap_or_else(|| PathBuf::from("."));
@@ -296,7 +296,7 @@ fn os_string_to_string(value: OsString) -> Result<String, String> {
 
 fn print_review_help() {
     println!(
-        "rs-harness review packet [--receipt-json PATH] [--behavior-json PATH] [--determinism-json PATH] [--proof-json PATH] [--waiver-json PATH] [--json] [PROJECT_ROOT]\n\n\
+        "asp-rust review packet [--receipt-json PATH] [--behavior-json PATH] [--determinism-json PATH] [--proof-json PATH] [--waiver-json PATH] [--json] [PROJECT_ROOT]\n\n\
          Builds a reviewer-first packet from invariant candidates and new evidence API packets."
     );
 }

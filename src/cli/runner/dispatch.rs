@@ -6,6 +6,8 @@ mod exact_source;
 mod owner_search;
 #[path = "project_resolution.rs"]
 mod project_resolution;
+#[path = "provider_runtime.rs"]
+mod provider_runtime;
 
 use std::env;
 #[cfg(feature = "search")]
@@ -70,8 +72,8 @@ fn run(args: impl IntoIterator<Item = std::ffi::OsString>) -> Result<ExitCode, S
     if is_command(&args, "project-resolution-stdin") {
         return project_resolution::run_project_resolution(&args);
     }
-    if is_command(&args, "projection-batch-stdin") {
-        return crate::cli::run_language_projection([std::ffi::OsString::from("--batch-stdin")]);
+    if is_command(&args, "serve") {
+        return provider_runtime::run();
     }
     if is_command(&args, "search") {
         return run_search(args.into_iter().skip(1));
@@ -124,7 +126,7 @@ fn run(args: impl IntoIterator<Item = std::ffi::OsString>) -> Result<ExitCode, S
         return run_check(check_args);
     }
 
-    Err("expected an explicit rs-harness command; use `rs-harness check --changed|--full [PROJECT_ROOT]`"
+    Err("expected an explicit asp-rust command; use `asp-rust check --changed|--full [PROJECT_ROOT]`"
         .to_string())
 }
 

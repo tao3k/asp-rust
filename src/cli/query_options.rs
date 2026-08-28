@@ -17,6 +17,8 @@ pub(super) struct QueryOptions {
     pub(super) selector: Option<String>,
     #[arg(long)]
     pub(super) json: bool,
+    #[arg(long = "asp-provider-id")]
+    pub(super) provider_id: Option<String>,
     #[arg(long, short = 'h')]
     pub(super) help: bool,
     #[arg(long)]

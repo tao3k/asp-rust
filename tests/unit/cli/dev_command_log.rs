@@ -26,7 +26,7 @@ fn cli_dev_mode_records_ordered_command_log_jsonl() {
     )
     .expect("write active context marker");
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rs-harness"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_asp-rust"));
     configure_shared_asp_renderer(&mut command);
     let output = command
         .arg("guide")

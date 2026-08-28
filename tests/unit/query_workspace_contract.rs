@@ -66,7 +66,12 @@ fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
         .arg(&envelope_path)
         .args(["--workspace"])
         .arg(root.path())
-        .arg("--code")
+        .args([
+            "--projection",
+            "source",
+            "--asp-provider-id",
+            "rs-harness-test",
+        ])
         .current_dir(root.path())
         .output()
         .expect("run current query command");
@@ -94,7 +99,12 @@ fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
             "--source-snapshot-envelope",
         ])
         .arg(&envelope_path)
-        .args(["--code"])
+        .args([
+            "--projection",
+            "source",
+            "--asp-provider-id",
+            "rs-harness-test",
+        ])
         .arg(root.path())
         .current_dir(root.path())
         .output()
@@ -105,7 +115,7 @@ fn query_code_rejects_trailing_root_and_catalog_accepts_positional_workspace() {
         "stale command unexpectedly succeeded"
     );
     assert!(
-        String::from_utf8_lossy(&stale.stderr).contains("rust query requires an exact --selector"),
+        String::from_utf8_lossy(&stale.stderr).contains("unexpected argument"),
         "stderr={}",
         String::from_utf8_lossy(&stale.stderr)
     );
@@ -135,14 +145,13 @@ fn query_names_only_rejects_workspace_term_discovery() {
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("query requires an exact --selector"),
+        stderr.contains("unexpected argument '--term'"),
         "stderr={stderr}"
     );
-    assert!(stderr.contains("asp rust search owner"), "stderr={stderr}");
 }
 
 #[test]
-fn search_exact_owner_names_only_does_not_scan_workspace_context() {
+fn search_exact_owner_item_query_does_not_scan_workspace_context() {
     let Some(bin) = option_env!("CARGO_BIN_EXE_rs-harness") else {
         return;
     };
@@ -174,7 +183,8 @@ fn search_exact_owner_names_only_does_not_scan_workspace_context() {
         "items",
         "--query",
         "target_symbol",
-        "--names-only",
+        "--view",
+        "seeds",
         "--workspace",
     ];
     let warmup = Command::new(bin)

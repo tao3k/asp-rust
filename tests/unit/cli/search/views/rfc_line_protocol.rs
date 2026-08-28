@@ -307,7 +307,7 @@ fn cli_search_views_render_rfc_line_protocol() {
     );
     assert!(
         owner_item_query.contains(
-            "canonicalItemSelector={\"schemaId\":\"asp.canonical-item-selector.v1\",\"schemaVersion\":\"v1\",\"languageId\":\"rust\",\"kind\":\"function\",\"symbol\":\"load\",\"scopes\":[],\"structuralSelector\":\"rust://src/lib.rs#item/function/load\"}"
+            "canonicalItemSelector={\"schemaId\":\"asp.canonical-item-selector.v1\",\"schemaVersion\":\"1\",\"languageId\":\"rust\",\"kind\":\"function\",\"symbol\":\"load\",\"scopes\":[],\"structuralSelector\":\"rust://src/lib.rs#item/function/load\"}"
         ),
         "{owner_item_query}"
     );

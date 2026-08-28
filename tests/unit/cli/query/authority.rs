@@ -1,26 +1,13 @@
 use std::ffi::OsString;
 
 #[test]
-fn exact_query_accepts_client_authority_without_owning_digest_fields() {
-    let parser_digest =
-        "blake3-256:1111111111111111111111111111111111111111111111111111111111111111";
-    let query_pack_digest =
-        "blake3-256:2222222222222222222222222222222222222222222222222222222222222222";
+fn exact_query_accepts_source_snapshot_authority_without_projection_fields() {
     let command = super::parse_query(
         [
             "--selector",
             "rust://src/lib.rs#item/function/run",
-            "--projection",
-            "source",
             "--source-snapshot-envelope",
             "snapshot.json",
-            "--json",
-            "--asp-provider-id",
-            "rs-harness",
-            "--asp-parser-identity-digest",
-            parser_digest,
-            "--asp-query-pack-digest",
-            query_pack_digest,
         ]
         .into_iter()
         .map(OsString::from),
@@ -30,12 +17,10 @@ fn exact_query_accepts_client_authority_without_owning_digest_fields() {
     let super::QueryCommand::ExactSource(options) = command else {
         panic!("typed exact projection must route to ExactSource");
     };
-    assert_eq!(options.provider_id.as_deref(), Some("rs-harness"));
     assert_eq!(
         options.source_snapshot_envelope.as_deref(),
         Some(std::path::Path::new("snapshot.json"))
     );
-    assert!(options.json);
 }
 
 #[test]

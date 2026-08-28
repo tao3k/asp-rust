@@ -1,11 +1,14 @@
 //! Semantic-language registry JSON for agent capability discovery.
 
-use std::path::Path;
+use std::path::{Component, Path};
 
+use agent_semantic_content_identity::{
+    exact_selector_merkle::canonical_content_digest, schema_contract_identities,
+};
 use serde_json::{Value, json};
 
 pub(super) fn print_agent_registry(project_root: &Path) -> Result<(), String> {
-    let registry = agent_registry_json(project_root);
+    let registry = agent_registry_json(project_root)?;
     println!(
         "{}",
         serde_json::to_string(&registry)
@@ -15,10 +18,21 @@ pub(super) fn print_agent_registry(project_root: &Path) -> Result<(), String> {
 }
 
 fn rust_query_pack_descriptor() -> Value {
-    let manifest: Value =
-        serde_json::from_str(include_str!("../../provider/asp-provider-manifest.json"))
-            .expect("embedded Rust provider manifest must be valid JSON");
-    manifest["queryPackDescriptor"].clone()
+    rust_provider_registration()["queryPackDescriptor"].clone()
+}
+
+fn rust_provider_registration() -> Value {
+    let registration: Value = serde_json::from_str(include_str!(
+        "../../provider/asp-provider-registration.json"
+    ))
+    .expect("embedded Rust provider registration must be valid JSON");
+    assert_eq!(registration["languageId"], "rust");
+    assert_eq!(registration["providerId"], "asp-rust");
+    assert!(
+        registration["queryPackDescriptor"].is_object(),
+        "embedded Rust provider registration must define queryPackDescriptor"
+    );
+    registration
 }
 
 fn rust_tree_sitter_query_catalogs() -> Vec<Value> {
@@ -78,7 +92,113 @@ fn rust_tree_sitter_query_catalogs() -> Vec<Value> {
         .collect()
 }
 
-fn agent_registry_json(project_root: &Path) -> Value {
+fn published_schema_descriptors() -> Result<Vec<Value>, String> {
+    let schema_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("schemas");
+    let receipt_path = schema_root.join(".asp-schema-manager-receipt.json");
+    let receipt_bytes = std::fs::read(&receipt_path).map_err(|error| {
+        format!(
+            "failed to read published Schema Manager receipt {}: {error}",
+            receipt_path.display()
+        )
+    })?;
+    let receipt: Value = serde_json::from_slice(&receipt_bytes).map_err(|error| {
+        format!(
+            "failed to decode published Schema Manager receipt {}: {error}",
+            receipt_path.display()
+        )
+    })?;
+    if receipt["schemaId"].as_str()
+        != Some("agent.semantic-protocols.language-schema-bundle-receipt")
+        || receipt["schemaVersion"].as_str() != Some("1")
+        || receipt["languageId"].as_str() != Some("rust")
+    {
+        return Err(format!(
+            "published Schema Manager receipt has unexpected identity: {}",
+            receipt_path.display()
+        ));
+    }
+    let entries = receipt["schemas"].as_array().ok_or_else(|| {
+        format!(
+            "published Schema Manager receipt must contain schemas: {}",
+            receipt_path.display()
+        )
+    })?;
+    if entries.is_empty() {
+        return Err(format!(
+            "published Schema Manager receipt must contain at least one schema: {}",
+            receipt_path.display()
+        ));
+    }
+
+    let descriptors = entries
+        .iter()
+        .map(|entry| {
+            let name = entry["name"]
+                .as_str()
+                .ok_or_else(|| "published schema entry is missing name".to_owned())?;
+            let mut components = Path::new(name).components();
+            if !matches!(components.next(), Some(Component::Normal(_)))
+                || components.next().is_some()
+            {
+                return Err(format!("published schema name must be a file name: {name}"));
+            }
+            let expected_digest = entry["digest"]
+                .as_str()
+                .ok_or_else(|| format!("published schema entry is missing digest: {name}"))?;
+            let schema_path = schema_root.join(name);
+            let schema_bytes = std::fs::read(&schema_path).map_err(|error| {
+                format!(
+                    "failed to read published schema {}: {error}",
+                    schema_path.display()
+                )
+            })?;
+            let observed_digest = format!(
+                "blake3-256:{}",
+                canonical_content_digest(b"asp.language-schema-file.v1", &[&schema_bytes]).as_str()
+            );
+            if observed_digest != expected_digest {
+                return Err(format!(
+                    "published schema digest drift: path={} expected={} observed={}",
+                    schema_path.display(),
+                    expected_digest,
+                    observed_digest
+                ));
+            }
+            let schema: Value = serde_json::from_slice(&schema_bytes).map_err(|error| {
+                format!(
+                    "failed to decode published schema {}: {error}",
+                    schema_path.display()
+                )
+            })?;
+            Ok(schema_contract_identities(name, &schema)?
+                .into_iter()
+                .map(|identity| {
+                    json!({
+                        "schemaId": identity.schema_id,
+                        "schemaVersion": identity.schema_version,
+                        "path": format!("schemas/{name}"),
+                    })
+                })
+                .collect::<Vec<_>>())
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    Ok(descriptors.into_iter().flatten().collect())
+}
+
+fn agent_registry_json(project_root: &Path) -> Result<Value, String> {
+    let mut schemas = published_schema_descriptors()?;
+    schemas.extend([
+        json!({
+            "schemaId": "agent.semantic-protocols.rust-ast-patch-real-project-evidence",
+            "schemaVersion": "1",
+            "path": "schemas/rust-ast-patch-real-project-evidence.v1.schema.json",
+        }),
+        json!({
+            "path": "schemas/rust-semantic-capabilities.v1.schema.json",
+            "schemaId": "agent.semantic-protocols.languages.rust.asp-rust.capabilities",
+            "schemaVersion": "1",
+        }),
+    ]);
     let search_methods = [
         "workspace",
         "prime",
@@ -297,7 +417,7 @@ fn agent_registry_json(project_root: &Path) -> Value {
         }
     }
 
-    json!({
+    Ok(json!({
         "registryId": "agent.semantic-protocols.semantic-language-registry",
         "registryVersion": "1",
         "protocolId": "agent.semantic-protocols.semantic-language",
@@ -305,49 +425,16 @@ fn agent_registry_json(project_root: &Path) -> Value {
         "projectRoot": display_absolute_cli_path(project_root),
         "languages": [{
             "languageId": "rust",
-            "providerId": "rs-harness",
-            "binary": "rs-harness",
-            "namespace": "agent.semantic-protocols.languages.rust.rs-harness",
+            "providerId": "asp-rust",
+            "binary": "asp-rust",
+            "namespace": "agent.semantic-protocols.languages.rust.asp-rust",
             "displayName": "Rust Harness",
             "methods": methods,
             "methodDescriptors": method_descriptors,
             "queryPackDescriptor": rust_query_pack_descriptor(),
-            "schemas": [
-                { "path": "schemas/semantic-language-registry.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-language-registry", "schemaVersion": "1" },
-                { "path": "schemas/semantic-search-packet.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-search-packet", "schemaVersion": "1" },
-                { "path": "schemas/semantic-compare-packet.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-compare-packet", "schemaVersion": "1" },
-                { "path": "schemas/semantic-query-packet.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-query-packet", "schemaVersion": "1" },
-                { "path": "schemas/semantic-tree-sitter-query.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-tree-sitter-query", "schemaVersion": "1" },
-                { "path": "schemas/semantic-tree-sitter-grammar-profile.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-tree-sitter-grammar-profile", "schemaVersion": "1" },
-                { "path": "schemas/semantic-relation-plan.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-relation-plan", "schemaVersion": "1" },
-                { "path": "schemas/semantic-flow-lite.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-flow-lite", "schemaVersion": "1" },
-                { "path": "schemas/semantic-codeql-evidence.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-codeql-evidence", "schemaVersion": "1" },
-                { "path": "schemas/semantic-source-location.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-source-location", "schemaVersion": "1" },
-                { "path": "schemas/semantic-tree-sitter-provenance.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-tree-sitter-provenance", "schemaVersion": "1" },
-                { "path": "schemas/semantic-read-packet.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-read-packet", "schemaVersion": "1" },
-                { "path": "schemas/semantic-graph.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-graph", "schemaVersion": "1" },
-                { "path": "schemas/semantic-fact-graph.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-fact-graph", "schemaVersion": "1" },
-                { "path": "schemas/semantic-fact-ontology.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-fact-ontology", "schemaVersion": "1" },
-                { "path": "schemas/semantic-workspace-scope.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-workspace-scope", "schemaVersion": "1" },
-                { "path": "schemas/semantic-type-surface.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-type-surface", "schemaVersion": "1" },
-                { "path": "schemas/semantic-invariant-candidate.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-invariant-candidate", "schemaVersion": "1" },
-                { "path": "schemas/semantic-verification-receipt.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-verification-receipt", "schemaVersion": "1" },
-                { "path": "schemas/semantic-behavior-snapshot.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-behavior-snapshot", "schemaVersion": "1" },
-                { "path": "schemas/semantic-determinism-readiness.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-determinism-readiness", "schemaVersion": "1" },
-                { "path": "schemas/semantic-dev-command-log.v1.schema.json", "schemaId": "agent.semantic-protocols.dev-command-log", "schemaVersion": "1" },
-                { "path": "schemas/semantic-formal-proof-pilot.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-formal-proof-pilot", "schemaVersion": "1" },
-                { "path": "schemas/semantic-review-packet.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-review-packet", "schemaVersion": "1" },
-                { "path": "schemas/semantic-evidence-graph.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-evidence-graph", "schemaVersion": "1" },
-                { "path": "schemas/semantic-assurance-case.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-assurance-case", "schemaVersion": "1" },
-                { "path": "schemas/semantic-handle.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-handle", "schemaVersion": "1" },
-                { "path": "schemas/semantic-native-syntax-fact-index.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-native-syntax-fact-index", "schemaVersion": "1" },
-                { "path": "schemas/semantic-ast-patch.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-ast-patch", "schemaVersion": "1" },
-                { "path": "schemas/semantic-ast-patch-receipt.v1.schema.json", "schemaId": "agent.semantic-protocols.semantic-ast-patch-receipt", "schemaVersion": "1" },
-                { "schemaId": "agent.semantic-protocols.rust-ast-patch-real-project-evidence", "schemaVersion": "1", "path": "schemas/rust-ast-patch-real-project-evidence.v1.schema.json" },
-                { "path": "schemas/rust-semantic-capabilities.v1.schema.json", "schemaId": "agent.semantic-protocols.languages.rust.rs-harness.capabilities", "schemaVersion": "1" }
-            ]
+            "schemas": schemas
         }]
-    })
+    }))
 }
 
 fn method_invocation(descriptor: &Value) -> Value {
@@ -359,7 +446,7 @@ fn method_invocation(descriptor: &Value) -> Value {
         .get("command")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    let mut argv = vec!["rs-harness".to_string()];
+    let mut argv = vec!["asp-rust".to_string()];
     if let Some(args) = descriptor
         .get("benchmarkInvocation")
         .and_then(|benchmark| benchmark.get("args"))

@@ -62,7 +62,7 @@ fn cli_search_from_workspace_member_uses_workspace_root() {
     )
     .expect("write member source");
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rs-harness"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_asp-rust"));
     configure_shared_asp_renderer(&mut command);
     let output = command
         .current_dir(root.join("crates/member"))
@@ -102,7 +102,7 @@ fn cli_search_does_not_use_parent_workspace_when_member_is_excluded() {
     .expect("write nested manifest");
     fs::write(nested.join("src/lib.rs"), "pub fn orgize() {}\n").expect("write nested source");
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rs-harness"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_asp-rust"));
     configure_shared_asp_renderer(&mut command);
     let output = command
         .current_dir(&nested)
@@ -129,7 +129,7 @@ fn cli_search_owner_with_dot_project_root_is_not_duplicated() {
     let root = temp.path();
     write_search_fixture(root);
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rs-harness"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_asp-rust"));
     configure_shared_asp_renderer(&mut command);
     let output = command
         .current_dir(root)
@@ -157,7 +157,7 @@ fn cli_search_ingest_accepts_workspace_relative_scope_argument() {
     fs::create_dir_all(&root).expect("create fixture root");
     write_search_fixture(&root);
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rs-harness"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_asp-rust"));
     configure_shared_asp_renderer(&mut command);
     let output = command
         .current_dir(temp.path())

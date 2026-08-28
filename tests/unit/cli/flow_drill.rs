@@ -31,12 +31,12 @@ fn cli_rust_flow_drill_exercises_registry_prime_search_and_ingest() {
 
     let language = registry_json["languages"][0].as_object().expect("language");
     assert_eq!(language["languageId"], "rust");
-    assert_eq!(language["providerId"], "rs-harness");
-    assert_eq!(language["binary"], "rs-harness");
-    assert_eq!(
-        language["namespace"],
-        "agent.semantic-protocols.languages.rust.rs-harness"
-    );
+assert_eq!(language["providerId"], "asp-rust");
+assert_eq!(language["binary"], "asp-rust");
+assert_eq!(
+    language["namespace"],
+    "agent.semantic-protocols.languages.rust.asp-rust"
+);
     let methods = language["methods"].as_array().expect("methods");
     for method in [
         "agent/doctor",
@@ -57,9 +57,9 @@ fn cli_rust_flow_drill_exercises_registry_prime_search_and_ingest() {
     }
     let schemas = language["schemas"].as_array().expect("schemas");
     for schema_id in [
-        "agent.semantic-protocols.semantic-language-registry",
+        "agent.semantic-protocols.asp-client-exact-query-request",
         "agent.semantic-protocols.semantic-search-packet",
-        "agent.semantic-protocols.languages.rust.rs-harness.capabilities",
+        "agent.semantic-protocols.languages.rust.asp-rust.capabilities",
     ] {
         assert!(
             schemas

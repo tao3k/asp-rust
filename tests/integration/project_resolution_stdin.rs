@@ -16,7 +16,7 @@ fn run_project_resolution(root: &Path, candidates: &[&str]) -> std::process::Out
         "schemaId": "agent.semantic-protocols.provider-project-resolution-request",
         "schemaVersion": "1",
         "languageId": "rust",
-        "providerId": "rs-harness",
+        "providerId": "asp-rust",
         "candidateBase": ".",
         "candidateGeneration": {
             "algorithm": "blake3-worktree-state-v1",
@@ -27,7 +27,7 @@ fn run_project_resolution(root: &Path, candidates: &[&str]) -> std::process::Out
         "candidatePaths": candidates,
         "policyExclusions": []
     });
-    let mut child = Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .arg("project-resolution-stdin")
         .current_dir(root)
         .stdin(Stdio::piped())

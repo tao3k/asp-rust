@@ -83,6 +83,7 @@ mod receipt;
 mod registry_codeql;
 mod review;
 mod schema;
+mod schema_isolation;
 #[cfg(feature = "search")]
 mod search;
 #[cfg(feature = "search")]

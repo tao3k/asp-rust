@@ -51,7 +51,7 @@ pub(super) fn path_from_env(value: &str, project_root: &Path) -> PathBuf {
 }
 
 pub(super) fn allocate_session_ordinal(log_root: &Path, session_id: &str) -> Option<u64> {
-    let dir = log_root.join("rust").join("rs-harness").join("sessions");
+    let dir = log_root.join("rust").join("asp-rust").join("sessions");
     fs::create_dir_all(&dir).ok()?;
     let key = sanitize_file_component(session_id);
     let counter_path = dir.join(format!("{key}.counter"));
@@ -290,11 +290,11 @@ pub(super) fn binary_name(arg: &str) -> String {
         .and_then(|name| name.to_str())
         .map(normalize_token)
         .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| "rs-harness".to_string())
+        .unwrap_or_else(|| "asp-rust".to_string())
 }
 pub(super) fn make_event_id(started_at: SystemTime, session_ordinal: u64) -> String {
     format!(
-        "rs-harness-{}-{}-{session_ordinal:06}",
+        "asp-rust-{}-{}-{session_ordinal:06}",
         millis_since_epoch(started_at),
         process::id()
     )

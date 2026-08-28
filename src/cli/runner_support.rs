@@ -5,21 +5,21 @@ use std::path::{Path, PathBuf};
 
 pub(super) fn print_help() {
     println!(
-        "rs-harness [--json | --agent-snapshot] [PROJECT_ROOT]\n\
-             rs-harness search <view> [ARGS] [PIPE...] [--json] [--package PACKAGE] [PROJECT_ROOT]\n\
-             rs-harness query --selector SELECTOR --projection source|callable-skeleton [--workspace PROJECT_ROOT]\n\
-             rs-harness check <--changed|--full> [--json] [PROJECT_ROOT]\n\
-             rs-harness behavior snapshot --path PATH [--json]\n\
-             rs-harness determinism readiness [--include-tests] [--json] [PROJECT_ROOT]\n\
-             rs-harness verification <performance-index|stability-index> [--json] [PROJECT_ROOT]\n\
-             rs-harness receipt <adapter> [--dry-run] [--json] [PROJECT_ROOT]\n\
-             rs-harness proof pilot dependency-graph-acyclicity [--max-nodes N] [--json]\n\
-             rs-harness review packet [--receipt-json PATH] [--behavior-json PATH] [--determinism-json PATH] [--proof-json PATH] [--waiver-json PATH] [--json] [PROJECT_ROOT]\n\
-             rs-harness evidence graph --review-packet-json PATH [--json] [PROJECT_ROOT]\n\
-             rs-harness evidence assurance --evidence-graph-json PATH [--json] [PROJECT_ROOT]\n\
-             rs-harness ast-patch <dry-run|apply> --packet <semantic-ast-patch.json|-> [PROJECT_ROOT]\n\
-             rs-harness guide [PROJECT_ROOT]\n\
-             rs-harness agent doctor [--json] [PROJECT_ROOT]\n\n\
+        "asp-rust [--json | --agent-snapshot] [PROJECT_ROOT]\n\
+             asp-rust search <view> [ARGS] [PIPE...] [--json] [--package PACKAGE] [PROJECT_ROOT]\n\
+             asp-rust query --selector SELECTOR --projection source|callable-skeleton [--workspace PROJECT_ROOT]\n\
+             asp-rust check <--changed|--full> [--json] [PROJECT_ROOT]\n\
+             asp-rust behavior snapshot --path PATH [--json]\n\
+             asp-rust determinism readiness [--include-tests] [--json] [PROJECT_ROOT]\n\
+             asp-rust verification <performance-index|stability-index> [--json] [PROJECT_ROOT]\n\
+             asp-rust receipt <adapter> [--dry-run] [--json] [PROJECT_ROOT]\n\
+             asp-rust proof pilot dependency-graph-acyclicity [--max-nodes N] [--json]\n\
+             asp-rust review packet [--receipt-json PATH] [--behavior-json PATH] [--determinism-json PATH] [--proof-json PATH] [--waiver-json PATH] [--json] [PROJECT_ROOT]\n\
+             asp-rust evidence graph --review-packet-json PATH [--json] [PROJECT_ROOT]\n\
+             asp-rust evidence assurance --evidence-graph-json PATH [--json] [PROJECT_ROOT]\n\
+             asp-rust ast-patch <dry-run|apply> --packet <semantic-ast-patch.json|-> [PROJECT_ROOT]\n\
+             asp-rust guide [PROJECT_ROOT]\n\
+             asp-rust agent doctor [--json] [PROJECT_ROOT]\n\n\
          Runs the default package-level Rust harness.\n\n\
          Compact text is the default agent-facing repair surface.\n\
          Use --json to emit the structured RustHarnessReport audit shape.\n\
@@ -32,26 +32,26 @@ pub(super) fn print_help() {
 
 pub(super) fn print_search_help() {
     println!(
-        "rs-harness search prime [--workspace PROJECT_ROOT] [--package PACKAGE]\n\
-rs-harness search guide [PROJECT_ROOT]\n\
-rs-harness search owner <path-or-owner> [items tests] [--scope SCOPE] [PROJECT_ROOT]\n\
-         rs-harness search owner <path-or-owner> items --query SYMBOL [PROJECT_ROOT]\n\
-         rs-harness search workspace [--package PACKAGE] [PROJECT_ROOT]\n\
-         rs-harness search targets [--package PACKAGE] [PROJECT_ROOT]\n\
-rs-harness search deps [dep[/subpath][@version][::api]] [public-api] [PROJECT_ROOT]\n\
-rs-harness search dependency-topology --json [--workspace PROJECT_ROOT]\n\
-rs-harness projection <relative-owner> --json --workspace PROJECT_ROOT\n\
-rs-harness search env [toolchain|cfg] [PROJECT_ROOT]\n\
-rs-harness search compare env stable nightly [PROJECT_ROOT]\n\
-rs-harness search code comments [--owner OWNER] [PROJECT_ROOT]\n\
-rs-harness search extension <extension-id> [PROJECT_ROOT]\n\
-rs-harness search policy <rule-id-or-alias> [owner tests] [PROJECT_ROOT]\n\
-rs-harness search query <code-shaped-query> [owner tests] [PROJECT_ROOT]\n\
-rs-harness search features [feature] [cfg owners tests] [PROJECT_ROOT]\n\
-         rs-harness search dependency <crate-or-import-or-package> [items public-api docs tests] [PROJECT_ROOT]\n\
-rs-harness search <symbol|callsite|import|cfg|pattern|docs|docs-use|api> <query> [PROJECT_ROOT]\n\
-rs-harness search <owner|dependency|tests> --query-set TERM [--query-set TERM...] [PROJECT_ROOT]\n\
-         rs-harness search public-external-types [--dependency DEP] [PROJECT_ROOT]\n\
+        "asp-rust search prime [--workspace PROJECT_ROOT] [--package PACKAGE]\n\
+asp-rust search guide [PROJECT_ROOT]\n\
+asp-rust search owner <path-or-owner> [items tests] [--scope SCOPE] [PROJECT_ROOT]\n\
+         asp-rust search owner <path-or-owner> items --query SYMBOL [PROJECT_ROOT]\n\
+         asp-rust search workspace [--package PACKAGE] [PROJECT_ROOT]\n\
+         asp-rust search targets [--package PACKAGE] [PROJECT_ROOT]\n\
+asp-rust search deps [dep[/subpath][@version][::api]] [public-api] [PROJECT_ROOT]\n\
+asp-rust search dependency-topology --json [--workspace PROJECT_ROOT]\n\
+asp-rust projection <relative-owner> --json --workspace PROJECT_ROOT\n\
+asp-rust search env [toolchain|cfg] [PROJECT_ROOT]\n\
+asp-rust search compare env stable nightly [PROJECT_ROOT]\n\
+asp-rust search code comments [--owner OWNER] [PROJECT_ROOT]\n\
+asp-rust search extension <extension-id> [PROJECT_ROOT]\n\
+asp-rust search policy <rule-id-or-alias> [owner tests] [PROJECT_ROOT]\n\
+asp-rust search query <code-shaped-query> [owner tests] [PROJECT_ROOT]\n\
+asp-rust search features [feature] [cfg owners tests] [PROJECT_ROOT]\n\
+         asp-rust search dependency <crate-or-import-or-package> [items public-api docs tests] [PROJECT_ROOT]\n\
+         asp-rust search <symbol|callsite|import|cfg|pattern|docs|docs-use|api> <query> [PROJECT_ROOT]\n\
+asp-rust search <owner|dependency|tests> --query-set TERM [--query-set TERM...] [PROJECT_ROOT]\n\
+         asp-rust search public-external-types [--dependency DEP] [PROJECT_ROOT]\n\
          Emits compact RFC line protocol for deterministic agent exploration.\n\
          Search discovers owner candidates; exact item identity belongs to query-item packets.\n\
          Compact text is the default; --json wraps the same packet for tools.\n\
@@ -63,15 +63,15 @@ rs-harness search <owner|dependency|tests> --query-set TERM [--query-set TERM...
 
 pub(super) fn print_check_help() {
     println!(
-        "rs-harness check --changed [--json] [PROJECT_ROOT]\n\
-         rs-harness check --full [--json] [PROJECT_ROOT]\n\n\
+        "asp-rust check --changed [--json] [PROJECT_ROOT]\n\
+         asp-rust check --full [--json] [PROJECT_ROOT]\n\n\
          Runs the policy surface and renders compact findings by default."
     );
 }
 
 pub(super) fn print_agent_help() {
     println!(
-        "rs-harness agent doctor [--json] [PROJECT_ROOT]\n\n\
+        "asp-rust agent doctor [--json] [PROJECT_ROOT]\n\n\
          Hook install/runtime is owned by semantic-agent-hook in the root toolchain.\n\
          Use --json to emit the semantic-language registry contract."
     );
@@ -79,14 +79,14 @@ pub(super) fn print_agent_help() {
 
 pub(super) fn moved_agent_action(action: &str) -> String {
     if action == "guard" {
-        return "rs-harness agent guard moved to asp hook; use asp hook --client codex pre-tool --emit decision".to_string();
+        return "asp-rust agent guard moved to asp hook; use asp hook --client codex pre-tool --emit decision".to_string();
     }
-    format!("rs-harness agent {action} moved to asp hook; use asp hook {action} --client codex")
+    format!("asp-rust agent {action} moved to asp hook; use asp hook {action} --client codex")
 }
 
 pub(super) fn print_agent_doctor(project_root: &Path, _client: Option<&str>) {
     println!(
-        "[agent-doctor] status=ok provider=rs-harness runtime=semantic-agent-hook project={}",
+        "[agent-doctor] status=ok provider=asp-rust runtime=semantic-agent-hook project={}",
         project_root.display()
     );
 }
@@ -179,6 +179,7 @@ pub(super) fn is_known_search_view(view: &str) -> bool {
             | "owner"
             | "dependency"
             | "tests"
+            | "lexical"
             | "symbol"
             | "callsite"
             | "import"

@@ -132,7 +132,7 @@ fn render_item_core_line(item: &RustTopLevelItemSyntax) -> String {
             "control-flow" => match node.kind {
                 "if" => push_responsibility(&mut responsibilities, "guard-branch"),
                 "match" => push_responsibility(&mut responsibilities, "match-dispatch"),
-                "case" => push_responsibility(&mut responsibilities, "match-arm"),
+                "match-arm" => push_responsibility(&mut responsibilities, "match-arm"),
                 "for" => push_responsibility(&mut responsibilities, "bounded-loop"),
                 _ => push_responsibility(&mut responsibilities, "loop-control"),
             },
@@ -168,11 +168,7 @@ pub(super) fn render_item_locator_line_with_read(
     let symbol = item_display_name(item).replace(char::is_whitespace, "-");
     let kind = canonical_rust_item_kind(item.kind);
     let mut identity =
-        crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
-            "rust",
-            kind,
-            symbol.as_str(),
-        );
+        agent_semantic_content_identity::CanonicalItemIdentity::new("rust", kind, symbol.as_str());
     if let Some(implementation_owner) = item.impl_target_name.as_deref() {
         identity = identity.with_scope("implementation-owner", "type", implementation_owner);
     }
@@ -198,6 +194,22 @@ pub(super) fn render_projection_item_locator_line_with_read(
     item: &crate::parser::native_syntax::item_projection::RustItemProjectionNodeSyntax,
 ) -> Option<String> {
     let identity = item.canonical_item_identity.as_ref()?;
+    let mut shared_identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+        identity.language_id.as_str(),
+        identity.kind.as_str(),
+        identity.symbol.as_str(),
+    );
+    shared_identity.scopes = identity
+        .scopes
+        .iter()
+        .map(|scope| {
+            agent_semantic_content_identity::CanonicalItemScope::new(
+                scope.relation.as_str(),
+                scope.kind.as_str(),
+                scope.symbol.as_str(),
+            )
+        })
+        .collect();
     let read_path = display_project_path(package_root, path);
     let symbol = identity.symbol.as_str();
     let identity_kind = identity.kind.as_str();
@@ -206,7 +218,7 @@ pub(super) fn render_projection_item_locator_line_with_read(
         item.kind,
         item.line,
         item.end_line,
-        identity,
+        &shared_identity,
         format!(
             "|item {} kind={} next=syntax:{}",
             symbol, identity_kind, symbol
@@ -219,20 +231,19 @@ fn render_canonical_item_locator_line(
     kind: &str,
     line: usize,
     end_line: usize,
-    identity: &crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    identity: &agent_semantic_content_identity::CanonicalItemIdentity,
     core_line: String,
 ) -> String {
     let structural_selector = format!(
         "rust://{read_path}#{}",
-        crate::semantic_identity::structural_selector::encode_canonical_item_identity_path(
-            identity
+        agent_semantic_content_identity::structural_selector::encode_canonical_item_identity_path(
+            identity,
         )
     );
-    let canonical_item_selector =
-        crate::semantic_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
-            identity.clone(),
-            &structural_selector,
-        );
+    let canonical_item_selector = agent_semantic_content_identity::CanonicalItemSelector::new(
+        identity.clone(),
+        &structural_selector,
+    );
     let canonical_item_selector = serde_json::to_string(&canonical_item_selector)
         .expect("canonical Rust item selector must serialize");
     format!(

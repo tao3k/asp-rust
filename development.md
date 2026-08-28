@@ -26,15 +26,14 @@ When adding tests, keep behavior coverage under `tests/unit` and include it from
 policy surface.
 Root Cargo test targets should stay as thin aggregates with external module
 mounts only. Put test functions and helpers in suite files under `tests/unit`
-or another documented suite directory.
+or another standard suite directory.
 Root-target module mounts should always be explicit `#[path = "suite/file.rs"]`
 attributes rather than bare Rust `mod helper;` declarations.
 Root `build.rs`, when present, is scanned by the project harness and should stay
 a thin Cargo build-script entrypoint.
 
-Intentional non-standard test roots or directories belong in
-`tests/rust-project-harness-rules.toml`, and each entry must carry a non-empty
-`explanation`.
+Project-local test-layout exceptions are forbidden. Isolated test processes use
+explicit Cargo test targets pointing into standard suite directories.
 
 ## Policy closure
 

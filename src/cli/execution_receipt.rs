@@ -295,10 +295,10 @@ fn receipt(input: ExecutionReceiptInput<'_>) -> RustVerificationExecutionReceipt
         receipt_id: receipt_id(input.adapter, input.status, &adapter_id),
         producer: RustVerificationExecutionProducer {
             language_id: RustVerificationExecutionLanguageId("rust".to_string()),
-            provider_id: RustVerificationExecutionProviderId("rs-harness".to_string()),
+            provider_id: RustVerificationExecutionProviderId("asp-rust".to_string()),
             adapter_id,
             namespace: RustVerificationExecutionNamespace(
-                "agent.semantic-protocols.languages.rust.rs-harness".to_string(),
+                "agent.semantic-protocols.languages.rust.asp-rust".to_string(),
             ),
         },
         project: Some(RustVerificationExecutionProject {
@@ -442,11 +442,11 @@ fn status_name(status: RustVerificationExecutionStatus) -> &'static str {
 
 fn print_receipt_help() {
     println!(
-        "rs-harness receipt <adapter> [--dry-run] [--json] [PROJECT_ROOT]\n\
-rs-harness receipt proptest [--case-filter TEST_FILTER] [--dry-run] [--json] [PROJECT_ROOT]\n\
-rs-harness receipt cargo-fuzz --target TARGET [--runs N] [--dry-run] [--json] [PROJECT_ROOT]\n\
-rs-harness receipt kani [--harness NAME] [--dry-run] [--json] [PROJECT_ROOT]\n\
-rs-harness receipt verus --file PATH [--dry-run] [--json] [PROJECT_ROOT]\n\n\
+        "asp-rust receipt <adapter> [--dry-run] [--json] [PROJECT_ROOT]\n\
+asp-rust receipt proptest [--case-filter TEST_FILTER] [--dry-run] [--json] [PROJECT_ROOT]\n\
+asp-rust receipt cargo-fuzz --target TARGET [--runs N] [--dry-run] [--json] [PROJECT_ROOT]\n\
+asp-rust receipt kani [--harness NAME] [--dry-run] [--json] [PROJECT_ROOT]\n\
+asp-rust receipt verus --file PATH [--dry-run] [--json] [PROJECT_ROOT]\n\n\
 Adapters: cargo-check, cargo-test, clippy, expect-test, proptest, cargo-fuzz, kani, creusot, verus.\n\
 Use --dry-run to emit a skipped receipt without executing the adapter command.\n\
 Use --json to emit the semantic-verification-receipt JSON contract."

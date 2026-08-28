@@ -76,7 +76,7 @@ fn pinned_workspace_with_sources(
         serde_json::to_vec_pretty(&serde_json::json!({
             "schemaId": "asp.exact-source-snapshot-envelope.v1",
             "schemaVersion": "1",
-            "providerId": "rs-harness-test",
+        "providerId": "asp-rust",
             "sourceSnapshot": {
                 "schemaId": "asp.source-snapshot.v1",
                 "schemaVersion": "1",
@@ -92,7 +92,8 @@ fn pinned_workspace_with_sources(
         .expect("encode test source snapshot envelope"),
     )
     .expect("write test source snapshot envelope");
-    let pinned = super::PinnedWorkspace::load(&envelope_path).expect("load pinned workspace");
+    let pinned =
+        super::PinnedWorkspace::load(&envelope_path, "asp-rust").expect("load pinned workspace");
     (root, pinned)
 }
 

@@ -47,7 +47,7 @@ struct ProviderNativeOwnerSearchResponse {
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProviderOwnerProjection {
-    canonical_item_selector: crate::canonical_item_identity::CanonicalItemSelectorV1,
+    canonical_item_selector: agent_semantic_content_identity::CanonicalItemSelector,
     signature: String,
     capture_name: &'static str,
     source_byte_start: u64,
@@ -85,7 +85,7 @@ fn handle_owner_search_request(
     validate_source_fingerprint(&request, &source_bytes)?;
     let source = String::from_utf8(source_bytes)
         .map_err(|error| format!("owner-search stdin owner is not UTF-8: {error}"))?;
-    let projections = super::exact_source::parse_owner_items_v1(&source)?
+    let projections = crate::exact_source_parse_artifact::parse_owner_items_v1(&source)?
         .into_iter()
         .filter_map(|item| owner_projection(&request.owner_path, &source, item))
         .collect();
@@ -161,7 +161,7 @@ fn validate_source_fingerprint(
 fn owner_projection(
     owner_path: &str,
     source: &str,
-    item: super::exact_source::ParseArtifactItem,
+    item: crate::exact_source_parse_artifact::ParseArtifactItem,
 ) -> Option<ProviderOwnerProjection> {
     let code = source.get(item.source_byte_start..item.source_byte_end)?;
     let signature = item_signature(code);
@@ -171,7 +171,7 @@ fn owner_projection(
     let structural_selector =
         super::exact_source::rust_structural_selector(owner_path, &item.identity);
     Some(ProviderOwnerProjection {
-        canonical_item_selector: crate::canonical_item_identity::CanonicalItemSelectorV1::new(
+        canonical_item_selector: agent_semantic_content_identity::CanonicalItemSelector::new(
             item.identity,
             structural_selector,
         ),

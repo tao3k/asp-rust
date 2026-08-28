@@ -42,12 +42,12 @@ fn cli_query_help_advertises_dependency_search_surface() {
     let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
     assert!(
         stdout.contains(
-            "rs-harness search dependency <crate-or-package> [items docs-use tests] [--view seeds] [--workspace WORKSPACE]"
+            "asp-rust search dependency <crate-or-package> [items docs-use tests] [--view seeds] [--workspace WORKSPACE]"
         ),
         "{stdout}"
     );
     assert!(
-        stdout.contains("rs-harness search guide [--workspace WORKSPACE]"),
+        stdout.contains("asp-rust search guide [--workspace WORKSPACE]"),
         "{stdout}"
     );
     assert!(

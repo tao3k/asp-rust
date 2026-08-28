@@ -1,4 +1,4 @@
-//! Recipe-aware compact search plans for `rs-harness search --explain`.
+//! Recipe-aware compact search plans for `asp-rust search --explain`.
 
 pub(super) struct SearchPlanOptions<'a> {
     pub(super) view: &'a str,

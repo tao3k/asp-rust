@@ -27,8 +27,8 @@ struct ProviderProjectResolutionRequest {
 struct ProviderProjectResolutionResponse {
     schema_id: &'static str,
     schema_version: &'static str,
-    language_id: &'static str,
-    provider_id: &'static str,
+    language_id: String,
+    provider_id: String,
     state: ProviderProjectResolutionState,
     #[serde(skip_serializing_if = "Option::is_none")]
     scope: Option<ProjectResolution>,
@@ -40,6 +40,7 @@ struct ProviderProjectResolutionResponse {
 #[serde(rename_all = "kebab-case")]
 enum ProviderProjectResolutionState {
     Resolved,
+    NotApplicable,
     Failed,
 }
 
@@ -57,6 +58,18 @@ pub(super) fn run_project_resolution(_args: &[std::ffi::OsString]) -> Result<Exi
         .lock()
         .read_to_end(&mut request_bytes)
         .map_err(|error| format!("failed to read project-resolution stdin request: {error}"))?;
+    let (response, exit_code) = handle_project_resolution_request(&request_bytes)?;
+    println!(
+        "{}",
+        String::from_utf8(response)
+            .map_err(|error| format!("project-resolution response is not UTF-8: {error}"))?
+    );
+    Ok(exit_code)
+}
+
+pub(crate) fn handle_project_resolution_request(
+    request_bytes: &[u8],
+) -> Result<(Vec<u8>, ExitCode), String> {
     let request = serde_json::from_slice::<ProviderProjectResolutionRequest>(&request_bytes)
         .map_err(|error| format!("parse project-resolution stdin request: {error}"))?;
     validate_request(&request)?;
@@ -68,10 +81,22 @@ pub(super) fn run_project_resolution(_args: &[std::ffi::OsString]) -> Result<Exi
             ProviderProjectResolutionResponse {
                 schema_id: RESPONSE_SCHEMA_ID,
                 schema_version: "1",
-                language_id: "rust",
-                provider_id: "rs-harness",
+                language_id: request.language_id.clone(),
+                provider_id: request.provider_id.clone(),
                 state: ProviderProjectResolutionState::Resolved,
                 scope: Some(resolution),
+                failure: None,
+            },
+            ExitCode::SUCCESS,
+        ),
+        Err(crate::project_resolution::ProjectResolutionError::NotApplicable { .. }) => (
+            ProviderProjectResolutionResponse {
+                schema_id: RESPONSE_SCHEMA_ID,
+                schema_version: "1",
+                language_id: request.language_id.clone(),
+                provider_id: request.provider_id.clone(),
+                state: ProviderProjectResolutionState::NotApplicable,
+                scope: None,
                 failure: None,
             },
             ExitCode::SUCCESS,
@@ -80,8 +105,8 @@ pub(super) fn run_project_resolution(_args: &[std::ffi::OsString]) -> Result<Exi
             ProviderProjectResolutionResponse {
                 schema_id: RESPONSE_SCHEMA_ID,
                 schema_version: "1",
-                language_id: "rust",
-                provider_id: "rs-harness",
+                language_id: request.language_id.clone(),
+                provider_id: request.provider_id.clone(),
                 state: ProviderProjectResolutionState::Failed,
                 scope: None,
                 failure: Some(failure_from_error(error)),
@@ -89,12 +114,17 @@ pub(super) fn run_project_resolution(_args: &[std::ffi::OsString]) -> Result<Exi
             ExitCode::from(2),
         ),
     };
-    println!(
-        "{}",
-        serde_json::to_string(&response)
-            .map_err(|error| format!("serialize project-resolution response: {error}"))?
-    );
-    Ok(exit_code)
+    let response = serde_json::to_vec(&response)
+        .map_err(|error| format!("serialize project-resolution response: {error}"))?;
+    Ok((response, exit_code))
+}
+
+pub(crate) fn handle_project_resolution_request_value(
+    request: &serde_json::Value,
+) -> Result<(Vec<u8>, ExitCode), String> {
+    let bytes = serde_json::to_vec(request)
+        .map_err(|error| format!("encode structured project-resolution request: {error}"))?;
+    handle_project_resolution_request(&bytes)
 }
 
 fn validate_request(request: &ProviderProjectResolutionRequest) -> Result<(), String> {
@@ -104,7 +134,7 @@ fn validate_request(request: &ProviderProjectResolutionRequest) -> Result<(), St
             request.schema_id, request.schema_version
         ));
     }
-    if request.language_id != "rust" || request.provider_id != "rs-harness" {
+    if request.language_id != "rust" || request.provider_id != "asp-rust" {
         return Err(format!(
             "project-resolution provider mismatch: language={} provider={}",
             request.language_id, request.provider_id
@@ -143,6 +173,7 @@ fn validate_request(request: &ProviderProjectResolutionRequest) -> Result<(), St
 
 fn failure_from_error(error: ProjectResolutionError) -> ProviderProjectResolutionFailure {
     let reason_kind = match &error {
+        ProjectResolutionError::NotApplicable { .. } => "provider-not-applicable",
         ProjectResolutionError::ProjectEntryMissing { .. } => "project-entry-missing",
         ProjectResolutionError::ProjectEntryInvalid { .. } => "project-entry-invalid",
     };

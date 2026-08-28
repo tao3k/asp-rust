@@ -24,7 +24,7 @@ pub(super) fn run_evidence(args: impl IntoIterator<Item = OsString>) -> Result<E
         Some("graph") => run_evidence_graph(options),
         Some("assurance") => run_assurance_case(options),
         Some("analyze" | "analysis") => run_evidence_analysis(options),
-        _ => Err("expected `rs-harness evidence <graph|assurance|analyze>`".to_owned()),
+        _ => Err("expected `asp-rust evidence <graph|assurance|analyze>`".to_owned()),
     }
 }
 
@@ -289,9 +289,9 @@ fn next_path(args: &mut impl Iterator<Item = OsString>, option: &str) -> Result<
 
 fn print_evidence_help() {
     println!(
-        "rs-harness evidence graph --review-packet-json PATH [--json] [PROJECT_ROOT]\n\
-         rs-harness evidence assurance --evidence-graph-json PATH [--json] [PROJECT_ROOT]\n\
-         rs-harness evidence analyze --evidence-graph-json PATH [--json] [PROJECT_ROOT]\n\n\
+        "asp-rust evidence graph --review-packet-json PATH [--json] [PROJECT_ROOT]\n\
+         asp-rust evidence assurance --evidence-graph-json PATH [--json] [PROJECT_ROOT]\n\
+         asp-rust evidence analyze --evidence-graph-json PATH [--json] [PROJECT_ROOT]\n\n\
          Builds portable evidence graph, assurance case, and graph-turbo analysis request packets."
     );
 }

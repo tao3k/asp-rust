@@ -121,7 +121,7 @@ pub(super) fn run_ast_patch_with_packet_and_path(
     packet: &str,
     path_env: &str,
 ) -> std::process::Output {
-    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .args([
             OsString::from("ast-patch"),
             OsString::from(mode),

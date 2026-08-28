@@ -127,6 +127,13 @@ fn cli_review_packet_consumes_new_evidence_api_json_inputs() {
 #[test]
 fn cli_review_packet_rejects_wrong_input_packet_schema_id() {
     let temp = TempDir::new().expect("temp dir");
+    fs::create_dir_all(temp.path().join("src")).expect("create source dir");
+    fs::write(
+        temp.path().join("Cargo.toml"),
+        "[package]\nname = \"review-fixture\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("write Cargo.toml");
+    fs::write(temp.path().join("src/lib.rs"), "pub fn fixture() {}\n").expect("write source");
     let receipt_path = temp.path().join("bad-receipt.json");
     let mut receipt = cargo_check_receipt_json("agent-r027:src.lib.rs:1");
     receipt["schemaId"] = serde_json::json!("agent.semantic-protocols.semantic-behavior-snapshot");

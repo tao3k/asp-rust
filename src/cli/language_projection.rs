@@ -4,6 +4,8 @@ use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use serde_json::{Value, json};
 
 use crate::parser::parse_rust_file;
@@ -12,9 +14,6 @@ pub(super) fn run_language_projection(
     args: impl IntoIterator<Item = std::ffi::OsString>,
 ) -> Result<ExitCode, String> {
     let args = args.into_iter().collect::<Vec<_>>();
-    if args.len() == 1 && args[0] == "--batch-stdin" {
-        return run_language_projection_batch_stdin();
-    }
     let options = LanguageProjectionOptions::parse(args)?;
     if options.help {
         println!("{}", language_projection_usage());
@@ -40,8 +39,9 @@ struct LanguageProjectionBatchHeader {
     query_pack_digest: String,
     #[serde(default)]
     base_generation_root_digest: Option<String>,
-    transport: String,
     owners: Vec<LanguageProjectionBatchOwner>,
+    #[serde(default, rename = "auxiliaryOwners")]
+    auxiliary_owners: Vec<LanguageProjectionBatchOwner>,
 }
 
 #[derive(serde::Deserialize)]
@@ -49,106 +49,73 @@ struct LanguageProjectionBatchHeader {
 struct LanguageProjectionBatchOwner {
     owner_path: PathBuf,
     source_leaf_digest: String,
-    byte_length: usize,
+    source_encoding: String,
+    #[serde(default)]
+    source_text: Option<String>,
+    #[serde(default)]
+    source_bytes_base64: Option<String>,
 }
 
-fn run_language_projection_batch_stdin() -> Result<ExitCode, String> {
-    use std::io::Read as _;
+impl LanguageProjectionBatchOwner {
+    fn decode_source_bytes(&self) -> Result<Vec<u8>, String> {
+        match (
+            self.source_encoding.as_str(),
+            self.source_text.as_deref(),
+            self.source_bytes_base64.as_deref(),
+        ) {
+            ("utf8", Some(source_text), None) => Ok(source_text.as_bytes().to_vec()),
+            ("base64", None, Some(source_bytes_base64)) => BASE64_STANDARD
+                .decode(source_bytes_base64)
+                .map_err(|error| format!("decode projection owner base64 source: {error}")),
+            _ => Err("projection owner source encoding payload mismatch".to_string()),
+        }
+    }
 
-    let mut input = std::io::stdin().lock();
-    let mut header_length_bytes = [0_u8; 4];
-    input
-        .read_exact(&mut header_length_bytes)
-        .map_err(|error| format!("failed to read projection batch header length: {error}"))?;
-    let header_length = u32::from_be_bytes(header_length_bytes) as usize;
-    let mut header_bytes = Vec::new();
-    header_bytes
-        .try_reserve_exact(header_length)
-        .map_err(|error| format!("projection batch header allocation failed: {error}"))?;
-    header_bytes.resize(header_length, 0);
-    input
-        .read_exact(&mut header_bytes)
-        .map_err(|error| format!("failed to read projection batch header: {error}"))?;
-    let header: LanguageProjectionBatchHeader = serde_json::from_slice(&header_bytes)
-        .map_err(|error| format!("invalid projection batch header: {error}"))?;
+    fn decode_source_text(&self) -> Result<String, String> {
+        String::from_utf8(self.decode_source_bytes()?)
+            .map_err(|error| format!("Rust projection owner is not UTF-8: {error}"))
+    }
+}
+
+pub(crate) fn handle_language_projection_batch_value(request: &Value) -> Result<Vec<u8>, String> {
+    let header: LanguageProjectionBatchHeader = serde_json::from_value(request.clone())
+        .map_err(|error| format!("decode structured projection request: {error}"))?;
     validate_projection_batch_header(&header)?;
     let projection_authority = crate::exact_source_projection::ExactProjectionAuthority {
-        projection_kind: "callable-skeleton".to_owned(),
         generation_identity_digest: header.generation_root_digest.clone(),
         parser_identity_digest: header.parser_identity_digest.clone(),
         query_pack_digest: header.query_pack_digest.clone(),
     };
-
-    let mut projected_owners = Vec::new();
-    projected_owners
-        .try_reserve_exact(header.owners.len())
-        .map_err(|error| format!("projection batch owner allocation failed: {error}"))?;
-    for owner in header.owners {
-        validate_relative_owner(&owner.owner_path)?;
-        if owner
-            .owner_path
-            .extension()
-            .and_then(|value| value.to_str())
-            != Some("rs")
-        {
-            return Err(format!(
-                "projection batch owner must be a Rust source: {}",
-                owner.owner_path.display()
-            ));
-        }
-        let mut source_bytes = Vec::new();
-        source_bytes
-            .try_reserve_exact(owner.byte_length)
-            .map_err(|error| format!("projection owner allocation failed: {error}"))?;
-        source_bytes.resize(owner.byte_length, 0);
-        input.read_exact(&mut source_bytes).map_err(|error| {
-            format!(
-                "failed to read projection owner frame {}: {error}",
-                owner.owner_path.display()
+    let projected_owners = header
+        .owners
+        .into_iter()
+        .map(|owner| {
+            validate_relative_owner(&owner.owner_path)?;
+            let source_text = owner.decode_source_text()?;
+            render_batch_owner_projection(
+                &owner.owner_path,
+                &owner.source_leaf_digest,
+                &source_text,
+                &projection_authority,
             )
-        })?;
-        let source = std::str::from_utf8(&source_bytes).map_err(|error| {
-            format!(
-                "projection owner is not UTF-8 {}: {error}",
-                owner.owner_path.display()
-            )
-        })?;
-        projected_owners.push(render_batch_owner_projection(
-            &owner.owner_path,
-            &owner.source_leaf_digest,
-            source,
-            &projection_authority,
-        )?);
-    }
-    let mut trailing = [0_u8; 1];
-    if input
-        .read(&mut trailing)
-        .map_err(|error| format!("failed to finish projection batch input: {error}"))?
-        != 0
-    {
-        return Err("projection batch input contains trailing bytes".to_string());
-    }
-
-    println!(
-        "{}",
-        json!({
-            "schemaId": "asp.provider-language-projection-batch-response.v1",
-            "schemaVersion": "1",
-            "languageId": header.language_id,
-            "providerId": header.provider_id,
-            "generationRootDigest": header.generation_root_digest,
-            "owners": projected_owners,
         })
-    );
-    Ok(ExitCode::SUCCESS)
+        .collect::<Result<Vec<_>, String>>()?;
+    serde_json::to_vec(&json!({
+        "schemaId": "agent.semantic-protocols.provider-language-projection-batch-response",
+        "schemaVersion": "1",
+        "languageId": header.language_id,
+        "providerId": header.provider_id,
+        "generationRootDigest": header.generation_root_digest,
+        "owners": projected_owners,
+    }))
+    .map_err(|error| format!("encode structured projection response: {error}"))
 }
 
 fn validate_projection_batch_header(header: &LanguageProjectionBatchHeader) -> Result<(), String> {
-    if header.schema_id != "asp.provider-language-projection-batch-request.v1"
+    if header.schema_id != "agent.semantic-protocols.provider-language-projection-batch-request"
         || header.schema_version != "1"
         || header.language_id != "rust"
-        || header.provider_id != "rs-harness"
-        || header.transport != "framed-stdin-v1"
+        || header.provider_id != "asp-rust"
     {
         return Err("projection batch header contract mismatch".to_string());
     }
@@ -163,6 +130,26 @@ fn validate_projection_batch_header(header: &LanguageProjectionBatchHeader) -> R
         || header.owners.is_empty()
     {
         return Err("projection batch header requires generation identity and owners".to_string());
+    }
+    if header.owners.iter().any(|owner| {
+        owner.source_leaf_digest.trim().is_empty()
+            || owner
+                .owner_path
+                .extension()
+                .and_then(|value| value.to_str())
+                != Some("rs")
+    }) {
+        return Err("projection batch owners must be identified Rust sources".to_string());
+    }
+    let mut paths = BTreeSet::new();
+    for owner in header.owners.iter().chain(&header.auxiliary_owners) {
+        validate_relative_owner(&owner.owner_path)?;
+        owner.decode_source_bytes()?;
+        if owner.source_leaf_digest.trim().is_empty() || !paths.insert(&owner.owner_path) {
+            return Err(
+                "projection batch owner identities must be non-empty and unique".to_string(),
+            );
+        }
     }
     Ok(())
 }
@@ -352,7 +339,10 @@ fn projection_items(
                 crate::structural_selector::encode_canonical_item_identity_path(&artifact.identity);
             let selector = format!("rust://{relative_path}#{encoded_identity}");
             seen_selectors.insert(selector.clone()).then(|| {
-                let projections = if artifact.identity.kind.as_str() == "function" {
+                let projections = if matches!(
+                    artifact.identity.kind.as_str(),
+                    "function" | "method" | "trait-function"
+                ) {
                     projection_authority
                         .map(|authority| {
                             let code = source
@@ -365,7 +355,7 @@ fn projection_items(
                                 .to_owned();
                             let resolved = crate::exact_source_projection::ResolvedExactItem {
                                 canonical_selector:
-                                    crate::canonical_item_identity::CanonicalItemSelectorV1::new(
+                                    agent_semantic_content_identity::CanonicalItemSelector::new(
                                         artifact.identity.clone(),
                                         selector.clone(),
                                     ),
@@ -378,9 +368,7 @@ fn projection_items(
                                 parser_artifact_digest: None,
                             };
                             crate::exact_source_projection::callable_skeleton_projection(
-                                "rs-harness",
-                                &resolved,
-                                authority,
+                                &resolved, authority,
                             )
                             .map(|payload| {
                                 vec![json!({
@@ -410,11 +398,9 @@ fn projection_items(
         .collect::<Result<Vec<_>, String>>()?)
 }
 
-fn projection_identity(
-    identity: &crate::canonical_item_identity::CanonicalItemIdentityV1,
-) -> Value {
+fn projection_identity(identity: &agent_semantic_content_identity::CanonicalItemIdentity) -> Value {
     json!({
-        "schemaId": "asp.canonical-language-item-identity.v1",
+        "schemaId": "agent.semantic-protocols.canonical-language-item-identity",
         "schemaVersion": "1",
         "languageId": identity.language_id.as_str(),
         "kind": identity.kind.as_str(),
@@ -463,5 +449,5 @@ fn source_kind(owner: &Path) -> &'static str {
 }
 
 fn language_projection_usage() -> String {
-    "usage: rs-harness projection <relative-owner> --workspace <root> --json".to_string()
+    "usage: asp-rust projection <relative-owner> --workspace <root> --json".to_string()
 }

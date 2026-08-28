@@ -198,8 +198,8 @@ pub fn build_rust_evidence_graph_analysis_request(
         budget: RUST_EVIDENCE_GRAPH_ANALYSIS_BUDGET,
         producer: RustEvidenceGraphAnalysisProducer {
             language_id: "rust".to_owned(),
-            provider_id: "rs-harness".to_owned(),
-            namespace: "agent.semantic-protocols.languages.rust.rs-harness".to_owned(),
+            provider_id: "asp-rust".to_owned(),
+            namespace: "agent.semantic-protocols.languages.rust.asp-rust".to_owned(),
         },
         project: RustEvidenceGraphProject {
             root: input.project_root.display().to_string(),

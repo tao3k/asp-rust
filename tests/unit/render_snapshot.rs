@@ -94,7 +94,7 @@ fn snapshot_report() -> RustHarnessReport {
             RustDiagnosticSeverity::Warning,
             RustDiagnosticSeverity::Error,
         ]),
-        project_scope: None,
+        project_resolution: None,
         workspace_member_scopes: Vec::new(),
     }
 }

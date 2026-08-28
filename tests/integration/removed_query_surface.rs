@@ -10,7 +10,7 @@ fn removed_names_switch() -> String {
 
 #[test]
 fn removed_query_projection_flags_are_unknown_arguments_via_cli() {
-    let binary = env!("CARGO_BIN_EXE_rs-harness");
+    let binary = env!("CARGO_BIN_EXE_asp-rust");
     for (removed, unrelated) in [
         (removed_source_switch(), removed_names_switch()),
         (removed_names_switch(), removed_source_switch()),
@@ -37,7 +37,7 @@ fn removed_query_projection_flags_are_unknown_arguments_via_cli() {
 
 #[test]
 fn query_help_exposes_only_projection_rendering() {
-    let output = Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    let output = Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .args(["query", "--help"])
         .output()
         .expect("run query help");
@@ -49,7 +49,7 @@ fn query_help_exposes_only_projection_rendering() {
 }
 #[test]
 fn query_projection_is_accepted_by_the_real_cli_parser() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .args([
             "query",
             "--selector",

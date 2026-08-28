@@ -120,7 +120,6 @@ fn render_exact_path_owner_query_set(
         append_owner_item_lines(
             &mut block,
             project_root,
-            &package_root,
             &module_refs,
             include_items,
             options.item_query.as_deref(),
@@ -261,7 +260,6 @@ fn render_exact_path_owner_block(input: ExactPathOwnerBlock<'_>) -> String {
     append_owner_item_lines(
         &mut block,
         input.project_root,
-        input.package_root,
         &[input.module],
         input.include_items,
         input.item_query,
@@ -319,7 +317,6 @@ fn render_search_owner_block(
     append_owner_item_lines(
         &mut block,
         project_root,
-        &context.package_root,
         &matching_modules,
         include_items,
         options.item_query.as_deref(),
@@ -417,7 +414,6 @@ fn owner_query_details(
     append_owner_item_lines(
         &mut lines,
         locator_root,
-        &context.package_root,
         &matching_modules,
         include_items,
         None,
@@ -664,7 +660,6 @@ fn has_pipe(options: &RustSearchOptions, pipe: &str) -> bool {
 fn append_owner_item_lines(
     block: &mut String,
     locator_root: &Path,
-    package_root: &Path,
     matching_modules: &[&ParsedRustModule],
     include_items: bool,
     item_query: Option<&str>,
@@ -673,11 +668,12 @@ fn append_owner_item_lines(
     if !include_items {
         return;
     }
+    let names_only = item_query.is_some();
     for line in render_owner_item_lines(
         locator_root,
-        package_root,
         matching_modules,
         item_query,
+        names_only,
         item_projection_metadata,
     ) {
         let _ = writeln!(block, "{line}");
@@ -689,7 +685,8 @@ fn append_item_query_line(
     matching_modules: &[&ParsedRustModule],
     item_query: Option<&str>,
 ) {
-    if let Some(line) = render_item_query_line(matching_modules, item_query) {
+    let names_only = item_query.is_some();
+    if let Some(line) = render_item_query_line(matching_modules, item_query, names_only) {
         let _ = writeln!(block, "{line}");
     }
 }

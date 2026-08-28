@@ -8,7 +8,7 @@ use rust_lang_project_harness::{
 use tempfile::TempDir;
 
 #[test]
-fn layout_policy_requires_explanations_for_root_file_exceptions() {
+fn project_local_policy_cannot_allow_root_file_exceptions() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_minimal_project(root);
@@ -20,17 +20,6 @@ fn layout_policy_requires_explanations_for_root_file_exceptions() {
 
     write_policy(
         root,
-        "[tests]\nallowed_root_files = [\n  { name = \"custom_gate.rs\", explanation = \"\" },\n]\n",
-    );
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
-    assert!(has_rule(&report, "RUST-AGENT-PROJECT-001"));
-
-    write_policy(
-        root,
         "[tests]\nallowed_root_files = [\n  { name = \"custom_gate.rs\", explanation = \"explicit harness aggregate\" },\n]\n",
     );
     let report = run_rust_project_harness_for_scope(
@@ -38,28 +27,17 @@ fn layout_policy_requires_explanations_for_root_file_exceptions() {
         rust_lang_project_harness::RustHarnessRunScope::Package,
     )
     .expect("run project harness");
-    assert!(!has_rule(&report, "RUST-AGENT-PROJECT-001"));
+    assert!(has_rule(&report, "RUST-AGENT-PROJECT-001"));
 }
 
 #[test]
-fn layout_policy_requires_explanations_for_directory_exceptions() {
+fn project_local_policy_cannot_allow_directory_exceptions() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_minimal_project(root);
     fs::create_dir(root.join("tests/contract")).expect("create contract tests");
     fs::write(root.join("tests/contract/fixtures.rs"), "fn helper() {}\n")
         .expect("write contract fixture");
-
-    write_policy(
-        root,
-        "[tests]\nallowed_directories = [\n  { name = \"contract\", explanation = \"\" },\n]\n",
-    );
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
-    assert!(has_rule(&report, "RUST-AGENT-PROJECT-002"));
 
     write_policy(
         root,
@@ -70,7 +48,7 @@ fn layout_policy_requires_explanations_for_directory_exceptions() {
         rust_lang_project_harness::RustHarnessRunScope::Package,
     )
     .expect("run project harness");
-    assert!(!has_rule(&report, "RUST-AGENT-PROJECT-002"));
+    assert!(has_rule(&report, "RUST-AGENT-PROJECT-002"));
 }
 
 #[test]
@@ -334,8 +312,8 @@ fn write_manifest_with_test_target(root: &Path) {
 }
 
 fn write_policy(root: &Path, content: &str) {
-    fs::write(root.join("tests/rust-project-harness-rules.toml"), content)
-        .expect("write policy config");
+    fs::write(root.join("tests/attempted-local-policy.toml"), content)
+        .expect("write ignored project-local policy attempt");
 }
 
 fn has_rule(report: &rust_lang_project_harness::RustHarnessReport, rule_id: &str) -> bool {

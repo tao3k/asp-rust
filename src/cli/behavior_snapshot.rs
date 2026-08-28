@@ -387,7 +387,7 @@ fn status_name(status: RustBehaviorSnapshotStatus) -> &'static str {
 
 fn print_behavior_help() {
     println!(
-        "rs-harness behavior snapshot --kind KIND --path PATH [--symbol SYMBOL] [--status STATUS] [--expected TEXT] [--actual TEXT] [--diff TEXT] [--receipt-id ID] [--receipt-json PATH] [--candidate-id ID] [--json]\n\n\
+        "asp-rust behavior snapshot --kind KIND --path PATH [--symbol SYMBOL] [--status STATUS] [--expected TEXT] [--actual TEXT] [--diff TEXT] [--receipt-id ID] [--receipt-json PATH] [--candidate-id ID] [--json]\n\n\
 Kinds: public-api, function, method, module, cli, test, custom.\n\
 Statuses: matched, changed, missing, skipped, error.\n\
 Use --json to emit the semantic-behavior-snapshot JSON contract."

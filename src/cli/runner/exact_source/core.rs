@@ -1,32 +1,54 @@
 use std::process::ExitCode;
 
 use crate::cli::ExactSourceQuery;
+use crate::exact_source_projection::ResolvedExactItem;
 
 use super::model::ParseArtifactItem;
-use super::parse_artifact;
 
 pub(in super::super) fn run_exact_source_query(
     options: ExactSourceQuery,
 ) -> Result<ExitCode, String> {
-    let source_snapshot_envelope = options.source_snapshot_envelope.as_ref().ok_or_else(|| {
-        "exact source query state=source-unavailable reasonKind=wrapper-snapshot-required"
-            .to_string()
-    })?;
     let selector = ExactSelector::parse(&options.selector)
         .map_err(|error| format!("exact source query state=invalid-selector {error}"))?;
-    let pinned = PinnedWorkspace::load(source_snapshot_envelope).map_err(|error| {
-        format!(
-            "exact source query state=source-unavailable reasonKind=snapshot-envelope-invalid {error}"
-        )
-    })?;
+    let pinned = if options.exact_request_stdin {
+        if options.source_snapshot_envelope.is_some() {
+            return Err(
+                "exact source query accepts exactly one byte authority: stdin request or source envelope"
+                    .to_string(),
+            );
+        }
+        PinnedWorkspace::load_direct_request(&options, &selector)?
+    } else {
+        let source_snapshot_envelope = options.source_snapshot_envelope.as_ref().ok_or_else(|| {
+            "exact source query state=source-unavailable reasonKind=wrapper-byte-authority-required"
+                .to_string()
+        })?;
+        PinnedWorkspace::load(source_snapshot_envelope, &options.provider_id).map_err(|error| {
+            format!(
+                "exact source query state=source-unavailable reasonKind=snapshot-envelope-invalid {error}"
+            )
+        })?
+    };
     let requested_owner_exists = pinned.sources.contains_key(&selector.owner_path);
-    let (resolved, state) = if let Some(resolved) = resolve_live_item(&pinned, &selector)? {
-        (resolved, "live-hit")
+    let resolved = if let Some(resolved) = resolve_live_item(&pinned, &selector)? {
+        resolved
     } else {
         match relocate_live_item(&pinned, &selector)? {
-            RelocationOutcome::Resolved(resolved) => (*resolved, "live-relocated"),
+            RelocationOutcome::Resolved(resolved) => *resolved,
+            RelocationOutcome::IdentityIncomplete(candidates) => {
+                return exact_source_failure(
+                    &options,
+                    &selector,
+                    &pinned,
+                    "identity-incomplete",
+                    "canonical-item-scope-required",
+                    candidates,
+                    Vec::new(),
+                );
+            }
             RelocationOutcome::Ambiguous(candidates) => {
                 return exact_source_failure(
+                    &options,
                     &selector,
                     &pinned,
                     "ambiguous",
@@ -37,10 +59,11 @@ pub(in super::super) fn run_exact_source_query(
             }
             RelocationOutcome::KindMismatch(actual_kinds) => {
                 return exact_source_failure(
+                    &options,
                     &selector,
                     &pinned,
                     "kind-mismatch",
-                    "snapshot-item-kind-mismatch",
+                    "owner-item-kind-mismatch",
                     Vec::new(),
                     actual_kinds,
                 );
@@ -68,6 +91,7 @@ pub(in super::super) fn run_exact_source_query(
                     (Vec::new(), Vec::new())
                 };
                 return exact_source_failure(
+                    &options,
                     &selector,
                     &pinned,
                     state,
@@ -78,112 +102,91 @@ pub(in super::super) fn run_exact_source_query(
             }
         }
     };
-    let code = resolved.code.trim_end_matches('\n').to_string();
-
-    if options.json {
-        let provider_id = options
-            .provider_id
-            .as_deref()
-            .ok_or_else(|| "exact source projection requires --asp-provider-id".to_string())?;
-        if provider_id != pinned.provider_id {
-            return Err(format!(
-                "exact source projection provider mismatch: expected={} actual={provider_id}",
-                pinned.provider_id
-            ));
-        }
-        let parser_identity_digest =
-            crate::semantic_identity::exact_selector_merkle::parse_content_digest_v1(
-                options.parser_identity_digest.as_deref().ok_or_else(|| {
-                    "exact source projection requires --asp-parser-identity-digest".to_string()
-                })?,
-            )?;
-        let query_pack_digest =
-            crate::semantic_identity::exact_selector_merkle::parse_content_digest_v1(
-                options.query_pack_digest.as_deref().ok_or_else(|| {
-                    "exact source projection requires --asp-query-pack-digest".to_string()
-                })?,
-            )?;
-        let source = pinned.sources.get(&resolved.owner_path).ok_or_else(|| {
-            format!(
-                "exact source projection resolved an owner outside the pinned snapshot: {}",
-                resolved.owner_path
-            )
+    let resolved = if let Some(segment_selector) = selector.segment_selector.as_deref() {
+        let authority = pinned.exact_projection_authority.as_ref().ok_or_else(|| {
+            "exact callable segment requires typed v1 projection authority".to_string()
         })?;
-        let normalized_parser_facts = serde_json::to_vec(&serde_json::json!({
-            "itemKind": resolved.canonical_selector.kind,
-            "itemName": resolved.canonical_selector.symbol,
-            "ownerPath": resolved.owner_path,
-            "resolvedSelector": resolved.canonical_selector.structural_selector,
-            "resolutionState": state,
-        }))
-        .map_err(|error| format!("serialize exact source parser facts: {error}"))?;
-        let (projection_mode, projection_payload) = if options.names_only {
-            (
-                crate::semantic_identity::exact_selector_merkle::ExactProjectionModeV1::Names,
-                resolved.canonical_selector.symbol.as_str().as_bytes(),
-            )
-        } else {
-            (
-                crate::semantic_identity::exact_selector_merkle::ExactProjectionModeV1::Code,
-                code.as_bytes(),
-            )
-        };
-        let packet_language_id =
-            crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketLanguageIdV1::from(
-                "rust",
-            );
-        let packet_provider_id =
-            crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketProviderIdV1::from(
-                provider_id,
-            );
-        let packet_owner_path =
-            crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketOwnerPathV1::from(
-                resolved.owner_path.as_str(),
-            );
-        let packet_structural_selector =
-            crate::semantic_identity::exact_selector_projection_packet::ProjectionPacketStructuralSelectorV1::from(
-                options.selector.as_str(),
-            );
-        let packet = crate::semantic_identity::exact_selector_projection_packet::build_exact_selector_projection_packet_v1(
-            crate::semantic_identity::exact_selector_projection_packet::ExactSelectorProjectionPacketV1Input {
-                language_id: &packet_language_id,
-                provider_id: &packet_provider_id,
-                canonical_item_selector: resolved.canonical_selector.clone(),
-                parser_identity_digest: &parser_identity_digest,
-                query_pack_digest: &query_pack_digest,
-                owner_path: &packet_owner_path,
-                structural_selector: &packet_structural_selector,
-                projection_mode,
-                source: source.source.as_bytes(),
-                normalized_parser_facts: &normalized_parser_facts,
-                projection: projection_payload,
-            },
-        );
+        resolve_callable_segment(&pinned, resolved, segment_selector, authority)?
+    } else {
+        resolved
+    };
+    let code = resolved.code.trim_end_matches('\n').to_string();
+    if options.json {
+        let authority = pinned.exact_projection_authority.as_ref().ok_or_else(|| {
+            "provider-native exact projection requires typed v1 projection authority".to_string()
+        })?;
+        let packet = crate::exact_source_projection::provider_native_exact_projection_packet(
+            &pinned.provider_id,
+            &options.selector,
+            &options.projection,
+            &resolved,
+            "resolved",
+            authority,
+        )?;
         println!(
             "{}",
             serde_json::to_string(&packet)
                 .map_err(|error| format!("serialize exact source projection packet: {error}"))?
         );
-    } else if options.names_only {
-        println!("{}", resolved.canonical_selector.symbol.as_str());
-    } else if options.code {
-        println!("{code}");
     } else {
-        println!("{}", resolved.canonical_selector.structural_selector);
+        println!("{code}");
     }
 
     Ok(ExitCode::SUCCESS)
 }
 
+fn resolve_callable_segment(
+    workspace: &PinnedWorkspace,
+    mut resolved: ResolvedExactItem,
+    requested_selector: &str,
+    authority: &crate::exact_source_projection::ExactProjectionAuthority,
+) -> Result<ResolvedExactItem, String> {
+    let payload =
+        crate::exact_source_projection::callable_skeleton_projection(&resolved, authority)?;
+    let node = payload["nodes"]
+        .as_array()
+        .and_then(|nodes| {
+            nodes.iter().find(|node| {
+            node["selector"].as_str() == Some(requested_selector)
+            })
+        })
+        .ok_or_else(|| {
+            format!(
+                "exact source query state=item-missing reasonKind=callable-segment-not-found selector={requested_selector}"
+            )
+        })?;
+    let source_byte_start = node["sourceLocatorHint"]["sourceByteStart"]
+        .as_u64()
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| "callable segment omitted sourceByteStart".to_string())?;
+    let source_byte_end = node["sourceLocatorHint"]["sourceByteEnd"]
+        .as_u64()
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| "callable segment omitted sourceByteEnd".to_string())?;
+    let source = workspace
+        .sources
+        .get(&resolved.owner_path)
+        .ok_or_else(|| format!("callable segment owner is missing: {}", resolved.owner_path))?;
+    resolved.code = source
+        .source
+        .get(source_byte_start..source_byte_end)
+        .ok_or_else(|| {
+            "exact source query state=parser-failed reasonKind=callable-segment-span-invalid"
+                .to_string()
+        })?
+        .to_string();
+    resolved.source_byte_start = source_byte_start;
+    resolved.source_byte_end = source_byte_end;
+    resolved.canonical_selector.structural_selector = requested_selector.to_string();
+    Ok(resolved)
+}
+
 fn parse_exact_source_selector(
     selector: &str,
-) -> Result<
-    (
-        &str,
-        crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
-    ),
-    String,
-> {
+) -> Result<(&str, agent_semantic_content_identity::CanonicalItemIdentity), String> {
+    let identity = crate::structural_selector::parse_canonical_item_selector(selector)
+        .map_err(|error| format!("exact source selector `{selector}` is invalid: {error}"))?
+        .identity();
     let selector = selector
         .strip_prefix("rust://")
         .ok_or_else(|| format!("exact source selector `{selector}` must start with rust://"))?;
@@ -193,18 +196,6 @@ fn parse_exact_source_selector(
     if owner_path.is_empty() || item_selector.is_empty() {
         return Err(format!("exact source selector `{selector}` is incomplete"));
     }
-    let language_id =
-        crate::semantic_identity::structural_selector::StructuralSelectorLanguageId::from("rust");
-    let identity_path =
-        crate::semantic_identity::structural_selector::CanonicalItemIdentityPath::from(
-            item_selector,
-        );
-    let identity =
-        crate::semantic_identity::structural_selector::decode_canonical_item_identity_path(
-            &language_id,
-            &identity_path,
-        )
-        .map_err(|error| format!("exact source selector `{selector}` is invalid: {error}"))?;
     Ok((owner_path, identity))
 }
 
@@ -213,12 +204,14 @@ struct ExactSelector {
     owner_path: String,
     item_kind: String,
     item_name: String,
-    scopes: Vec<crate::semantic_identity::canonical_item_identity::CanonicalItemScopeV1>,
+    scopes: Vec<agent_semantic_content_identity::CanonicalItemScope>,
+    segment_selector: Option<String>,
 }
 
 impl ExactSelector {
     fn parse(selector: &str) -> Result<Self, String> {
-        let (owner_path, identity) = parse_exact_source_selector(selector)?;
+        let (root_selector, segment_selector) = parse_exact_selector_segment(selector)?;
+        let (owner_path, identity) = parse_exact_source_selector(root_selector)?;
         let owner = std::path::Path::new(owner_path);
         if owner.is_absolute()
             || owner.components().any(|component| {
@@ -246,8 +239,30 @@ impl ExactSelector {
             item_kind: exact_source_canonical_rust_item_kind(identity.kind.as_str()).to_string(),
             item_name: identity.symbol.as_str().to_string(),
             scopes: identity.scopes,
+            segment_selector,
         })
     }
+}
+
+fn parse_exact_selector_segment(selector: &str) -> Result<(&str, Option<String>), String> {
+    let Some((root_selector, segment)) = selector.rsplit_once("/segment/") else {
+        return Ok((selector, None));
+    };
+    let (kind, identity) = segment.split_once('/').ok_or_else(|| {
+        format!("exact structural selector `{selector}` has an incomplete segment")
+    })?;
+    if kind.is_empty()
+        || identity.contains('/')
+        || identity
+            .strip_prefix("ordinal-")
+            .and_then(|ordinal| ordinal.parse::<u64>().ok())
+            .is_none()
+    {
+        return Err(format!(
+            "exact structural selector `{selector}` has a non-canonical segment"
+        ));
+    }
+    Ok((root_selector, Some(selector.to_string())))
 }
 
 #[cfg(test)]
@@ -256,7 +271,7 @@ fn collect_parse_artifact_items(
     items: &[syn::Item],
     output: &mut Vec<ParseArtifactItem>,
 ) {
-    output.extend(parse_artifact::collect_parse_artifact_items(items));
+    crate::exact_source_parse_artifact::collect_parse_artifact_items(_source, items, output);
 }
 
 #[derive(Clone, Debug)]
@@ -265,13 +280,14 @@ struct PinnedSource {
     blob_digest: String,
     parser_artifact_digest: Option<String>,
     parse_error: Option<String>,
-    items: Vec<ParseArtifactItem>,
+    items: Vec<crate::exact_source_parse_artifact::ParseArtifactItem>,
 }
 
 #[derive(Clone, Debug)]
 struct PinnedWorkspace {
     provider_id: String,
     root_digest: String,
+    exact_projection_authority: Option<crate::exact_source_projection::ExactProjectionAuthority>,
     sources: std::collections::BTreeMap<String, PinnedSource>,
 }
 
@@ -280,7 +296,89 @@ fn snapshot_digest_is_valid(digest: &str) -> bool {
 }
 
 impl PinnedWorkspace {
-    fn load(envelope_path: &std::path::Path) -> Result<Self, String> {
+    fn load_direct_request(
+        options: &ExactSourceQuery,
+        selector: &ExactSelector,
+    ) -> Result<Self, String> {
+        use std::io::Read as _;
+
+        let mut request_bytes = Vec::new();
+        std::io::stdin()
+            .lock()
+            .read_to_end(&mut request_bytes)
+            .map_err(|error| format!("failed to read exact source stdin request: {error}"))?;
+        let request: ProviderNativeExactRequest = serde_json::from_slice(&request_bytes)
+            .map_err(|error| format!("invalid exact source stdin request: {error}"))?;
+        if request.schema_id != "agent.semantic-protocols.provider-native-exact-request"
+            || request.schema_version != "1"
+            || request.transport != "stdin-json"
+            || request.source_encoding != "base64"
+        {
+            return Err(
+                "exact source stdin request has an unsupported v1 contract identity".to_string(),
+            );
+        }
+        if request.language_id != "rust"
+            || request.structural_selector != options.selector
+            || request.owner_path != selector.owner_path
+            || request.projection_kind != options.projection
+            || request.provider_id != options.provider_id
+        {
+            return Err(
+                "exact source stdin request identity does not match activated query".to_string(),
+            );
+        }
+        let source_bytes = super::decode_canonical_base64(request.source_bytes_base64.as_bytes())
+            .ok_or_else(|| {
+            "exact source stdin request contains invalid base64 bytes".to_string()
+        })?;
+        if source_bytes.len() as u64 != request.source_byte_length {
+            return Err(format!(
+                "exact source stdin byte length mismatch: expected={} actual={}",
+                request.source_byte_length,
+                source_bytes.len()
+            ));
+        }
+        let actual_digest = blake3::hash(&source_bytes).to_hex().to_string();
+        if actual_digest != request.source_digest {
+            return Err(format!(
+                "exact source stdin digest mismatch: expected={} actual={actual_digest}",
+                request.source_digest
+            ));
+        }
+        let source = String::from_utf8(source_bytes)
+            .map_err(|error| format!("exact source stdin bytes are not UTF-8: {error}"))?;
+        let (items, parse_error) =
+            match crate::exact_source_parse_artifact::parse_owner_items_v1(&source) {
+                Ok(items) => (items, None),
+                Err(error) => (Vec::new(), Some(error.to_string())),
+            };
+        let mut sources = std::collections::BTreeMap::new();
+        sources.insert(
+            request.owner_path,
+            PinnedSource {
+                source,
+                blob_digest: actual_digest.clone(),
+                parser_artifact_digest: None,
+                parse_error,
+                items,
+            },
+        );
+        Ok(Self {
+            provider_id: request.provider_id,
+            root_digest: actual_digest,
+            exact_projection_authority: Some(
+                crate::exact_source_projection::ExactProjectionAuthority {
+                    generation_identity_digest: request.generation_identity_digest,
+                    parser_identity_digest: request.parser_identity_digest,
+                    query_pack_digest: request.query_pack_digest,
+                },
+            ),
+            sources,
+        })
+    }
+
+    fn load(envelope_path: &std::path::Path, provider_id: &str) -> Result<Self, String> {
         let envelope = std::fs::read(envelope_path).map_err(|error| {
             format!(
                 "failed to read source snapshot envelope {}: {error}",
@@ -322,6 +420,12 @@ impl PinnedWorkspace {
                 "source snapshot envelope lacks complete v1 authority evidence".to_string(),
             );
         }
+        if envelope.provider_id != provider_id {
+            return Err(format!(
+                "source snapshot envelope provider identity drift: expected={provider_id} actual={}",
+                envelope.provider_id
+            ));
+        }
         let mut sources = std::collections::BTreeMap::new();
         for owner in envelope.owners {
             let relative_path = normalize_snapshot_owner_path(&owner.path)?;
@@ -348,13 +452,11 @@ impl PinnedWorkspace {
                     relative_path
                 )
             })?;
-            let (items, parse_error) = match crate::parser::parse_rust_source_syntax(&source) {
-                Ok(syntax) => (
-                    parse_artifact::collect_parse_artifact_items(&syntax.items),
-                    None,
-                ),
-                Err(error) => (Vec::new(), Some(error.to_string())),
-            };
+            let (items, parse_error) =
+                match crate::exact_source_parse_artifact::parse_owner_items_v1(&source) {
+                    Ok(items) => (items, None),
+                    Err(error) => (Vec::new(), Some(error.to_string())),
+                };
             sources.insert(
                 relative_path,
                 PinnedSource {
@@ -376,9 +478,30 @@ impl PinnedWorkspace {
         Ok(Self {
             provider_id: envelope.provider_id,
             root_digest: envelope.source_snapshot.root_digest,
+            exact_projection_authority: None,
             sources,
         })
     }
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProviderNativeExactRequest {
+    schema_id: String,
+    schema_version: String,
+    language_id: String,
+    provider_id: String,
+    structural_selector: String,
+    owner_path: String,
+    projection_kind: String,
+    generation_identity_digest: String,
+    parser_identity_digest: String,
+    query_pack_digest: String,
+    source_digest: String,
+    source_byte_length: u64,
+    source_encoding: String,
+    source_bytes_base64: String,
+    transport: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -442,18 +565,9 @@ fn normalize_snapshot_owner_path(path: &str) -> Result<String, String> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ResolvedExactItem {
-    canonical_selector: crate::semantic_identity::canonical_item_identity::CanonicalItemSelectorV1,
-    owner_path: String,
-    identity: crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
-    code: String,
-    owner_blob_digest: String,
-    parser_artifact_digest: Option<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 enum RelocationOutcome {
     Resolved(Box<ResolvedExactItem>),
+    IdentityIncomplete(Vec<String>),
     Ambiguous(Vec<String>),
     KindMismatch(Vec<String>),
     Missing,
@@ -502,34 +616,6 @@ fn resolve_live_item(
         )));
     }
 
-    if selector.scopes.is_empty() {
-        let scope_relaxed_matches = source
-            .items
-            .iter()
-            .filter(|item| exact_item_name_matches(item, &selector.item_name))
-            .filter(|item| {
-                exact_item_kind_matches(item.identity.kind.as_str(), &selector.item_kind)
-            })
-            .collect::<Vec<_>>();
-        if scope_relaxed_matches.len() > 1 {
-            return Err(format!(
-                "exact source query state=ambiguous rootDigest={} ownerPath={} itemKind={} itemName={} scopeRelaxedMatches={}",
-                workspace.root_digest,
-                selector.owner_path,
-                selector.item_kind,
-                selector.item_name,
-                scope_relaxed_matches.len()
-            ));
-        }
-        if let Some(item) = scope_relaxed_matches.into_iter().next() {
-            return Ok(Some(resolved_exact_item(
-                &selector.owner_path,
-                source,
-                item,
-            )));
-        }
-    }
-
     Ok(None)
 }
 
@@ -537,6 +623,32 @@ fn relocate_live_item(
     workspace: &PinnedWorkspace,
     selector: &ExactSelector,
 ) -> Result<RelocationOutcome, String> {
+    if selector.scopes.is_empty() {
+        let mut candidates = workspace
+            .sources
+            .iter()
+            .flat_map(|(owner_path, source)| {
+                source.items.iter().filter_map(move |item| {
+                    (exact_item_name_matches(item, &selector.item_name)
+                        && exact_item_kind_matches(
+                            item.identity.kind.as_str(),
+                            &selector.item_kind,
+                        )
+                        && !item.identity.scopes.is_empty())
+                    .then(|| {
+                        resolved_exact_item(owner_path, source, item)
+                            .canonical_selector
+                            .structural_selector
+                    })
+                })
+            })
+            .collect::<Vec<_>>();
+        candidates.sort();
+        candidates.dedup();
+        if !candidates.is_empty() {
+            return Ok(RelocationOutcome::IdentityIncomplete(candidates));
+        }
+    }
     let (mut resolved, actual_kinds) = relocation_candidates(workspace, selector).fold(
         (Vec::new(), std::collections::BTreeSet::new()),
         |(mut resolved, mut actual_kinds), candidate| {
@@ -590,7 +702,7 @@ fn relocation_candidates<'a>(
 fn relocation_candidate(
     owner_path: &str,
     source: &PinnedSource,
-    item: &ParseArtifactItem,
+    item: &crate::exact_source_parse_artifact::ParseArtifactItem,
     selector: &ExactSelector,
 ) -> Option<RelocationCandidate> {
     if !exact_item_name_matches(item, &selector.item_name) {
@@ -614,26 +726,23 @@ fn resolved_exact_item(
     ResolvedExactItem {
         canonical_selector: {
             let structural_selector = rust_structural_selector(owner_path, &item.identity);
-            crate::semantic_identity::canonical_item_identity::CanonicalItemSelectorV1::new(
+            agent_semantic_content_identity::CanonicalItemSelector::new(
                 item.identity.clone(),
                 structural_selector,
             )
         },
         owner_path: owner_path.to_string(),
         identity: item.identity.clone(),
-        code: source_line_window(&source.source, item.start_line, item.end_line),
+        code: source
+            .source
+            .get(item.source_byte_start..item.source_byte_end)
+            .unwrap_or_default()
+            .to_string(),
+        source_byte_start: item.source_byte_start,
+        source_byte_end: item.source_byte_end,
         owner_blob_digest: source.blob_digest.clone(),
         parser_artifact_digest: source.parser_artifact_digest.clone(),
     }
-}
-
-fn source_line_window(source: &str, start_line: usize, end_line: usize) -> String {
-    source
-        .lines()
-        .skip(start_line.saturating_sub(1))
-        .take(end_line.saturating_sub(start_line).saturating_add(1))
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 fn exact_item_kind_matches(actual: &str, requested: &str) -> bool {
@@ -648,13 +757,13 @@ fn exact_item_name_matches(item: &ParseArtifactItem, requested: &str) -> bool {
 
 fn exact_item_scopes_match(
     item: &ParseArtifactItem,
-    requested: &[crate::semantic_identity::canonical_item_identity::CanonicalItemScopeV1],
+    requested: &[agent_semantic_content_identity::CanonicalItemScope],
 ) -> bool {
     item.identity.scopes == requested
 }
 
 fn rust_canonical_item_name(
-    identity: &crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    identity: &agent_semantic_content_identity::CanonicalItemIdentity,
 ) -> String {
     let impl_owner = identity
         .scopes
@@ -679,15 +788,13 @@ fn rust_canonical_item_name(
     }
 }
 
-fn rust_structural_selector(
+pub(crate) fn rust_structural_selector(
     owner_path: &str,
-    identity: &crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    identity: &agent_semantic_content_identity::CanonicalItemIdentity,
 ) -> String {
     format!(
         "rust://{owner_path}#{}",
-        crate::semantic_identity::structural_selector::encode_canonical_item_identity_path(
-            identity
-        )
+        crate::structural_selector::encode_canonical_item_identity_path(identity)
     )
 }
 
@@ -729,6 +836,7 @@ fn owner_live_item_diagnostics(
 }
 
 fn exact_source_failure(
+    options: &ExactSourceQuery,
     selector: &ExactSelector,
     pinned: &PinnedWorkspace,
     state: &str,
@@ -736,6 +844,34 @@ fn exact_source_failure(
     candidates: Vec<String>,
     actual_kinds: Vec<String>,
 ) -> Result<ExitCode, String> {
+    if options.json {
+        let packet = serde_json::json!({
+            "schemaId": "agent.semantic-protocols.provider-native-exact-projection",
+            "schemaVersion": "1",
+            "languageId": "rust",
+            "providerId": pinned.provider_id,
+            "requestedStructuralSelector": options.selector,
+            "resolutionState": state,
+            "reasonKind": reason_kind,
+            "activeGenerationDigest": pinned
+                .exact_projection_authority
+                .as_ref()
+                .map(|authority| authority.generation_identity_digest.as_str())
+                .unwrap_or(pinned.root_digest.as_str()),
+            "rootDigest": pinned.root_digest,
+            "ownerPath": selector.owner_path,
+            "itemKind": selector.item_kind,
+            "itemName": selector.item_name,
+            "candidates": candidates,
+            "actualKinds": actual_kinds,
+        });
+        println!(
+            "{}",
+            serde_json::to_string(&packet)
+                .map_err(|error| format!("serialize exact source miss packet: {error}"))?
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
     Err(format!(
         "exact source query state={state} reasonKind={reason_kind} rootDigest={} ownerPath={} itemKind={} itemName={} candidates={} actualKinds={}",
         pinned.root_digest,

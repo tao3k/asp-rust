@@ -180,3 +180,16 @@ fn fails_closed_when_root_project_entry_is_not_a_candidate() {
     ));
     assert!(error.to_string().contains("project-entry-missing"));
 }
+
+#[test]
+fn reports_not_applicable_without_any_cargo_manifest_candidate() {
+    let fixture = Fixture::new("not-applicable");
+    let candidates = candidates(&["src/lib.rs"]);
+    let error = resolve_cargo_project_resolution(&fixture.root, &candidates)
+        .expect_err("provider without a Cargo manifest is not applicable");
+    assert!(matches!(
+        error,
+        ProjectResolutionError::NotApplicable { .. }
+    ));
+    assert!(error.to_string().contains("provider-not-applicable"));
+}

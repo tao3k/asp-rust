@@ -37,8 +37,8 @@ fn cli_search_json_and_trace_follow_rfc_output_modes() {
     );
     assert_eq!(value["protocolVersion"], "1");
     assert_eq!(value["languageId"], "rust");
-    assert_eq!(value["providerId"], "rs-harness");
-    assert_eq!(value["binary"], "rs-harness");
+    assert_eq!(value["providerId"], "asp-rust");
+    assert_eq!(value["binary"], "asp-rust");
     assert_eq!(
         value["namespace"],
         "agent.semantic-protocols.semantic-language"

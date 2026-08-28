@@ -6,8 +6,6 @@ use std::ops::ControlFlow;
 
 use serde_json::Value;
 
-use crate::parser::parse_rust_source_syntax;
-
 use super::facts::push_field_graph_facts;
 use super::field_extract::collection_fields;
 use super::owner_scan::CandidateOwner;
@@ -60,7 +58,7 @@ fn emit_owner_collection_fields(
     let Ok(source) = fs::read_to_string(&owner.absolute) else {
         return 0;
     };
-    let Ok(syntax) = parse_rust_source_syntax(&source) else {
+    let Ok(syntax) = crate::parser::parse_rust_source_syntax(&source) else {
         return 0;
     };
     emit_collection_fields_from_syntax(query, owner, &syntax, limit, sink)

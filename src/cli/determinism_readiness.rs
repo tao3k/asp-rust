@@ -89,7 +89,7 @@ impl DeterminismOptions {
 
 fn print_determinism_help() {
     println!(
-        "rs-harness determinism readiness [--include-tests] [--json] [PROJECT_ROOT]\n\n\
+        "asp-rust determinism readiness [--include-tests] [--json] [PROJECT_ROOT]\n\n\
 Detects direct clock, random, filesystem, network, environment, and global-state access.\n\
 Use --json to emit the semantic-determinism-readiness JSON contract."
     );

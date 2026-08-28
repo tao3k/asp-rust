@@ -10,7 +10,6 @@ use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
 use super::query::print_query_help;
-use crate::parser::parse_rust_source_syntax;
 
 const FLOW_LITE_CATALOG_ID: &str = "flow-lite";
 const FLOW_LITE_FLOW_KIND: &str = "local-source-sink";
@@ -207,7 +206,7 @@ fn evaluate_flow_lite_query(
             Ok(source) => source,
             Err(_) => continue,
         };
-        let syntax = match parse_rust_source_syntax(&source) {
+        let syntax = match crate::parser::parse_rust_source_syntax(&source) {
             Ok(syntax) => syntax,
             Err(_) => continue,
         };
@@ -457,7 +456,7 @@ fn print_flow_lite_json(
         "protocolId": "agent.semantic-protocols.semantic-language",
         "protocolVersion": "1",
         "languageId": "rust",
-        "providerId": "rs-harness",
+        "providerId": "asp-rust",
         "projectRoot": project_root.display().to_string(),
         "flowId": format!("flow-lite:{}:{}:{}:{}", result.owner_path, constraints.scope_fn, constraints.source_call, constraints.sink_constructs),
         "flowKind": FLOW_LITE_FLOW_KIND,

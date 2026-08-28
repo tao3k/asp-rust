@@ -98,8 +98,8 @@ impl RustAssuranceCaseBuilder {
             case_set_id: "rust.assurance.case".to_owned(),
             producer: RustAssuranceCaseSetProducer {
                 language_id: "rust".to_owned(),
-                provider_id: "rs-harness".to_owned(),
-                namespace: "agent.semantic-protocols.languages.rust.rs-harness".to_owned(),
+                provider_id: "asp-rust".to_owned(),
+                namespace: "agent.semantic-protocols.languages.rust.asp-rust".to_owned(),
             },
             project: RustAssuranceCaseSetProject {
                 root: self.project_root.display().to_string(),

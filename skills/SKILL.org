@@ -20,7 +20,7 @@ Use =rs-harness= only for Rust project files:
 - =Cargo.toml=, =Cargo.lock=, =build.rs=
 - Rust tool and lint config files
 
-Use =ts-harness= only for TypeScript/JavaScript project files:
+Use =asp-typescript= only for TypeScript/JavaScript project files:
 
 - =*.ts=, =*.tsx=, =*.js=, =*.jsx=, =*.mts=, =*.cts=, =*.mjs=, =*.cjs=
 - =package.json=
@@ -49,7 +49,7 @@ Hook feedback must stay compact and actionable. Examples:
 #+begin_src text
 Run deep prime first: `rs-harness search prime`.
 Raw rg must pipe to ingest: `rg -n "<query>" src tests | rs-harness search ingest`.
-Raw TS/JS rg must pipe to ingest: `rg -n "<query>" --glob "*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}" src tests apps packages | ts-harness search ingest`.
+Raw TS/JS rg must pipe to ingest: `rg -n "<query>" --glob "*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}" src tests apps packages | asp-typescript search ingest`.
 Subagent must return `[search-subagent] role=... evidence=... missing=... next=... risk=...`.
 #+end_src
 
@@ -369,8 +369,8 @@ Use the TS/JS harness only for TS/JS source, package, and build/test config
 surfaces.
 
 #+begin_src sh
-rg -n "<query>" --glob "*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}" src tests apps packages | ts-harness search ingest
-fd -e ts -e tsx -e js -e jsx "<name>" src tests apps packages | ts-harness search ingest
+rg -n "<query>" --glob "*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}" src tests apps packages | asp-typescript search ingest
+fd -e ts -e tsx -e js -e jsx "<name>" src tests apps packages | asp-typescript search ingest
 #+end_src
 
 * Flow: structural pattern

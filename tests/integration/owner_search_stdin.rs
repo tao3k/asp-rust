@@ -128,7 +128,7 @@ fn invoke(request: &serde_json::Value) -> serde_json::Value {
 }
 
 fn command() -> std::process::Child {
-    Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .args(["owner-search-stdin", "--asp-provider-id", "rs-harness"])
         .env("AST_STATE_HOME", "/path/that/must/not/be-opened")
         .stdin(Stdio::piped())

@@ -34,7 +34,7 @@ fn semantic_facts_project_scan_finds_collection_fields_without_candidate_owner()
         Some("agent.semantic-protocols.semantic-fact-graph")
     );
     assert_eq!(packet["languageId"].as_str(), Some("rust"));
-    assert_eq!(packet["providerId"].as_str(), Some("rs-harness"));
+    assert_eq!(packet["providerId"].as_str(), Some("asp-rust"));
     assert_eq!(
         packet["query"].as_str(),
         Some("Vec scalar collection fields")
@@ -50,7 +50,7 @@ fn semantic_facts_project_scan_finds_collection_fields_without_candidate_owner()
             && node["symbol"].as_str() == Some("scalars")
             && node["fields"]["typeValue"].as_str() == Some("Vec < Scalar >")
             && node["fields"]["languageId"].as_str() == Some("rust")
-            && node["fields"]["providerId"].as_str() == Some("rs-harness")
+            && node["fields"]["providerId"].as_str() == Some("asp-rust")
             && node["fields"]["semanticFactKind"].as_str() == Some("field")
             && node["fields"]["provenance"].as_str() == Some("parser")
             && node["fields"]["confidence"].as_str() == Some("exact")

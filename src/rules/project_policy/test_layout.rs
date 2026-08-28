@@ -7,13 +7,12 @@ use std::path::Path;
 use crate::parser::file_location;
 use crate::{RustHarnessFinding, RustHarnessRule};
 
-use super::config::{LayoutPolicy, is_allowed_test_dir, is_allowed_test_root_file};
+use super::config::{is_allowed_test_dir, is_allowed_test_root_file};
 use super::support::is_rust_file;
 use super::{RUST_PROJ_R001, RUST_PROJ_R002};
 
 pub(super) fn test_layout_findings(
     project_root: &Path,
-    policy: &LayoutPolicy,
     rules: &BTreeMap<&'static str, RustHarnessRule>,
 ) -> Vec<RustHarnessFinding> {
     let tests_dir = project_root.join("tests");
@@ -25,7 +24,7 @@ pub(super) fn test_layout_findings(
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
         if path.is_dir() {
-            if !is_allowed_test_dir(&name, policy) {
+            if !is_allowed_test_dir(&name) {
                 let rule = &rules[RUST_PROJ_R002];
                 findings.push(RustHarnessFinding::from_rule(
                     rule,
@@ -37,7 +36,7 @@ pub(super) fn test_layout_findings(
             }
             continue;
         }
-        if !is_rust_file(&path) || is_allowed_test_root_file(&name, policy) {
+        if !is_rust_file(&path) || is_allowed_test_root_file(&name) {
             continue;
         }
         let rule = &rules[RUST_PROJ_R001];

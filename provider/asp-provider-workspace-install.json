@@ -1,28 +1,25 @@
 {
+  "$schema": "../schemas/provider-workspace-install.schema.json",
   "schemaId": "agent.semantic-protocols.provider-workspace-install",
   "schemaVersion": "1",
   "schemaAuthority": "https://tao3k.github.io/agent-semantic-protocols/schemas/",
-  "providerId": "rs-harness",
-  "binary": "rs-harness",
+  "languageId": "rust",
+  "providerId": "asp-rust",
+  "binary": "asp-rust",
+  "providerRegistration": "asp-provider-registration.json",
+  "schemaBundleReceipt": "../schemas/.asp-schema-manager-receipt.json",
   "workspaceArtifact": {
-    "root": "languages/rust-lang-project-harness/target/release/rs-harness",
+    "root": "languages/rust-lang-project-harness/target/release/asp-rust",
     "entrypoint": "."
   },
   "workspaceBuild": {
-    "program": "cargo",
+    "program": "just",
     "args": [
-      "build",
-      "--locked",
-      "--release",
-      "--manifest-path",
-      "Cargo.toml",
-      "--features",
-      "cli",
-      "--bin",
-      "rs-harness"
+      "install"
     ],
     "workingDirectory": "languages/rust-lang-project-harness",
     "sourceSnapshotAnchors": [
+      "languages/rust-lang-project-harness/Justfile",
       "languages/rust-lang-project-harness/Cargo.toml",
       "languages/rust-lang-project-harness/Cargo.lock"
     ],

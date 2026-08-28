@@ -9,6 +9,7 @@ mod location;
 mod module_tree;
 pub(crate) mod native_syntax;
 mod parsed_module;
+pub(crate) use parsed_module::parse_rust_source_syntax;
 mod path_resolution;
 mod reasoning_tree;
 mod source_metrics;
@@ -17,7 +18,6 @@ mod source_path;
 pub(crate) mod syntax_abi;
 mod use_tree;
 
-#[cfg(any(feature = "search", test))]
 #[cfg(any(feature = "search", test))]
 pub(crate) use cargo_cfg::parse_cargo_cfg_facts;
 pub(crate) use cargo_dependency_facts::{
@@ -43,7 +43,8 @@ pub(crate) use native_syntax::{
     RustPublicEnumVariantFieldSyntax, RustPublicStructFieldSyntax, RustPublicTypeAliasSyntax,
     RustTopLevelItemSyntax,
 };
-pub(crate) use parsed_module::parse_rust_source_syntax;
+#[cfg(feature = "cli")]
+pub(crate) use parsed_module::parse_rust_source;
 pub(crate) use parsed_module::{ParsedRustModule, parse_rust_file};
 pub(crate) use path_resolution::resolve_rust_path_attr;
 pub(crate) use reasoning_tree::{

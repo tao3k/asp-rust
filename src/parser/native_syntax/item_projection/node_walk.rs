@@ -16,13 +16,12 @@ fn append_trait_projection_nodes(
     let trait_owner = item_trait.ident.to_string();
     for trait_item in &item_trait.items {
         if let syn::TraitItem::Fn(method) = trait_item {
-            let identity =
-                crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
-                    "rust",
-                    "trait-function",
-                    method.sig.ident.to_string(),
-                )
-                .with_scope("trait-owner", "trait", trait_owner.clone());
+            let identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+                "rust",
+                "trait-function",
+                method.sig.ident.to_string(),
+            )
+            .with_scope("trait-owner", "trait", trait_owner.clone());
             push_canonical_projection_node(
                 nodes,
                 method,
@@ -152,17 +151,16 @@ fn append_impl_projection_nodes(
     for impl_item in &item_impl.items {
         match impl_item {
             syn::ImplItem::Fn(method) => {
-                let mut identity =
-                    crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1::new(
-                        "rust",
-                        "method",
-                        method.sig.ident.to_string(),
-                    )
-                    .with_scope(
-                        "implementation-owner",
-                        "type",
-                        implementation_owner.clone(),
-                    );
+                let mut identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+                    "rust",
+                    "method",
+                    method.sig.ident.to_string(),
+                )
+                .with_scope(
+                    "implementation-owner",
+                    "type",
+                    implementation_owner.clone(),
+                );
                 if let Some(trait_owner) = trait_owner.as_deref() {
                     identity = identity.with_scope("trait-owner", "trait", trait_owner);
                 }
@@ -318,8 +316,8 @@ fn append_expression_projection_nodes(
             for arm in &match_expr.arms {
                 push_projection_node(
                     nodes,
-                    &arm.pat,
-                    "case",
+                    arm,
+                    "match-arm",
                     "control-flow",
                     format!("{} => {{", compact_tokens(&arm.pat)),
                     depth + 1,
@@ -517,7 +515,7 @@ fn push_canonical_projection_node(
     role: &'static str,
     label: impl Into<String>,
     depth: usize,
-    canonical_item_identity: crate::semantic_identity::canonical_item_identity::CanonicalItemIdentityV1,
+    canonical_item_identity: agent_semantic_content_identity::CanonicalItemIdentity,
 ) {
     push_projection_node(nodes, syntax, kind, role, label, depth);
     nodes

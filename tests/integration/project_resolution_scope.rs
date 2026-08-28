@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 fn run_project_resolution(request: &Value, current_dir: &std::path::Path) -> Value {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .arg("project-resolution-stdin")
         .current_dir(current_dir)
         .stdin(Stdio::piped())
@@ -34,7 +34,7 @@ fn request(candidate_paths: &[&str]) -> Value {
         "schemaId": "agent.semantic-protocols.provider-project-resolution-request",
         "schemaVersion": "1",
         "languageId": "rust",
-        "providerId": "rs-harness",
+        "providerId": "asp-rust",
         "workspace": ".",
         "candidateBase": ".",
         "candidateGeneration": {

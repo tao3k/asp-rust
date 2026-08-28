@@ -14,7 +14,6 @@ fn single_owner_request_parses_exactly_one_owner() {
     assert_eq!(
         response.projections[0]
             .canonical_item_selector
-            .identity()
             .symbol
             .as_str(),
         "alpha"

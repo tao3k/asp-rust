@@ -138,28 +138,17 @@ mounts for crates that cannot yet add a build script, and `RUST-AGENT-PROJECT-00
 keeps warning until the Agent migrates parser-native policy to the build gate.
 Root Cargo test targets are thin aggregates: they should mount external suite
 modules only, while test bodies and helpers belong in suite files under
-`tests/unit`, `tests/integration`, or a documented custom suite.
+`tests/unit`, `tests/integration`, or another standard suite.
 Use explicit `#[path = "suite/file.rs"]` module mounts from root targets; bare
 `mod helper;` is intentionally rejected because it relies on implicit Rust file
 lookup at the test root.
 
-## Layout Exceptions
+## Fixed Layout Contract
 
-Projects can document intentional test-layout exceptions in
-`tests/rust-project-harness-rules.toml`:
-
-```toml
-[tests]
-allowed_root_files = [
-  { name = "custom_gate.rs", explanation = "explicit harness aggregate" },
-]
-allowed_directories = [
-  { name = "contract", explanation = "contract fixtures mounted by a root gate" },
-]
-```
-
-Entries without a non-empty `explanation` are ignored. The exception file is for
-auditable project structure, not for silent allowlists.
+Project-local test-layout exceptions are not accepted. Nonstandard isolated
+test binaries are declared directly in `Cargo.toml` with paths below a standard
+suite directory. A finding must be repaired at its source instead of being
+suppressed by a project-owned allowlist.
 
 ## Blocking And Advice
 

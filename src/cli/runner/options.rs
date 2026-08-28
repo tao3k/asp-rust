@@ -56,7 +56,7 @@ impl AgentOptions {
                 match command.as_str() {
                     "doctor" => doctor_seen = true,
                     "guide" => {
-                        return Err("rs-harness agent guide moved to rs-harness guide".to_string());
+                        return Err("asp-rust agent guide moved to asp-rust guide".to_string());
                     }
                     "install" | "hook" | "guard" => return Err(moved_agent_action(&command)),
                     other => return Err(format!("unknown agent command: {other}")),

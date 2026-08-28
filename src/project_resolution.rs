@@ -7,11 +7,54 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+struct ServiceTimer {
+    wall_started: Instant,
+    #[cfg(unix)]
+    thread_cpu_started: Option<libc::timespec>,
+}
+
+impl ServiceTimer {
+    fn start() -> Self {
+        Self {
+            wall_started: Instant::now(),
+            #[cfg(unix)]
+            thread_cpu_started: thread_cpu_time(),
+        }
+    }
+
+    fn elapsed_micros(&self) -> u64 {
+        #[cfg(unix)]
+        if let (Some(started), Some(completed)) = (self.thread_cpu_started, thread_cpu_time()) {
+            let started_nanos = i128::from(started.tv_sec)
+                .saturating_mul(1_000_000_000)
+                .saturating_add(i128::from(started.tv_nsec));
+            let completed_nanos = i128::from(completed.tv_sec)
+                .saturating_mul(1_000_000_000)
+                .saturating_add(i128::from(completed.tv_nsec));
+            let elapsed_nanos = completed_nanos.saturating_sub(started_nanos).max(0) as u128;
+            return u64::try_from(elapsed_nanos / 1_000).unwrap_or(u64::MAX);
+        }
+        u64::try_from(self.wall_started.elapsed().as_micros()).unwrap_or(u64::MAX)
+    }
+}
+
+#[cfg(unix)]
+fn thread_cpu_time() -> Option<libc::timespec> {
+    let mut value = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: `value` is valid writable storage and CLOCK_THREAD_CPUTIME_ID
+    // reads only the calling thread's monotonic service time.
+    (unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut value) } == 0)
+        .then_some(value)
+}
+
 pub(crate) const PROJECT_RESOLUTION_SCHEMA_ID: &str = "agent.semantic-protocols.project-resolution";
 pub(crate) const LANGUAGE_PACKAGE_GRAPH_SCHEMA_ID: &str =
     "agent.semantic-protocols.language-package-graph";
 const PARSER_ID: &str = "rust.cargo-toml";
-const PROVIDER_ID: &str = "rs-harness";
+const PROVIDER_ID: &str = "asp-rust";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -184,6 +227,7 @@ pub(crate) struct ProjectResolutionMetrics {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ProjectResolutionError {
+    NotApplicable { expected: PathBuf },
     ProjectEntryMissing { expected: PathBuf },
     ProjectEntryInvalid { path: PathBuf },
 }
@@ -191,6 +235,11 @@ pub(crate) enum ProjectResolutionError {
 impl std::fmt::Display for ProjectResolutionError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::NotApplicable { expected } => write!(
+                formatter,
+                "provider-not-applicable: no parser-owned manifest `{}` is present",
+                expected.display()
+            ),
             Self::ProjectEntryMissing { expected } => write!(
                 formatter,
                 "project-entry-missing: expected parser-owned manifest `{}`",
@@ -211,7 +260,7 @@ pub(crate) fn resolve_cargo_project_resolution(
     workspace: &Path,
     input: &ProjectResolutionInput,
 ) -> Result<ProjectResolution, ProjectResolutionError> {
-    let started = Instant::now();
+    let started = ServiceTimer::start();
     let workspace = workspace.to_path_buf();
     let candidate_paths = input
         .candidate_paths
@@ -219,6 +268,15 @@ pub(crate) fn resolve_cargo_project_resolution(
         .map(|candidate| normalize_relative_path(candidate))
         .collect::<BTreeSet<_>>();
     let root_manifest_relative = PathBuf::from("Cargo.toml");
+    let has_any_manifest = candidate_paths.iter().any(|path| {
+        path.file_name()
+            .is_some_and(|name| name == std::ffi::OsStr::new("Cargo.toml"))
+    });
+    if !has_any_manifest {
+        return Err(ProjectResolutionError::NotApplicable {
+            expected: root_manifest_relative,
+        });
+    }
     if !candidate_paths.contains(&root_manifest_relative) {
         return Err(ProjectResolutionError::ProjectEntryMissing {
             expected: root_manifest_relative,
@@ -435,7 +493,7 @@ pub(crate) fn resolve_cargo_project_resolution(
             full_workspace_reads: 0,
             full_manifest_reparses: 0,
             db_opens: 0,
-            elapsed_micros: u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX),
+            elapsed_micros: started.elapsed_micros(),
         },
         package_graph,
     })

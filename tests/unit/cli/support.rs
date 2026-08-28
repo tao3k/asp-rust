@@ -9,7 +9,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
 {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rs-harness"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_asp-rust"));
     configure_shared_asp_renderer(&mut command);
     let args = normalize_fixture_workspace_args(args);
     command.args(args).output().expect("run cli")
@@ -25,7 +25,7 @@ where
     K: AsRef<std::ffi::OsStr>,
     V: AsRef<std::ffi::OsStr>,
 {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rs-harness"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_asp-rust"));
     configure_shared_asp_renderer(&mut command);
     for (key, value) in envs {
         command.env(key, value);
@@ -39,7 +39,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
 {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rs-harness"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_asp-rust"));
     configure_shared_asp_renderer(&mut command);
     let args = normalize_fixture_workspace_args(args);
     let mut child = command

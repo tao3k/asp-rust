@@ -1,11 +1,9 @@
 //! Harness-owned structural-selector encoding.
 
-use crate::canonical_item_identity::CanonicalItemIdentityV1;
+use agent_semantic_content_identity::{CanonicalItemIdentity, CanonicalItemSelector};
 
 /// Parses a canonical item selector into provider-owned identity fields.
-pub fn parse_canonical_item_selector(
-    selector: &str,
-) -> Result<crate::canonical_item_identity::CanonicalItemSelectorV1, String> {
+pub fn parse_canonical_item_selector(selector: &str) -> Result<CanonicalItemSelector, String> {
     let (language_id, locator) = selector
         .split_once("://")
         .ok_or_else(|| "canonical item selector is missing the language scheme".to_owned())?;
@@ -27,8 +25,7 @@ pub fn parse_canonical_item_selector(
         return Err("canonical item selector contains an empty identity component".to_owned());
     }
 
-    let mut identity =
-        crate::canonical_item_identity::CanonicalItemIdentityV1::new(language_id, kind, symbol);
+    let mut identity = CanonicalItemIdentity::new(language_id, kind, symbol);
     while let Some(marker) = components.next() {
         if marker != "scope" {
             return Err(format!(
@@ -52,11 +49,11 @@ pub fn parse_canonical_item_selector(
     }
     identity.validate()?;
 
-    Ok(crate::canonical_item_identity::CanonicalItemSelectorV1::new(identity, selector))
+    Ok(CanonicalItemSelector::new(identity, selector))
 }
 
 /// Encodes a provider-owned identity as the canonical item path.
-pub fn encode_canonical_item_identity_path(identity: &CanonicalItemIdentityV1) -> String {
+pub fn encode_canonical_item_identity_path(identity: &CanonicalItemIdentity) -> String {
     let mut path = format!(
         "item/{}/{}",
         encode_component(identity.kind.as_str()),

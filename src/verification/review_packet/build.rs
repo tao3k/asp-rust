@@ -99,8 +99,8 @@ pub fn build_rust_review_packet(input: RustReviewPacketInput) -> RustReviewPacke
         packet_id: RustReviewPacketId("rust.review.packet".to_owned()),
         producer: RustReviewPacketProducer {
             language_id: "rust".to_owned(),
-            provider_id: "rs-harness".to_owned(),
-            namespace: "agent.semantic-protocols.languages.rust.rs-harness".to_owned(),
+            provider_id: "asp-rust".to_owned(),
+            namespace: "agent.semantic-protocols.languages.rust.asp-rust".to_owned(),
         },
         project: RustReviewPacketProject {
             root: PathBuf::from("."),

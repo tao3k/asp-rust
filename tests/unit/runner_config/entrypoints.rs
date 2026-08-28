@@ -177,6 +177,34 @@ fn root_test_target_policy_accepts_thin_aggregate() {
 }
 
 #[test]
+fn explicit_cargo_target_under_standard_suite_owns_its_test_implementation() {
+    let temp = TempDir::new().expect("temp dir");
+    let root = temp.path();
+    fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname = \"suite-leaf-target\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[[test]]\nname = \"isolated-timeout\"\npath = \"tests/integration/isolated_timeout.rs\"\n",
+    )
+    .expect("write manifest");
+    fs::create_dir(root.join("src")).expect("create src");
+    fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
+    fs::create_dir_all(root.join("tests/integration")).expect("create integration tests");
+    fs::write(
+        root.join("tests/integration/isolated_timeout.rs"),
+        "#[test]\nfn owns_isolated_failure_injection() {}\n",
+    )
+    .expect("write isolated target");
+
+    let report = run_rust_project_harness_for_scope(
+        root,
+        rust_lang_project_harness::RustHarnessRunScope::Package,
+    )
+    .expect("run project harness");
+
+    assert!(!has_rule(&report, "RUST-AGENT-PROJECT-007"));
+    assert!(!has_rule(&report, "RUST-AGENT-PROJECT-008"));
+}
+
+#[test]
 fn root_test_target_policy_rejects_implicit_module_mounts() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
@@ -201,7 +229,7 @@ fn root_test_target_policy_rejects_implicit_module_mounts() {
 }
 
 #[test]
-fn root_test_target_policy_accepts_documented_suite_mounts() {
+fn root_test_target_policy_rejects_project_local_suite_exceptions() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_manifest(root, "root-test-custom-suite");
@@ -209,7 +237,7 @@ fn root_test_target_policy_accepts_documented_suite_mounts() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     fs::create_dir_all(root.join("tests/contract")).expect("create contract tests");
     fs::write(
-        root.join("tests/rust-project-harness-rules.toml"),
+        root.join("tests/attempted-local-policy.toml"),
         "[tests]\nallowed_directories = [\n  { name = \"contract\", explanation = \"contract suite mounted by root target\" },\n]\n",
     )
     .expect("write policy config");
@@ -226,11 +254,8 @@ fn root_test_target_policy_accepts_documented_suite_mounts() {
     )
     .expect("run project harness");
 
-    assert!(
-        !has_rule(&report, "RUST-AGENT-PROJECT-008"),
-        "{:?}",
-        report.findings
-    );
+    assert!(has_rule(&report, "RUST-AGENT-PROJECT-002"));
+    assert!(has_rule(&report, "RUST-AGENT-PROJECT-008"));
 }
 
 #[test]

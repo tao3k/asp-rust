@@ -7,7 +7,7 @@ use tempfile::TempDir;
 use super::support::run_cli;
 
 #[test]
-fn cli_agent_registry_advertises_package_local_semantic_schemas() {
+fn cli_agent_registry_combines_published_shared_and_two_provider_owned_schemas() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
 
@@ -23,7 +23,42 @@ fn cli_agent_registry_advertises_package_local_semantic_schemas() {
         .as_array()
         .expect("schemas");
 
-    for expected in semantic_schema_files() {
+    assert!(
+        schemas.len() > 2,
+        "published shared schemas are missing: {schemas:?}"
+    );
+    assert_eq!(
+        schemas
+            .iter()
+            .filter(|schema| {
+                matches!(
+                    schema["schemaId"].as_str(),
+                    Some(
+                        "agent.semantic-protocols.rust-ast-patch-real-project-evidence"
+                            | "agent.semantic-protocols.languages.rust.asp-rust.capabilities"
+                    )
+                )
+            })
+            .count(),
+        2,
+        "provider-owned schema descriptors must remain unique: {schemas:?}"
+    );
+    for expected in [
+        SemanticSchemaFile {
+            schema_id: "agent.semantic-protocols.rust-ast-patch-real-project-evidence",
+            file_name: "rust-ast-patch-real-project-evidence.v1.schema.json",
+            registry_path: "schemas/rust-ast-patch-real-project-evidence.v1.schema.json",
+            identity_pointer: &["properties", "schemaId", "const"],
+            syncs_with_protocol_repository: false,
+        },
+        SemanticSchemaFile {
+            schema_id: "agent.semantic-protocols.languages.rust.asp-rust.capabilities",
+            file_name: "rust-semantic-capabilities.v1.schema.json",
+            registry_path: "schemas/rust-semantic-capabilities.v1.schema.json",
+            identity_pointer: &["properties", "schemaId", "const"],
+            syncs_with_protocol_repository: false,
+        },
+    ] {
         let advertised = schemas
             .iter()
             .find(|schema| schema["schemaId"].as_str() == Some(expected.schema_id))
@@ -78,8 +113,9 @@ fn package_local_semantic_schemas_match_protocol_repository_when_present() {
 
 #[test]
 fn provider_manifest_declares_exact_source_snapshot_envelope_schema() {
-    let manifest = read_json(&package_root().join("provider/asp-provider-manifest.json"));
-    let descriptor = &manifest["searchCapabilities"]["sourceSnapshot"];
+    let registration = read_json(&package_root().join("provider/asp-provider-registration.json"));
+    let search_capabilities = &registration["searchCapabilities"];
+    let descriptor = &search_capabilities["sourceSnapshot"];
     assert_eq!(descriptor["descriptorId"], "rust.source-snapshot");
     assert_eq!(
         descriptor["sourceSnapshotEnvelopeSchemaId"],
@@ -180,7 +216,7 @@ fn cli_agent_registry_uses_rust_capability_vocabulary() {
         let argv = invocation["argv"].as_array().expect("invocation argv");
         assert_eq!(
             argv.first().and_then(Value::as_str),
-            Some("rs-harness"),
+            Some("asp-rust"),
             "{method}: {invocation}"
         );
         assert!(argv.len() >= 2, "{method}: {invocation}");
@@ -365,7 +401,7 @@ fn cli_agent_registry_uses_rust_capability_vocabulary() {
     assert_eq!(
         exact_selector["invocation"]["argv"],
         serde_json::json!([
-            "rs-harness",
+            "asp-rust",
             "query",
             "--selector",
             "{owner}",
@@ -449,13 +485,6 @@ struct SemanticSchemaFile {
 
 fn semantic_schema_files() -> &'static [SemanticSchemaFile] {
     &[
-        SemanticSchemaFile {
-            schema_id: "agent.semantic-protocols.semantic-language-registry",
-            file_name: "semantic-language-registry.v1.schema.json",
-            registry_path: "schemas/semantic-language-registry.v1.schema.json",
-            identity_pointer: &["properties", "registryId", "const"],
-            syncs_with_protocol_repository: true,
-        },
         SemanticSchemaFile {
             schema_id: "agent.semantic-protocols.semantic-search-packet",
             file_name: "semantic-search-packet.v1.schema.json",
@@ -569,7 +598,7 @@ fn semantic_schema_files() -> &'static [SemanticSchemaFile] {
             syncs_with_protocol_repository: true,
         },
         SemanticSchemaFile {
-            schema_id: "agent.semantic-protocols.languages.rust.rs-harness.capabilities",
+            schema_id: "agent.semantic-protocols.languages.rust.asp-rust.capabilities",
             file_name: "rust-semantic-capabilities.v1.schema.json",
             registry_path: "schemas/rust-semantic-capabilities.v1.schema.json",
             identity_pointer: &["properties", "schemaId", "const"],

@@ -22,7 +22,7 @@ fn exact_selector_reads_one_stdin_owner_without_state_or_snapshot_via_cli() {
         "sourceBytesBase64": encode_base64(source),
         "transport": "stdin-json"
     });
-    let mut child = Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .args([
             "query",
             "--selector",
@@ -107,7 +107,7 @@ fn callable_skeleton_child_selector_round_trips_to_source() {
         })
     };
     let invoke = |selector: &str, projection_kind: &str| {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_asp-rust"))
             .args([
                 "query",
                 "--selector",
@@ -145,12 +145,25 @@ fn callable_skeleton_child_selector_round_trips_to_source() {
     };
 
     let skeleton = invoke(root_selector, "callable-skeleton");
+    for envelope_field in [
+        "schemaId",
+        "schemaVersion",
+        "projectionKind",
+        "languageId",
+        "providerId",
+    ] {
+        assert!(
+            skeleton["projectionPayload"].get(envelope_field).is_none(),
+            "callable-skeleton payload retained envelope field {envelope_field}: {}",
+            skeleton["projectionPayload"]
+        );
+    }
     let branch_selector = skeleton["projectionPayload"]["nodes"]
         .as_array()
         .expect("skeleton nodes")
         .iter()
         .find(|node| node["kind"] == "branch")
-        .and_then(|node| node["exactSelector"]["selector"].as_str())
+        .and_then(|node| node["selector"].as_str())
         .expect("branch selector")
         .to_string();
     let branch = invoke(&branch_selector, "source");
@@ -207,7 +220,7 @@ fn run_exact_failure(source: &[u8], selector: &str) -> std::process::Output {
         "sourceBytesBase64": encode_base64(source),
         "transport": "stdin-json"
     });
-    let mut child = Command::new(env!("CARGO_BIN_EXE_rs-harness"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_asp-rust"))
         .args([
             "query",
             "--selector",
