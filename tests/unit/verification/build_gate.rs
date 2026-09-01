@@ -282,7 +282,7 @@ fn downstream_verification_gate_guide_classifies_api_and_cli_surfaces() {
         "{guide}"
     );
     assert!(
-        guide.contains("CLI quick check and observation surface"),
+        guide.contains("Do not expose policy or full verification as a standalone downstream CLI"),
         "{guide}"
     );
     assert!(guide.contains("harness/mod.rs"), "{guide}");
@@ -309,7 +309,7 @@ fn downstream_verification_gate_guide_classifies_api_and_cli_surfaces() {
         "{guide}"
     );
     assert!(
-        guide.contains("Do not expose full verification as a standalone downstream CLI command"),
+        guide.contains("Do not expose policy or full verification as a standalone downstream CLI"),
         "{guide}"
     );
     assert!(guide.contains("## Workspace Layout"), "{guide}");

@@ -41,7 +41,7 @@ Hooks may nudge or block these gaps:
 2. broad raw =rg= / =fd= not piped into =asp rust search ingest=
 3. raw =ast-grep= instead of =asp rust search pattern <recipe>=
 4. subagent result without =evidence=, =missing=, =next=, and =risk=
-5. edited Rust/TypeScript/package/config files without =asp rust check --changed=
+5. edited Rust/TypeScript/package/config files without a dependency-owned policy receipt
 6. final response after edits without =[search-synthesis]=
 
 Hook feedback must stay compact and actionable. Examples:
@@ -306,10 +306,9 @@ test_mounts, next.
 
 * Flow: compact finding repair
 
-Use when the task starts from =asp rust check= or a compact diagnostic.
+Use when a dependency-owned build policy receipt reports a compact diagnostic.
 
 #+begin_src sh
-asp rust check --changed
 asp rust search owner <finding-path>
 #+end_src
 
@@ -388,17 +387,11 @@ error boundary, clone in loop, unsafe boundary, Tokio spawn, builder API.
 
 * After edits
 
-Always run:
-
-#+begin_src sh
-asp rust check --changed
-#+end_src
-
-If =Cargo.toml= changed:
+If =Cargo.toml= changed, inspect dependency topology before the normal Cargo
+verification lane:
 
 #+begin_src sh
 asp rust search deps
-asp rust check --changed
 #+end_src
 
 Before closeout, choose the proper lane:
@@ -407,6 +400,9 @@ Before closeout, choose the proper lane:
 cargo check --all-targets
 cargo test
 #+end_src
+
+The build dependency API is the policy authority. Do not add a provider-local
+policy command that scans the workspace a second time.
 
 * Config rule
 

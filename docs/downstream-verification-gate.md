@@ -274,18 +274,17 @@ Library/build.rs semantic gate:
   `assert_asp_rust_dependency_baseline`, normally attached through
   `AspRustDownstreamPolicy` or `AspRustWorkspacePolicy`.
 
-CLI quick check and observation surface:
+Agent observation surface:
 
-- `asp rust check` for fast local policy feedback.
 - `asp rust search` and `asp rust query` for agent discovery.
 - `asp rust agent doctor` for provider and registry health.
 - `asp rust evidence`, `receipt`, `review`, `proof`, `behavior`, and
   `determinism` for bounded diagnostics or artifact generation.
 
-Do not expose full verification as a standalone downstream CLI command. Full
-verification is a workspace semantic contract and belongs in the explicit ASP
-Rust workspace API. The shared build script only publishes the Cargo-derived
-Build DAG and policy-catalog identity.
+Do not expose policy or full verification as a standalone downstream CLI
+command. Both are workspace semantic contracts owned by the ASP Rust dependency
+API. The shared build script only publishes the Cargo-derived Build DAG and
+policy-catalog identity.
 
 ## Agent Inference
 

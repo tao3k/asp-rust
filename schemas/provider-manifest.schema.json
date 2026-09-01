@@ -408,7 +408,7 @@
     },
     "methodId": {
       "type": "string",
-      "pattern": "^(?:guide|query|(search|query|check|proof|review|verification|evidence|ast-patch|agent)/[a-z][a-z0-9_-]*)$"
+      "pattern": "^(?:guide|query|(search|query|proof|review|evidence|ast-patch|agent)/[a-z][a-z0-9_-]*)$"
     },
     "hookRouteBindings": {
       "type": "object",
