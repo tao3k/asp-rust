@@ -54,15 +54,17 @@ fn crate_is_clean_under_its_own_project_harness() {
 }
 
 #[test]
-fn library_target_mounts_source_backed_self_apply_gate() {
+fn external_test_target_owns_the_full_self_apply_gate() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let lib_rs = fs::read_to_string(root.join("src/lib.rs")).expect("read src/lib.rs");
-    let self_policy =
-        fs::read_to_string(root.join("src/self_policy.rs")).expect("read src/self_policy.rs");
+    let self_policy = fs::read_to_string(root.join("tests/unit/self_policy.rs"))
+        .expect("read tests/unit/self_policy.rs");
+    let unit_test =
+        fs::read_to_string(root.join("tests/unit_test.rs")).expect("read tests/unit_test.rs");
 
     assert!(!lib_rs.contains("asp_rust_source_gate!"));
-    assert!(self_policy.contains("asp_rust_cargo_test_gate!("));
-    assert!(self_policy.contains("config ="));
+    assert!(self_policy.contains("assert_asp_rust_cargo_test_clean_with_config"));
+    assert!(unit_test.contains("#[path = \"unit/self_policy.rs\"]"));
 }
 
 #[test]
