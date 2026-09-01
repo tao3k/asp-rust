@@ -161,9 +161,10 @@ LLM-friendly repair hints without turning every style concern into a gate.
 Workspace policy is derived from Cargo manifests, not a hand-maintained member
 list and not `cargo metadata` subprocess output. The parser resolves local
 normal, development, build, target-specific, and inherited workspace path
-dependencies. The Build DAG derivation then expands selected roots to a dependency-
-first closure, rejects cycles or unadmitted local edges, and assigns each unique
-package one execution index.
+dependencies. The Build DAG derives the complete Cargo workspace instance in
+dependency-first order, rejects member cycles, treats path dependencies outside
+the admitted workspace as external leaves, and assigns each unique member one
+execution index. Callers never select roots themselves.
 
 Build DAG derivation and execution remain separate typed facts. The stable V1 DAG
 explains what will run; the package content-and-policy cache decides whether that

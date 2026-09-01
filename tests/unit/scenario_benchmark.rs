@@ -67,12 +67,9 @@ fn scenario_benchmark_workspace_dependency_graph_package_once_v1_snapshot() {
     let receipt = validate_rust_scenario_benchmark(&scenario_root)
         .expect("validate workspace dependency-graph package-once scenario benchmark");
     let workspace_root = scenario_root.join(&receipt.scenario.inputs);
-    let build_dag = asp_rust_workspace_build_dag(
-        &workspace_root,
-        &asp_rust::default_asp_rust_config(),
-        ["app"],
-    )
-    .expect("derive the selected package dependency closure");
+    let build_dag =
+        asp_rust_workspace_build_dag(&workspace_root, &asp_rust::default_asp_rust_config())
+            .expect("derive the Cargo workspace dependency graph");
     let package_names = build_dag
         .packages
         .iter()

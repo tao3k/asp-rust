@@ -1,11 +1,93 @@
+//! Parses Cargo workspace membership and local dependency edges for Build DAG derivation.
+
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use cargo_toml::{Dependency, DepsSet, Manifest};
+use globset::{Glob, GlobSet, GlobSetBuilder};
 
 pub(crate) struct CargoPackageGraphFacts {
     pub(crate) package_name: String,
     pub(crate) local_dependency_roots: Vec<PathBuf>,
+}
+
+pub(crate) fn find_required_cargo_workspace_root(start: &Path) -> Result<PathBuf, String> {
+    for candidate in start.ancestors() {
+        let manifest_path = candidate.join("Cargo.toml");
+        if !manifest_path.is_file() {
+            continue;
+        }
+        let manifest = Manifest::from_path(&manifest_path).map_err(|error| {
+            format!(
+                "parse candidate Cargo workspace {}: {error}",
+                manifest_path.display()
+            )
+        })?;
+        if manifest.workspace.is_some() {
+            return Ok(crate::path::normalize_lexical_path(candidate));
+        }
+    }
+    Err(format!(
+        "no Cargo workspace manifest owns {}",
+        start.display()
+    ))
+}
+
+pub(crate) fn retain_cargo_workspace_member_roots(
+    workspace_root: &Path,
+    discovered_roots: Vec<PathBuf>,
+) -> Result<Vec<PathBuf>, String> {
+    let manifest_path = workspace_root.join("Cargo.toml");
+    let manifest = Manifest::from_path(&manifest_path).map_err(|error| {
+        format!(
+            "parse Cargo workspace membership {}: {error}",
+            manifest_path.display()
+        )
+    })?;
+    let workspace = manifest.workspace.as_ref().ok_or_else(|| {
+        format!(
+            "Cargo Build DAG root is not a workspace: {}",
+            manifest_path.display()
+        )
+    })?;
+    let members = compile_workspace_patterns(&workspace.members, "member")?;
+    let excludes = compile_workspace_patterns(&workspace.exclude, "exclude")?;
+    let normalized_workspace_root = crate::path::normalize_lexical_path(workspace_root);
+    let mut retained = discovered_roots
+        .into_iter()
+        .map(|root| crate::path::normalize_lexical_path(&root))
+        .filter(|root| {
+            if root == &normalized_workspace_root {
+                return manifest.package.is_some();
+            }
+            let Ok(relative) = root.strip_prefix(&normalized_workspace_root) else {
+                return false;
+            };
+            members.is_match(relative) && !excludes.is_match(relative)
+        })
+        .collect::<Vec<_>>();
+    retained.sort();
+    retained.dedup();
+    if retained.is_empty() {
+        return Err(format!(
+            "Cargo workspace contains no admitted package members: {}",
+            manifest_path.display()
+        ));
+    }
+    Ok(retained)
+}
+
+fn compile_workspace_patterns(patterns: &[String], kind: &str) -> Result<GlobSet, String> {
+    let mut builder = GlobSetBuilder::new();
+    for pattern in patterns {
+        builder.add(
+            Glob::new(pattern)
+                .map_err(|error| format!("invalid Cargo workspace {kind} `{pattern}`: {error}"))?,
+        );
+    }
+    builder
+        .build()
+        .map_err(|error| format!("compile Cargo workspace {kind} patterns: {error}"))
 }
 
 pub(crate) fn parse_required_cargo_package_graph_facts(

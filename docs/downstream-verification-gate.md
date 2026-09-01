@@ -203,36 +203,29 @@ pub fn member_policy(member: WorkspaceMember) -> AspRustDownstreamPolicy {
 }
 ```
 
-The build-graph root keeps one thin `build.rs`. It asks ASP Rust to derive the
-selected package closure from Cargo manifest path dependencies, order local
-dependencies before consumers, and execute each unique package policy once:
+The shared Build Support dependency keeps one thin `build.rs`. Cargo builds
+that dependency as one shared unit, and ASP Rust derives the complete owning
+workspace from Cargo manifest membership and path dependencies. It orders local
+dependencies before consumers and executes each unique package policy once:
 
 ```rust
 #[path = "harness/mod.rs"]
 mod harness;
 
-use asp_rust::assert_asp_rust_workspace_build_dag_policy;
+use asp_rust::assert_asp_rust_workspace_policy_from_env;
 
 fn main() {
-assert_asp_rust_workspace_build_dag_policy(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")),
-        &harness::workspace_policy(),
-        [env!("CARGO_PKG_NAME")],
-    );
+    assert_asp_rust_workspace_policy_from_env(&harness::workspace_policy());
 }
 ```
 
-For a virtual workspace, put the entrypoint in the product/root package that
-Cargo is actually building and pass the workspace root explicitly. Do not add
-the same graph gate to every transitive member. A separately buildable product
-root may own its own thin entrypoint; the content-and-policy cache ensures a
-package already admitted with the same identity is not rescanned.
-
-An empty selected-package set means every admitted local package. A non-empty
-set expands only to its transitive local dependency closure. Unknown selected
-packages, path dependencies outside the admitted workspace graph, duplicate
-package names, and local dependency cycles fail before any package policy runs.
-The emitted V1 Build DAG records the deterministic dependency-first execution order.
+For a virtual workspace, every governed member declares the same lightweight
+Build Support crate as a build-dependency. Cargo deduplicates that dependency
+unit; members do not keep policy-only build scripts and do not nominate a
+product root. Workspace members/excludes, external path-dependency leaves,
+duplicate package names, and local member cycles are resolved or rejected
+before any package policy runs. The emitted stable V1
+Build DAG records the deterministic dependency-first execution order.
 
 `AspRustWorkspacePolicy` is the API boundary for shared workspace
 policy. `member_crate` clones the common config into a crate policy.
@@ -242,17 +235,15 @@ workspace baseline.
 
 `AspRustDependencyBaseline` should be attached once to the workspace
 policy when every member crate must resolve the same harness version or git rev.
-Derived member policies inherit that baseline, and their `build.rs` gate searches
-upward for the workspace `Cargo.lock`.
+Derived member policies inherit that baseline, and the shared Build Support
+gate searches upward for the workspace `Cargo.lock`.
 
-When a downstream agent adds the dependency and thin graph-root `build.rs`,
-`cargo test` automatically triggers that graph gate before tests run. Failing gates
-print a stable `[asp-rust-agent-guidance]` block that tells the agent to keep
-`build.rs` thin, move common policy into the workspace `harness/` tree, derive
-members with `AspRustWorkspacePolicy`, and add crate-local owners,
-receipts, waivers, or report obligations only in the member override.
-In short: Cargo triggers one graph-root gate; ASP Rust derives the package Build DAG,
-and the package cache prevents repeated policy scans.
+When governed packages declare the same Build Support build-dependency,
+`cargo test` automatically triggers that shared Cargo unit before tests run.
+Failing gates print a stable `[asp-rust-agent-guidance]` block that points back
+to the workspace policy.
+In short: Cargo triggers one shared Build Support gate; ASP Rust derives the
+package Build DAG, and the package cache prevents repeated policy scans.
 
 If a dependency baseline drifts, failing gates print a stable
 `[asp-rust-dependency-guidance]` block. The repair path is to update the
@@ -292,16 +283,17 @@ CLI quick check and observation surface:
   `determinism` for bounded diagnostics or artifact generation.
 
 Do not expose full verification as a standalone downstream CLI command. Full
-verification is a crate semantic contract and belongs in the library API that
-`build.rs` executes.
+verification is a workspace semantic contract and belongs in the explicit ASP
+Rust workspace API. The shared build script only publishes the Cargo-derived
+Build DAG and policy-catalog identity.
 
 ## Agent Inference
 
 When adapting a downstream crate, an agent should:
 
 1. Inspect Cargo package boundaries and source owners.
-2. Create one graph-root `build.rs` as a thin entrypoint and put policy assembly under
-   `harness/mod.rs`.
+2. Declare the workspace Build Support crate as the common build-dependency and
+   keep policy assembly in that package.
 3. Split policy into `owners.rs`, `verification.rs`, `receipts.rs`,
    `reports.rs`, and `rules.rs` once more than one responsibility is configured.
 4. Put shared dependency baselines in `dependencies.rs` or the workspace

@@ -316,6 +316,7 @@ pub use verification::{
 pub use workspace_build_dag::{
     ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID, ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_VERSION,
     AspRustWorkspaceBuildDag, AspRustWorkspaceBuildDagPackage, asp_rust_workspace_build_dag,
+    asp_rust_workspace_build_dag_from_env,
 };
 pub use workspace_evidence_graph::{
     ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID,
@@ -327,6 +328,6 @@ pub use workspace_evidence_graph::{
     AspRustWorkspaceEvidenceGraphSummaryReceipt, AspRustWorkspaceMemberRunReport,
     AspRustWorkspaceRunReport, AspRustWorkspaceTrustLoopStepReceipt,
     AspRustWorkspaceTrustLoopStepStatus, asp_rust_workspace_evidence_graph_receipt,
-    assert_asp_rust_workspace_build_dag_policy,
-    render_asp_rust_workspace_evidence_graph_receipt_json,
+    assert_asp_rust_workspace_policy, assert_asp_rust_workspace_policy_from_env,
+    assert_asp_rust_workspace_policy_with, render_asp_rust_workspace_evidence_graph_receipt_json,
 };

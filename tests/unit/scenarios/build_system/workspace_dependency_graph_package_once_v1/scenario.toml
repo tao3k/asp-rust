@@ -1,7 +1,7 @@
 id = "workspace-dependency-graph-package-once-v1"
 title = "Workspace policy follows the Cargo dependency graph and executes each package once"
 policy_ids = ["RUST-AGENT-PROJECT-MANIFEST-023"]
-agent_goal = "Derive the selected package closure from Cargo manifests, order dependencies before consumers, and execute one policy/evidence gate per unique package."
+agent_goal = "Derive the complete workspace instance from Cargo manifests, order dependencies before consumers, and execute one policy/evidence gate per unique package."
 reference_repositories = ["rust-lang/cargo", "rust-lang/rust"]
 reference_patterns = [
   "Cargo package selection expands to a dependency-first local package closure",

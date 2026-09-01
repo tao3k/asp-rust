@@ -51,17 +51,15 @@ than copying the same full policy gate into every member:
 
 ```rust,ignore
 fn main() {
-asp_rust::assert_asp_rust_workspace_build_dag_policy(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")),
-        &harness::workspace_policy(),
-        [env!("CARGO_PKG_NAME")],
-    );
+    asp_rust::assert_asp_rust_workspace_policy_from_env(&harness::workspace_policy());
 }
 ```
 
-The graph is parsed from local Cargo path dependencies. Selected roots expand
-to a deterministic dependency-first closure, diamond dependencies occur once,
-and the package content-and-policy cache avoids warm-build rescans.
+The graph is parsed from the owning Cargo workspace's `members`, `exclude`, and
+local path dependencies. ASP Rust admits the complete workspace instance in
+deterministic dependency-first order, diamond dependencies occur once, and the
+package content-and-policy cache avoids warm-build rescans. Callers do not
+select package roots or reconstruct Cargo's build graph.
 
 The binary is started by ASP Runtime using the catalog-declared `serve`
 entrypoint. Direct `search`, `query`, `check`, `projection`, and `agent`

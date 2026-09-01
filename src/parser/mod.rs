@@ -6,7 +6,8 @@ mod cargo_dependency_facts;
 mod cargo_manifest;
 mod cargo_package_graph;
 pub(crate) use cargo_package_graph::{
-    CargoPackageGraphFacts, parse_required_cargo_package_graph_facts,
+    CargoPackageGraphFacts, find_required_cargo_workspace_root,
+    parse_required_cargo_package_graph_facts, retain_cargo_workspace_member_roots,
 };
 mod cargo_test_targets;
 mod location;

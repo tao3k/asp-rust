@@ -25,6 +25,7 @@ base64 = { version = "0.22.1", optional = true }
 blake3 = "1"
 cargo-lock = "11.0"
 cargo_toml = "1.0.0"
+globset = "0.4"
 libc = "0.2"
 proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"

@@ -93,11 +93,12 @@ tests/unit/scenarios/build_system/workspace_dependency_graph_package_once_v1/
   benchmark.toml
 ```
 
-Its snapshot test selects `app` through the production Build DAG API and proves
-the dependency-first order `shared`, `left`, `right`, `app`, with `shared`
-present exactly once. Separate focused fixtures cover selected-root closure,
-unknown package rejection, and cycle rejection. This keeps Scenario V1 aligned
-with the downstream build API instead of duplicating graph semantics in TOML.
+Its snapshot test admits the complete fixture workspace through the production
+Build DAG API and proves the dependency-first order `shared`, `left`, `right`,
+`app`, with `shared` present exactly once. Separate focused fixtures cover
+workspace membership/exclusion, external local dependencies, and cycle
+rejection. This keeps Scenario V1 aligned with the downstream build API instead
+of duplicating graph semantics in TOML.
 
 ## Gate Semantics
 

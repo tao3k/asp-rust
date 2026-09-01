@@ -27,8 +27,6 @@ pub struct AspRustWorkspaceBuildDag {
     pub schema_version: String,
     /// Workspace root that owns the graph.
     pub workspace_root: PathBuf,
-    /// Caller-selected roots whose local dependency closure is admitted.
-    pub selected_packages: Vec<String>,
     /// Dependency-first packages, each present exactly once.
     pub packages: Vec<AspRustWorkspaceBuildDagPackage>,
 }
@@ -47,18 +45,17 @@ pub struct AspRustWorkspaceBuildDagPackage {
     pub execution_index: usize,
 }
 
-/// Derive the deterministic dependency-first Build DAG for selected Cargo packages.
+/// Derive the deterministic dependency-first Build DAG for one Cargo workspace instance.
 pub fn asp_rust_workspace_build_dag(
     workspace_root: &Path,
     workspace_config: &AspRustConfig,
-    selected_packages: impl IntoIterator<Item = impl Into<String>>,
 ) -> Result<AspRustWorkspaceBuildDag, String> {
     let workspace_root = crate::path::normalize_lexical_path(workspace_root);
     let (facts_by_root, root_by_name) =
         discover_dependency_graph_packages(&workspace_root, workspace_config)?;
     let dependencies_by_name = dependency_names_by_package(&facts_by_root, &root_by_name)?;
-    let selected = normalize_selected_packages(selected_packages, &root_by_name)?;
-    let order = dependency_first_package_order(&selected, &dependencies_by_name)?;
+    let workspace_packages = root_by_name.keys().cloned().collect::<Vec<_>>();
+    let order = dependency_first_package_order(&workspace_packages, &dependencies_by_name)?;
     let packages =
         materialize_dependency_graph_packages(order, &root_by_name, &dependencies_by_name);
 
@@ -66,26 +63,40 @@ pub fn asp_rust_workspace_build_dag(
         schema_id: ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID.to_string(),
         schema_version: ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_VERSION.to_string(),
         workspace_root,
-        selected_packages: selected,
         packages,
     })
+}
+
+/// Derive the Build DAG for the Cargo workspace owning `CARGO_MANIFEST_DIR`.
+pub fn asp_rust_workspace_build_dag_from_env(
+    workspace_config: &AspRustConfig,
+) -> Result<AspRustWorkspaceBuildDag, String> {
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .ok_or_else(|| {
+            "CARGO_MANIFEST_DIR is required for ASP Rust workspace policy".to_string()
+        })?;
+    let workspace_root = crate::parser::find_required_cargo_workspace_root(&manifest_dir)?;
+    asp_rust_workspace_build_dag(&workspace_root, workspace_config)
 }
 
 fn discover_dependency_graph_packages(
     workspace_root: &Path,
     workspace_config: &AspRustConfig,
 ) -> Result<WorkspacePackageCatalog, String> {
-    let package_roots = crate::discovery::discover_cargo_package_roots(
+    let discovered_roots = crate::discovery::discover_cargo_package_roots(
         workspace_root,
         &workspace_config.ignored_dir_names,
         &workspace_config.include_hidden_dir_names,
     );
-    if package_roots.is_empty() {
+    if discovered_roots.is_empty() {
         return Err(format!(
             "Cargo dependency graph contains no packages: {}",
             workspace_root.display()
         ));
     }
+    let package_roots =
+        crate::parser::retain_cargo_workspace_member_roots(workspace_root, discovered_roots)?;
     let mut facts_by_root = BTreeMap::new();
     let mut root_by_name = BTreeMap::new();
     for root in package_roots {
@@ -120,7 +131,7 @@ fn dependency_names_by_package(
     facts_by_root
         .iter()
         .map(|(root, facts)| {
-            let dependencies = local_dependency_names(facts, facts_by_root)?;
+            let dependencies = local_dependency_names(facts, facts_by_root);
             debug_assert_eq!(root_by_name.get(&facts.package_name), Some(root));
             Ok((facts.package_name.clone(), dependencies))
         })
@@ -130,61 +141,30 @@ fn dependency_names_by_package(
 fn local_dependency_names(
     facts: &crate::parser::CargoPackageGraphFacts,
     facts_by_root: &BTreeMap<PathBuf, crate::parser::CargoPackageGraphFacts>,
-) -> Result<Vec<String>, String> {
+) -> Vec<String> {
     let mut dependencies = facts
         .local_dependency_roots
         .iter()
-        .map(|dependency_root| {
+        .filter_map(|dependency_root| {
             let dependency_root = crate::path::normalize_lexical_path(dependency_root);
             facts_by_root
                 .get(&dependency_root)
                 .map(|dependency| dependency.package_name.clone())
-                .ok_or_else(|| {
-                    format!(
-                        "Cargo dependency graph package `{}` references unadmitted local dependency {}",
-                        facts.package_name,
-                        dependency_root.display()
-                    )
-                })
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Vec<_>>();
     dependencies.sort();
     dependencies.dedup();
-    Ok(dependencies)
-}
-
-fn normalize_selected_packages(
-    selected_packages: impl IntoIterator<Item = impl Into<String>>,
-    root_by_name: &BTreeMap<String, PathBuf>,
-) -> Result<Vec<String>, String> {
-    let mut selected = selected_packages
-        .into_iter()
-        .map(Into::into)
-        .collect::<Vec<String>>();
-    if selected.is_empty() {
-        selected.extend(root_by_name.keys().cloned());
-    }
-    selected.sort();
-    selected.dedup();
-    if let Some(package) = selected
-        .iter()
-        .find(|package| !root_by_name.contains_key(*package))
-    {
-        return Err(format!(
-            "Cargo dependency graph selection references unknown package `{package}`"
-        ));
-    }
-    Ok(selected)
+    dependencies
 }
 
 fn dependency_first_package_order(
-    selected: &[String],
+    workspace_packages: &[String],
     dependencies_by_name: &BTreeMap<String, Vec<String>>,
 ) -> Result<Vec<String>, String> {
     let mut visiting = BTreeSet::new();
     let mut visited = BTreeSet::new();
     let mut order = Vec::new();
-    for package in selected {
+    for package in workspace_packages {
         visit_dependency_graph_package(
             package,
             dependencies_by_name,

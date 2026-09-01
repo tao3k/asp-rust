@@ -68,7 +68,7 @@ impl AspRustWorkspaceEvidenceGraphMemberInput {
 /// Result of explicitly composing package-atomic downstream gates for a workspace.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AspRustWorkspaceRunReport {
-    /// Cargo workspace root whose manifest admitted every selected member.
+    /// Cargo workspace root whose manifest admitted every member.
     pub workspace_root: PathBuf,
     /// Build DAG that admitted the package atoms.
     pub build_dag: AspRustWorkspaceBuildDag,
@@ -81,33 +81,50 @@ pub struct AspRustWorkspaceRunReport {
 pub struct AspRustWorkspaceMemberRunReport {
     /// Caller-owned member label.
     pub crate_label: String,
-    /// Cargo package root selected for this atom.
+    /// Cargo package root admitted for this atom.
     pub project_root: PathBuf,
     /// Package-scoped harness report.
     pub report: AspRustReport,
 }
 
-/// Assert a Cargo dependency closure as independent package atoms.
+/// Assert one Cargo workspace instance as independent package atoms.
 ///
-/// Package selection and ordering come only from parsed Cargo manifests. The
-/// shared workspace policy is derived once per planned package; diamond
+/// Package membership and ordering come only from parsed Cargo manifests. The
+/// shared workspace policy is derived once per Build DAG package; diamond
 /// dependencies are evaluated once, never once per incoming edge.
 ///
 /// # Panics
 ///
-/// Panics when Cargo graph construction fails or one planned package fails.
+/// Panics when Cargo graph construction fails or one Build DAG package fails.
 #[track_caller]
-pub fn assert_asp_rust_workspace_build_dag_policy(
+pub fn assert_asp_rust_workspace_policy(
     workspace_root: &Path,
     workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
-    selected_packages: impl IntoIterator<Item = impl Into<String>>,
 ) -> AspRustWorkspaceRunReport {
-    let build_dag =
-        asp_rust_workspace_build_dag(workspace_root, workspace_policy.config(), selected_packages)
-            .unwrap_or_else(|error| panic!("ASP Rust workspace dependency graph: {error}"));
+    assert_asp_rust_workspace_policy_with(workspace_root, workspace_policy, |_, config| config)
+}
+
+/// Assert one Cargo workspace while applying one package-local config projection.
+///
+/// Cargo workspace discovery, membership, dependency ordering, and cache
+/// ownership stay inside ASP Rust. Downstream Build Support supplies only the
+/// declarative package override.
+#[track_caller]
+pub fn assert_asp_rust_workspace_policy_with<F>(
+    workspace_root: &Path,
+    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+    mut configure_member: F,
+) -> AspRustWorkspaceRunReport
+where
+    F: FnMut(&str, crate::AspRustConfig) -> crate::AspRustConfig,
+{
+    let build_dag = asp_rust_workspace_build_dag(workspace_root, workspace_policy.config())
+        .unwrap_or_else(|error| panic!("ASP Rust workspace dependency graph: {error}"));
     let mut reports = Vec::new();
     for package in &build_dag.packages {
-        let policy = workspace_policy.member_crate(&package.package_name);
+        let policy = workspace_policy.member_crate_with_config(&package.package_name, |config| {
+            configure_member(&package.package_name, config)
+        });
         let report =
             crate::build_gate::assert_asp_rust_downstream_policy(&package.package_root, &policy);
         assert!(
@@ -129,6 +146,19 @@ pub fn assert_asp_rust_workspace_build_dag_policy(
         build_dag,
         members: reports,
     }
+}
+
+/// Assert the single Cargo workspace instance owning `CARGO_MANIFEST_DIR`.
+#[track_caller]
+pub fn assert_asp_rust_workspace_policy_from_env(
+    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+) -> AspRustWorkspaceRunReport {
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| panic!("CARGO_MANIFEST_DIR is required for ASP Rust workspace policy"));
+    let workspace_root = crate::parser::find_required_cargo_workspace_root(&manifest_dir)
+        .unwrap_or_else(|error| panic!("resolve ASP Rust workspace instance: {error}"));
+    assert_asp_rust_workspace_policy(&workspace_root, workspace_policy)
 }
 
 /// Agent-facing multi-crate evidence graph receipt.
