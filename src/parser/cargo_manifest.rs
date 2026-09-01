@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use cargo_toml::{Dependency, DepsSet, Manifest, Product};
 
-const HARNESS_PACKAGE_NAME: &str = "asp-rust";
+const ASP_RUST_PACKAGE_NAMES: &[&str] = &["asp-rust", "asp-rust-build-support"];
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CargoManifestFacts {
@@ -735,5 +735,5 @@ fn dependency_references_harness(name: &str, value: &Dependency) -> bool {
 }
 
 fn dependency_name_is_harness(name: &str) -> bool {
-    name == HARNESS_PACKAGE_NAME
+    ASP_RUST_PACKAGE_NAMES.contains(&name)
 }

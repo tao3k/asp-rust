@@ -33,7 +33,6 @@ mod rules;
 mod runner;
 #[cfg(feature = "search")]
 mod search;
-mod self_policy;
 pub mod structural_selector;
 mod verification;
 #[path = "workspace_dependency_graph.rs"]

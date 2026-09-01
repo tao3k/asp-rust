@@ -61,7 +61,7 @@ Generated from embedded `src/asp-rust-rules.md`.
 - **RUST-AGENT-PROJECT-009**: Migrates retired source cargo-test harness gates toward cargo-check build gates.
 - **RUST-AGENT-PROJECT-010**: Requires Rust-native performance skills to expose runnable bench targets.
 - **RUST-AGENT-PROJECT-011**: Requires cargo-check harness gates to declare verification hints, suppressions, or skill bindings.
-- **RUST-AGENT-PROJECT-012**: Requires harness-enabled packages to mount the build-time harness gate.
+- **RUST-AGENT-PROJECT-012**: Requires ASP Rust-enabled packages to emit lightweight build-time contract evidence.
 - **RUST-AGENT-PROJECT-013**: Requires custom harness scope paths to carry explicit explanations.
 - **RUST-AGENT-PROJECT-014**: Requires cargo-backed scope reductions to be explained or removed from coverage.
 - **RUST-AGENT-PROJECT-015**: Requires retired cargo-test advice allowances to include explicit explanations.

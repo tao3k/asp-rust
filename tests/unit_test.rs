@@ -33,6 +33,9 @@ mod agent_policy_snapshot;
 #[path = "unit/software_criterion_snapshot.rs"]
 mod software_criterion_snapshot;
 
+#[path = "unit/self_policy.rs"]
+mod self_policy;
+
 #[path = "unit/scenario_benchmark.rs"]
 mod scenario_benchmark;
 

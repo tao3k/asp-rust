@@ -107,8 +107,8 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, AspRustRule> {
             RUST_PROJ_R012,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
-            "Build-time harness gate is incomplete",
-            "Harness-enabled packages should mount the build-time harness gate so cargo check runs parser-native project policy before the test/evaluation layer.",
+            "ASP Rust build-time contract evidence is incomplete",
+            "ASP Rust-enabled packages should emit lightweight build-time contract evidence while full parser-native project policy remains in the test/evaluation layer.",
             labels("project-policy"),
         ),
         AspRustRule::new(

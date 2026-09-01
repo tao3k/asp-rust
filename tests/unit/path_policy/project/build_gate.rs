@@ -50,6 +50,33 @@ fn downstream_policy_build_gate_clears_build_gate_requirement() {
 }
 
 #[test]
+fn lightweight_build_support_contract_clears_build_gate_requirement() {
+    let temp = TempDir::new().expect("temp dir");
+    let root = temp.path();
+    fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname = \"lightweight-build-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nasp-rust = { path = \".\" }\n\n[build-dependencies]\nasp-rust-build-support = { path = \"build-support\" }\n",
+    )
+    .expect("write manifest");
+    fs::create_dir(root.join("src")).expect("create src");
+    fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
+    fs::write(
+        root.join("build.rs"),
+        "fn main() {\n    asp_rust_build_support::emit_provider_contract_digest();\n}\n",
+    )
+    .expect("write build script");
+
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run ASP Rust policy");
+
+    assert!(
+        !has_rule(&report, "RUST-AGENT-PROJECT-012"),
+        "{:?}",
+        report.findings
+    );
+}
+
+#[test]
 fn workspace_wrapper_build_gate_clears_direct_harness_dependency_requirement() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();

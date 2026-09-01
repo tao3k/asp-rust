@@ -1,6 +1,6 @@
 ---
 source: tests/unit/path_policy/project/build_gate.rs
-assertion_line: 152
+assertion_line: 179
 expression: rendered
 ---
 [RUST-AGENT-PROJECT-009] Warning: Retired source cargo-test gate should migrate
@@ -10,8 +10,8 @@ line: 3 | asp_rust::asp_rust_cargo_test_gate!(config = { asp_rust::default_asp_r
 Help: src/lib.rs mounts a retired source cargo-test harness gate.
 Contract: Source cargo-test harness gates should move parser-native project policy to the cargo-check build gate and remove the source test gate once the build gate is active.
 
-[RUST-AGENT-PROJECT-012] Warning: Build-time harness gate is incomplete
+[RUST-AGENT-PROJECT-012] Warning: ASP Rust build-time contract evidence is incomplete
 @ $TEMP/build.rs:1:1
-fix: call asp_rust::assert_asp_rust_downstream_policy_with_authority(...) or a workspace-owned harness wrapper from root build.rs
-Help: build.rs exists in a harness-enabled project but does not mount the build-time harness gate.
-Contract: Harness-enabled packages should mount the build-time harness gate so cargo check runs parser-native project policy before the test/evaluation layer.
+fix: call asp_rust_build_support::emit_provider_contract_digest() from root build.rs
+Help: build.rs exists in an ASP Rust-enabled project but does not emit build-time contract evidence.
+Contract: ASP Rust-enabled packages should emit lightweight build-time contract evidence while full parser-native project policy remains in the test/evaluation layer.

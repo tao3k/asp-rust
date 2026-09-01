@@ -32,12 +32,12 @@ pub(super) fn build_gate_findings(
         return vec![AspRustFinding::from_rule(
             rule,
             format!(
-                "{} enables the harness without a cargo-check build gate.",
+                "{} enables ASP Rust without build-time contract evidence.",
                 display_project_path(project_root, &project_root.join("Cargo.toml"))
             ),
             file_location(project_root.join("Cargo.toml")),
             None,
-            "add asp-rust under [build-dependencies] with a thin root build.rs gate, or call a workspace-owned harness wrapper from root build.rs",
+            "add asp-rust-build-support under [build-dependencies] and call emit_provider_contract_digest() from a thin root build.rs",
         )];
     }
 
@@ -45,12 +45,12 @@ pub(super) fn build_gate_findings(
         return vec![AspRustFinding::from_rule(
             rule,
             format!(
-                "{} declares a harness build-dependency but does not provide a root build.rs gate.",
+                "{} declares ASP Rust build support but does not provide a root build.rs contract entrypoint.",
                 display_project_path(project_root, &project_root.join("Cargo.toml"))
             ),
             file_location(project_root.join("Cargo.toml")),
             None,
-            "add a thin root build.rs that calls asp_rust::assert_asp_rust_downstream_policy_with_authority(...) or a workspace-owned harness wrapper",
+            "add a thin root build.rs that calls asp_rust_build_support::emit_provider_contract_digest()",
         )];
     }
 
@@ -58,12 +58,12 @@ pub(super) fn build_gate_findings(
         return vec![AspRustFinding::from_rule(
             rule,
             format!(
-                "{} exists in a harness-enabled project but does not mount the build-time harness gate.",
+                "{} exists in an ASP Rust-enabled project but does not emit build-time contract evidence.",
                 display_project_path(project_root, &build_script_path)
             ),
             file_location(&build_script_path),
             None,
-            "call asp_rust::assert_asp_rust_downstream_policy_with_authority(...) or a workspace-owned harness wrapper from root build.rs",
+            "call asp_rust_build_support::emit_provider_contract_digest() from root build.rs",
         )];
     }
 
@@ -71,12 +71,12 @@ pub(super) fn build_gate_findings(
         return vec![AspRustFinding::from_rule(
             rule,
             format!(
-                "{} calls the build-time harness gate but Cargo.toml does not declare the harness as a build-dependency.",
+                "{} calls the ASP Rust build-time contract entrypoint but Cargo.toml does not declare ASP Rust Build Support as a build-dependency.",
                 display_project_path(project_root, &build_script_path)
             ),
             file_location(project_root.join("Cargo.toml")),
             None,
-            "add asp-rust under [build-dependencies] so Cargo can compile the build gate",
+            "add asp-rust-build-support under [build-dependencies] so Cargo can compile the contract entrypoint",
         )];
     }
 
@@ -154,6 +154,7 @@ fn same_path(left: &Path, right: &Path) -> bool {
 }
 
 const BUILD_GATE_FUNCTIONS: &[&str] = &[
+    "emit_provider_contract_digest",
     "assert_asp_rust_build_clean",
     "assert_asp_rust_build_clean_with_config",
     "assert_asp_rust_build_clean_from_env",
