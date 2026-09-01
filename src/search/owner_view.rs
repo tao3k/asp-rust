@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 use crate::parser::{ParsedRustModule, RustReasoningOwnerBranchFacts, parse_rust_file};
 
 use super::RustSearchOptions;
@@ -25,7 +25,7 @@ use super::scope::{owner_branch_matches, owner_path_matches};
 
 pub(super) fn render_search_owner(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -45,7 +45,7 @@ pub(super) fn render_search_owner(
 
 fn render_search_owner_query_set(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     query_terms: &[&str],
     options: &RustSearchOptions,
@@ -67,7 +67,7 @@ fn render_search_owner_query_set(
 
 fn render_exact_path_owner_query_set(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     query_terms: &[&str],
     options: &RustSearchOptions,
@@ -140,7 +140,7 @@ fn render_exact_path_owner_query_set(
 
 fn render_exact_path_owner(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<Option<String>, String> {
@@ -152,6 +152,7 @@ fn render_exact_path_owner(
         return render_exact_path_owner_seed_view(project_root, config, query, options);
     }
     if include_items
+        && !has_pipe(options, "tests")
         && options.package.is_none()
         && let Some((package_root, path)) = direct_exact_owner_path_match(project_root, query)
     {
@@ -210,7 +211,12 @@ fn direct_exact_owner_path_match(project_root: &Path, query: &str) -> Option<(Pa
     };
     let extension = path.extension().and_then(|extension| extension.to_str());
     if extension == Some("rs") && path.is_file() {
-        Some((project_root.to_path_buf(), path))
+        let package_root = path
+            .ancestors()
+            .find(|candidate| candidate.join("Cargo.toml").is_file())
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| project_root.to_path_buf());
+        Some((package_root, path))
     } else {
         None
     }

@@ -10,7 +10,7 @@ fn native_syntax_facts_record_cfg_and_module_declaring_macros() {
     let source = temp.path().join("lib.rs");
     fs::write(
         &source,
-        "#[cfg(feature = \"fs\")]\ncompile_error!(\"fs is not supported here\");\nrust_project_harness_cargo_test_gate!();\nrust_project_harness_cargo_test_gate!(advice = allow, config = { default_rust_harness_config() });\nfn main() {\n    rust_lang_project_harness::assert_rust_project_harness_cargo_check_clean_from_env_with_config(&config());\n}\ncfg_feature! {\n    pub(crate) mod optional;\n}\ncfg_macros! {\n    pub use crate::optional::Thing;\n}\ncfg_nested! {\n    cfg_inner! {\n        pub(crate) use crate::optional::Other;\n    }\n}\ncfg_bad! {\n    pub fn leaked() {}\n}\nmacro_rules! declare_mod { () => { mod generated; } }\n",
+        "#[cfg(feature = \"fs\")]\ncompile_error!(\"fs is not supported here\");\nasp_rust_cargo_test_gate!();\nasp_rust_cargo_test_gate!(advice = allow, config = { default_asp_rust_config() });\nfn main() {\n    asp_rust::assert_asp_rust_cargo_check_clean_from_env_with_config(&config());\n}\ncfg_feature! {\n    pub(crate) mod optional;\n}\ncfg_macros! {\n    pub use crate::optional::Thing;\n}\ncfg_nested! {\n    cfg_inner! {\n        pub(crate) use crate::optional::Other;\n    }\n}\ncfg_bad! {\n    pub fn leaked() {}\n}\nmacro_rules! declare_mod { () => { mod generated; } }\n",
     )
     .expect("write source");
 
@@ -36,7 +36,7 @@ fn native_syntax_facts_record_cfg_and_module_declaring_macros() {
         .syntax_facts
         .macro_invocations
         .iter()
-        .find(|invocation| invocation.terminal_name == "rust_project_harness_cargo_test_gate")
+        .find(|invocation| invocation.terminal_name == "asp_rust_cargo_test_gate")
         .expect("empty gate invocation");
     assert_eq!(empty_gate_invocation.argument_token_count, 0);
     assert!(empty_gate_invocation.argument_top_level_idents.is_empty());
@@ -45,7 +45,7 @@ fn native_syntax_facts_record_cfg_and_module_declaring_macros() {
         .macro_invocations
         .iter()
         .find(|invocation| {
-            invocation.terminal_name == "rust_project_harness_cargo_test_gate"
+            invocation.terminal_name == "asp_rust_cargo_test_gate"
                 && invocation.argument_token_count > 0
         })
         .expect("configured gate invocation");
@@ -61,8 +61,7 @@ fn native_syntax_facts_record_cfg_and_module_declaring_macros() {
         .function_calls
         .iter()
         .find(|invocation| {
-            invocation.terminal_name
-                == "assert_rust_project_harness_cargo_check_clean_from_env_with_config"
+            invocation.terminal_name == "assert_asp_rust_cargo_check_clean_from_env_with_config"
         })
         .expect("configured build gate call");
     assert_eq!(configured_build_gate_call.argument_token_count, 1);

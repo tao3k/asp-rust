@@ -1,6 +1,6 @@
 # Scenario Benchmark Framework
 
-Rust harness scenarios need a stable contract before they become performance evidence. A scenario is not only an input fixture; it must also say what the agent is meant to learn, which policy surface is under test, which Cargo test or bench target measures it, which Rust benchmark harness owns that target, and which speed and memory budgets protect the hot path.
+ASP Rust scenarios need a stable contract before they become performance evidence. A scenario is not only an input fixture; it must also say what the agent is meant to learn, which policy surface is under test, which Cargo test or bench target measures it, which Rust benchmark harness owns that target, and which speed and memory budgets protect the hot path.
 
 The framework has three layers.
 
@@ -12,7 +12,7 @@ This split keeps the performance gate useful. The numeric gate catches real regr
 
 ## Fixture Layout
 
-Native Rust harness scenarios live under a bounded fixture root:
+Native ASP Rust scenarios live under a bounded fixture root:
 
 ```text
 tests/unit/scenarios/<group>/<scenario-id>/

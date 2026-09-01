@@ -1,0 +1,13 @@
+[package]
+name = "asp-rust-build-support"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Lightweight Cargo build-script support for ASP Rust policy evidence"
+publish = false
+
+[dependencies]
+blake3 = "1"
+
+[lints.rust]
+unsafe_code = "forbid"

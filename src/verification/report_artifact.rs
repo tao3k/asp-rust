@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use crate::model::RustHarnessConfig;
+use crate::model::AspRustConfig;
 
 use super::analysis::{
     build_rust_verification_analysis_profile_with_config,
@@ -83,7 +83,7 @@ pub fn render_rust_verification_report_artifact_json(
 /// Returns an error if the selected artifact cannot be produced or serialized.
 pub fn render_rust_verification_report_artifact_json_with_config(
     plan: &RustVerificationPlan,
-    harness_config: &RustHarnessConfig,
+    harness_config: &AspRustConfig,
     key: &str,
 ) -> Result<Option<String>, RustVerificationReportArtifactRenderError> {
     if key == ANALYSIS_PROFILE_ARTIFACT_KEY {

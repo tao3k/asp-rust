@@ -88,7 +88,7 @@ fn trait_owner_name_syntax(item: &syn::Item) -> Option<String> {
     let syn::Item::Impl(item_impl) = item else {
         return None;
     };
-    item_impl.trait_.as_ref().map(|(_, path, _)| {
+    item_impl.trait_.as_ref().map(|(path, _)| {
         quote::ToTokens::to_token_stream(path)
             .to_string()
             .replace(' ', "")

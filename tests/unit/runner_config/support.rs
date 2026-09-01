@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::RustHarnessReport;
+use asp_rust::AspRustReport;
 
 pub(super) fn write_manifest(root: &Path, name: &str) {
     fs::write(
@@ -23,7 +23,7 @@ pub(super) fn normalize_temp_root(rendered: &str, root: &Path) -> String {
         .replace(&root_text.replace('\\', "/"), "$TEMP")
 }
 
-pub(super) fn has_rule(report: &RustHarnessReport, rule_id: &str) -> bool {
+pub(super) fn has_rule(report: &AspRustReport, rule_id: &str) -> bool {
     report
         .findings
         .iter()
@@ -31,7 +31,7 @@ pub(super) fn has_rule(report: &RustHarnessReport, rule_id: &str) -> bool {
 }
 
 pub(super) fn has_rule_for_path_suffix(
-    report: &RustHarnessReport,
+    report: &AspRustReport,
     rule_id: &str,
     suffix: &str,
 ) -> bool {
@@ -45,14 +45,14 @@ pub(super) fn has_rule_for_path_suffix(
     })
 }
 
-pub(super) fn has_module_path(report: &RustHarnessReport, suffix: &str) -> bool {
+pub(super) fn has_module_path(report: &AspRustReport, suffix: &str) -> bool {
     report
         .modules
         .iter()
         .any(|module| module.path.ends_with(suffix))
 }
 
-pub(super) fn has_package_path(report: &RustHarnessReport, suffix: &str) -> bool {
+pub(super) fn has_package_path(report: &AspRustReport, suffix: &str) -> bool {
     report.project_resolution.as_ref().is_some_and(|scope| {
         scope
             .package_paths

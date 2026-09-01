@@ -1,4 +1,4 @@
-//! Scenario benchmark contracts for Rust harness fixtures.
+//! Scenario benchmark contracts for ASP Rust fixtures.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -55,7 +55,7 @@ pub fn validate_rust_scenario_benchmark(
     })
 }
 
-/// Validate every required Rust harness scenario benchmark contract.
+/// Validate every required ASP Rust scenario benchmark contract.
 pub fn validate_required_rust_scenario_benchmarks(
     crate_root: impl AsRef<Path>,
 ) -> Result<RustScenarioBenchmarkSuiteReceipt, RustScenarioBenchmarkError> {

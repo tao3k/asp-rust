@@ -1,11 +1,8 @@
 use std::fmt::Write as _;
 
-#[cfg(feature = "cli")]
-use serde_json::{Value, json};
-
 use super::api::RustSearchOptions;
 use crate::{
-    model::{RustDiagnosticSeverity, RustHarnessConfig, RustHarnessRule},
+    model::{AspRustConfig, AspRustRule, RustDiagnosticSeverity},
     rules::{rust_agent_policy_rules, rust_project_policy_rules},
 };
 
@@ -31,7 +28,7 @@ const AGENT_POLICY_TESTS: &[&str] = &[
 
 pub(super) fn render_search_policy(
     _project_root: &std::path::Path,
-    _config: &RustHarnessConfig,
+    _config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -96,35 +93,6 @@ pub(super) fn render_search_policy(
     Ok(rendered)
 }
 
-#[cfg(feature = "cli")]
-pub(crate) fn policy_semantic_handles_for_query(query: &str) -> Vec<Value> {
-    policy_handles(query)
-        .into_iter()
-        .map(|handle| {
-            json!({
-                "id": handle.id,
-                "kind": "policy-rule",
-                "source": "provider-policy",
-                "title": handle.title,
-                "languageName": "rust",
-                "qualifiedName": format!("{}.{}", handle.pack_id, handle.id),
-                "aliases": handle.aliases,
-                "labels": handle.labels,
-                "status": "advisory",
-                "ownerPath": handle.owner_path,
-                "testPaths": handle.test_paths,
-                "locations": [{"path": handle.owner_path}],
-                "queryTerms": handle.query_terms,
-                "fields": {
-                    "packId": handle.pack_id,
-                    "severity": handle.severity,
-                    "requirement": handle.requirement,
-                },
-            })
-        })
-        .collect()
-}
-
 #[derive(Clone)]
 struct PolicyHandle {
     id: &'static str,
@@ -166,7 +134,7 @@ fn all_policy_handles() -> Vec<PolicyHandle> {
 }
 
 fn rule_handle(
-    rule: RustHarnessRule,
+    rule: AspRustRule,
     owner_path: &'static str,
     test_paths: &'static [&'static str],
     domain: &'static str,
@@ -188,7 +156,7 @@ fn rule_handle(
     }
 }
 
-fn rule_aliases(rule: &RustHarnessRule) -> Vec<String> {
+fn rule_aliases(rule: &AspRustRule) -> Vec<String> {
     let mut aliases = vec![
         rule.rule_id.to_ascii_lowercase(),
         rule.rule_id.replace('-', "_"),
@@ -201,7 +169,7 @@ fn rule_aliases(rule: &RustHarnessRule) -> Vec<String> {
     dedupe_sorted(aliases)
 }
 
-fn rule_labels(rule: &RustHarnessRule, domain: &str) -> Vec<String> {
+fn rule_labels(rule: &AspRustRule, domain: &str) -> Vec<String> {
     dedupe_sorted(
         std::iter::once(domain.to_string())
             .chain(rule.labels.values().map(|value| (*value).to_string()))
@@ -209,7 +177,7 @@ fn rule_labels(rule: &RustHarnessRule, domain: &str) -> Vec<String> {
     )
 }
 
-fn rule_query_terms(rule: &RustHarnessRule) -> Vec<String> {
+fn rule_query_terms(rule: &AspRustRule) -> Vec<String> {
     dedupe_sorted(
         [
             rule.rule_id.to_string(),

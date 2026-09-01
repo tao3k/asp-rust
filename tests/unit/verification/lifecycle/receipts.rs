@@ -1,7 +1,7 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationProfileHint, RustVerificationReceipt,
     RustVerificationSkillBinding, RustVerificationSkillDescriptor, RustVerificationTaskKind,
-    RustVerificationTaskState, RustVerificationWaiver, default_rust_harness_config,
+    RustVerificationTaskState, RustVerificationWaiver, default_asp_rust_config,
     plan_rust_project_verification_with_config, render_rust_verification_plan,
     render_rust_verification_plan_json,
 };
@@ -45,7 +45,7 @@ fn performance_receipt_keeps_structured_state_searchable_after_compact_clears() 
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],

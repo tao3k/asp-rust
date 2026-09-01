@@ -7,7 +7,7 @@ use crate::parser::{
     RustReasoningOwnerDependencyFacts, RustReasoningTreeFacts, RustTopLevelItemSyntax,
     RustUseImportRootKind, parse_cargo_cfg_facts,
 };
-use crate::{RustHarnessFinding, RustProjectHarnessScope};
+use crate::{AspRustFinding, AspRustScope};
 
 use super::format::display_project_path;
 
@@ -82,7 +82,7 @@ fn import_root_label(root: RustUseImportRootKind) -> &'static str {
 
 pub(super) fn grouped_finding_lines(
     package_root: &Path,
-    findings: &[RustHarnessFinding],
+    findings: &[AspRustFinding],
 ) -> Vec<String> {
     let mut groups = BTreeMap::<(RustDiagnosticSeverity, String), FindingGroup>::new();
     for finding in findings {
@@ -117,7 +117,7 @@ struct FindingGroup {
     first_path: Option<PathBuf>,
 }
 
-pub(super) fn target_labels(scope: &RustProjectHarnessScope) -> String {
+pub(super) fn target_labels(scope: &AspRustScope) -> String {
     let mut labels = Vec::new();
     if !scope.source_paths.is_empty() {
         labels.push("lib");
@@ -290,7 +290,7 @@ pub(super) fn surface_line(parsed_modules: &[ParsedRustModule]) -> Option<String
     })
 }
 
-pub(super) fn test_surface_line(scope: &RustProjectHarnessScope) -> Option<String> {
+pub(super) fn test_surface_line(scope: &AspRustScope) -> Option<String> {
     (!scope.test_paths.is_empty()).then(|| {
         let tests = scope
             .test_paths

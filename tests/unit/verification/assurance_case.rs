@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustAssuranceCaseInput, RustEvidenceGraphInput, RustReviewPacket,
     build_rust_assurance_case_set, build_rust_evidence_graph,
 };
@@ -91,8 +91,8 @@ fn review_packet_json() -> Value {
         "packetId": "rust.review.packet",
         "producer": {
             "languageId": "rust",
-            "providerId": "rs-harness",
-            "namespace": "agent.semantic-protocols.languages.rust.rs-harness"
+            "providerId": "asp-rust",
+            "namespace": "agent.semantic-protocols.languages.rust.asp-rust"
         },
         "project": {"root": "."},
         "summary": {

@@ -3,20 +3,20 @@ use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 use crate::search::{
     CargoDependencyFacts, PackageSearchContext, ParsedRustModule, RustSearchOptions,
-    SEARCH_HIT_LIMIT, SearchHit, append_block, compact_locations, compare_paths_by_recency,
-    discover_rust_files, display_project_path, import_hits, matching_dependencies, module_allowed,
-    package_label, package_roots_for_request, parse_rust_file, path_allowed_by_scope,
-    render_search_dependency, render_search_owner, rust_project_harness_scope, search_contexts,
-    search_contexts_for_path_query, sort_search_hits_by_recency, symbol_calls, symbol_definitions,
-    version_requirement_matches_request,
+    SEARCH_HIT_LIMIT, SearchHit, append_block, asp_rust_scope, compact_locations,
+    compare_paths_by_recency, discover_rust_files, display_project_path, import_hits,
+    matching_dependencies, module_allowed, package_label, package_roots_for_request,
+    parse_rust_file, path_allowed_by_scope, render_search_dependency, render_search_owner,
+    search_contexts, search_contexts_for_path_query, sort_search_hits_by_recency, symbol_calls,
+    symbol_definitions, version_requirement_matches_request,
 };
 
 pub(in crate::search) fn render_search_symbol(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -48,7 +48,7 @@ pub(in crate::search) fn render_search_symbol(
 
 fn render_search_symbol_seed_hits(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -56,7 +56,7 @@ fn render_search_symbol_seed_hits(
         package_roots_for_request(project_root, config, options.package.as_deref())?;
     let mut rendered = String::new();
     for package_root in package_roots {
-        let scope = rust_project_harness_scope(
+        let scope = asp_rust_scope(
             &package_root,
             config.include_tests,
             &config.source_dir_names,
@@ -142,7 +142,7 @@ fn render_search_symbol_seed_hits(
 
 pub(in crate::search) fn render_search_callsite(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -180,7 +180,7 @@ fn render_search_callsite_from_contexts(
 
 pub(in crate::search) fn render_search_import(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -222,7 +222,7 @@ pub(in crate::search) fn render_search_patterns() -> String {
 
 pub(in crate::search) fn render_search_pattern(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -251,7 +251,7 @@ pub(in crate::search) fn render_search_pattern(
 
 fn render_public_error_boundary_pattern(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     recipe: &str,
     boundary_filter: Option<&str>,
     options: &RustSearchOptions,
@@ -331,7 +331,7 @@ fn public_error_boundary_hits(
 
 fn render_public_external_type_pattern(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let Some(dependency) = options.dependency.as_deref() else {
@@ -358,7 +358,7 @@ fn render_public_external_type_pattern(
 
 fn render_public_api_shape_pattern(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let Some(owner) = options.owner.as_deref() else {
@@ -381,7 +381,7 @@ fn render_public_api_shape_pattern(
 
 pub(in crate::search) fn render_search_docs(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -439,7 +439,7 @@ fn render_search_docs_from_contexts(
 
 pub(in crate::search) fn render_search_api(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -483,7 +483,7 @@ pub(in crate::search) fn render_search_api(
 
 pub(in crate::search) fn render_search_docs_use(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -609,7 +609,7 @@ fn current_workspace_versions(context: &PackageSearchContext, crate_name: &str) 
 
 pub(in crate::search) fn render_search_public_external_types(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let contexts = search_contexts(project_root, config, options)?;

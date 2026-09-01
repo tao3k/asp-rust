@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustScenarioBenchmarkContract, RustScenarioBenchmarkPhase, RustScenarioBenchmarkStatus,
     RustScenarioBenchmarkViolationKind, assert_rule_fixture_scenario_benchmarks,
     validate_required_rust_scenario_benchmarks, validate_rust_scenario_benchmark,
@@ -452,7 +452,7 @@ fn scenario_benchmark_suite_covers_all_required_current_scenarios() {
         .iter()
         .map(|coverage| coverage.rule_id.as_str())
         .collect::<std::collections::BTreeSet<_>>();
-    let required_rule_ids = rust_lang_project_harness::rust_agent_policy_rules()
+    let required_rule_ids = asp_rust::rust_agent_policy_rules()
         .into_iter()
         .map(|rule| rule.rule_id)
         .collect::<std::collections::BTreeSet<_>>();

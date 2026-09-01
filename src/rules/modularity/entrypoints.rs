@@ -7,15 +7,15 @@ use crate::parser::{
     source_line,
 };
 use crate::rules::display_path;
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use super::{RUST_MOD_R001, RUST_MOD_R004, RUST_MOD_R005, RUST_MOD_R006};
 
 pub(super) fn crate_facade_findings(
     module_facts: &RustReasoningModuleFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if !module_facts.source_path.is_crate_facade {
         return Vec::new();
     }
@@ -26,7 +26,7 @@ pub(super) fn crate_facade_findings(
         .iter()
         .filter(|item| !is_crate_facade_item(item))
         .map(|item| {
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} contains implementation item `{}` inside lib.rs.",
@@ -44,8 +44,8 @@ pub(super) fn crate_facade_findings(
 pub(super) fn binary_entrypoint_findings(
     module_facts: &RustReasoningModuleFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if !module_facts.source_path.is_binary_entrypoint {
         return Vec::new();
     }
@@ -56,7 +56,7 @@ pub(super) fn binary_entrypoint_findings(
         .iter()
         .filter(|item| !is_binary_entrypoint_item(item))
         .map(|item| {
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} contains implementation item `{}` inside a binary entrypoint.",
@@ -74,8 +74,8 @@ pub(super) fn binary_entrypoint_findings(
 pub(super) fn build_script_entrypoint_findings(
     module_facts: &RustReasoningModuleFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if !module_facts.source_path.is_build_script_entrypoint {
         return Vec::new();
     }
@@ -86,7 +86,7 @@ pub(super) fn build_script_entrypoint_findings(
         .iter()
         .filter(|item| !is_build_script_entrypoint_item(item))
         .map(|item| {
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} contains implementation item `{}` inside build.rs.",
@@ -104,8 +104,8 @@ pub(super) fn build_script_entrypoint_findings(
 pub(super) fn interface_mod_findings(
     module_facts: &RustReasoningModuleFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if !module_facts.source_path.is_interface_mod {
         return Vec::new();
     }
@@ -116,7 +116,7 @@ pub(super) fn interface_mod_findings(
         .iter()
         .filter(|item| !is_interface_item(item))
         .map(|item| {
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} contains implementation item `{}` inside mod.rs.",
@@ -154,9 +154,9 @@ fn is_build_script_entrypoint_item(item: &RustTopLevelItemSyntax) -> bool {
 fn is_source_gate_macro_name(name: &str) -> bool {
     matches!(
         name,
-        "rust_project_harness_gate"
-            | "rust_project_harness_cargo_test_gate"
-            | "rust_project_harness_source_gate"
+        "asp_rust_gate"
+            | "asp_rust_cargo_test_gate"
+            | "asp_rust_source_gate"
             | "crate_test_policy_source_harness"
             | "crate_testing_source_gate"
             | "crate_testing_gate"

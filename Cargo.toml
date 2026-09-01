@@ -1,31 +1,27 @@
 [workspace]
+members = [".", "build-support"]
+resolver = "3"
 
 [package]
-name = "rust-lang-project-harness"
+name = "asp-rust"
 version = "0.1.2"
 edition = "2024"
 license = "Apache-2.0"
-description = "Project-level Rust language harness with compact diagnostics for agents"
+description = "ASP Rust language policy, evidence, and provider runtime"
 authors = ["CyberXiuXian Artisan workshop"]
 readme = "README.md"
 publish = []
 
 [features]
-cli = [
-    "search",
-    "dep:agent-semantic-provider-transport",
+provider-server = [
     "dep:base64",
-    "dep:clap",
     "dep:tokio",
 ]
 default = ["search"]
 search = []
 
 [dependencies]
-agent-semantic-content-identity = { path = "../../crates/agent-semantic-content-identity" }
-agent-semantic-provider-transport = { path = "../../crates/agent-semantic-provider-transport", optional = true }
 base64 = { version = "0.22.1", optional = true }
-clap = { version = "4.6.1", features = ["derive"], optional = true }
 blake3 = "1"
 cargo-lock = "11.0"
 cargo_toml = "1.0.0"
@@ -37,19 +33,21 @@ semver = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-tokio = { version = "1", features = ["net", "rt-multi-thread", "sync"], optional = true }
-syn = { version = "2", features = ["extra-traits", "full", "parsing", "visit"] }
+tokio = { version = "1", features = ["io-util", "net", "rt-multi-thread", "sync"], optional = true }
+syn = { version = "3.0.4", features = ["extra-traits", "full", "parsing", "visit"] }
 toml = "1.1"
 
 [dev-dependencies]
 insta = "1"
-rs-harness = { path = "rs-harness" }
 tempfile = "3"
+
+[build-dependencies]
+asp-rust-build-support = { path = "build-support" }
 
 [[bin]]
 name = "asp-rust"
 path = "src/bin/asp-rust.rs"
-required-features = ["cli"]
+required-features = ["provider-server"]
 
 [[bench]]
 name = "query_search_microbench"

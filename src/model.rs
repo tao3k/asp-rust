@@ -1,4 +1,4 @@
-//! Shared report model for Rust project harness runs.
+//! Shared report model for ASP Rust runs.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -14,7 +14,7 @@ use crate::verification::{
     RustVerificationWaiver,
 };
 
-/// Finding severity used by the Rust project harness.
+/// Finding severity used by the ASP Rust.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RustDiagnosticSeverity {
@@ -174,7 +174,7 @@ impl RustRulePack {
 
 /// Compact rule metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct RustHarnessRule {
+pub struct AspRustRule {
     /// Stable rule id.
     pub rule_id: &'static str,
     /// Stable pack id.
@@ -189,7 +189,7 @@ pub struct RustHarnessRule {
     pub labels: BTreeMap<&'static str, &'static str>,
 }
 
-impl RustHarnessRule {
+impl AspRustRule {
     /// Build one rule catalog entry.
     #[must_use]
     pub(crate) fn new(
@@ -213,7 +213,7 @@ impl RustHarnessRule {
 
 /// One deterministic harness finding.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustHarnessFinding {
+pub struct AspRustFinding {
     /// Stable rule id.
     pub rule_id: String,
     /// Stable pack id.
@@ -409,11 +409,11 @@ pub struct RustInvariantEvidence {
     pub fields: BTreeMap<String, String>,
 }
 
-impl RustHarnessFinding {
+impl AspRustFinding {
     /// Build a finding from a catalog rule.
     #[must_use]
     pub(crate) fn from_rule(
-        rule: &RustHarnessRule,
+        rule: &AspRustRule,
         summary: impl Into<String>,
         location: SourceLocation,
         source_line: Option<String>,
@@ -451,7 +451,7 @@ pub struct RustModuleReport {
 
 /// Conventional project paths scanned by the harness.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustProjectHarnessScope {
+pub struct AspRustScope {
     /// Project root.
     pub project_root: PathBuf,
     /// Source roots such as `src`.
@@ -465,7 +465,7 @@ pub struct RustProjectHarnessScope {
     pub fallback_paths: Vec<PathBuf>,
 }
 
-impl RustProjectHarnessScope {
+impl AspRustScope {
     /// Return the concrete roots scanned by the parser.
     #[must_use]
     pub fn monitored_paths(&self) -> Vec<PathBuf> {
@@ -480,13 +480,13 @@ impl RustProjectHarnessScope {
     }
 }
 
-/// Configuration for a Rust project harness run.
+/// Configuration for a ASP Rust run.
 ///
 /// The default configuration covers Rust files under conventional `src/`,
 /// `tests/`, `examples/`, and `benches/` roots, plus package entrypoint files
 /// such as `build.rs`, for package-level harness runs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustHarnessConfig {
+pub struct AspRustConfig {
     /// Directory names skipped during file discovery.
     pub ignored_dir_names: BTreeSet<String>,
     /// Hidden directory names that discovery may enter.
@@ -532,7 +532,7 @@ pub struct RustHarnessConfig {
     pub verification_policy: RustVerificationPolicy,
 }
 
-impl Default for RustHarnessConfig {
+impl Default for AspRustConfig {
     fn default() -> Self {
         Self {
             ignored_dir_names: crate::discovery::DEFAULT_IGNORED_DIR_NAMES
@@ -561,7 +561,7 @@ impl Default for RustHarnessConfig {
     }
 }
 
-impl RustHarnessConfig {
+impl AspRustConfig {
     /// Return a config with one rule disabled.
     #[must_use]
     pub fn with_disabled_rule(mut self, rule_id: impl Into<String>) -> Self {
@@ -903,11 +903,11 @@ fn retain_scope_paths_except(paths: &mut Vec<String>, excluded_path: &str) {
 
 /// Aggregated harness report.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustHarnessReport {
+pub struct AspRustReport {
     /// Parsed source modules.
     pub modules: Vec<RustModuleReport>,
     /// All findings, including advisory findings.
-    pub findings: Vec<RustHarnessFinding>,
+    pub findings: Vec<AspRustFinding>,
     /// Machine-facing candidate invariants derived from findings.
     #[serde(
         default,
@@ -920,13 +920,13 @@ pub struct RustHarnessReport {
     /// Severities that block assertions.
     pub blocking_severities: BTreeSet<RustDiagnosticSeverity>,
     /// Project scope, when the project runner was used.
-    pub project_resolution: Option<RustProjectHarnessScope>,
+    pub project_resolution: Option<AspRustScope>,
     /// Cargo member scopes, when a workspace or package collection was scanned.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub workspace_member_scopes: Vec<RustProjectHarnessScope>,
+    pub workspace_member_scopes: Vec<AspRustScope>,
 }
 
-impl RustHarnessReport {
+impl AspRustReport {
     /// Number of parsed-valid files.
     #[must_use]
     pub fn parsed_count(&self) -> usize {
@@ -950,7 +950,7 @@ impl RustHarnessReport {
     pub fn blocking_findings(
         &self,
         severities: Option<&BTreeSet<RustDiagnosticSeverity>>,
-    ) -> Vec<&RustHarnessFinding> {
+    ) -> Vec<&AspRustFinding> {
         let selected = severities.unwrap_or(&self.blocking_severities);
         self.findings
             .iter()
@@ -960,7 +960,7 @@ impl RustHarnessReport {
 
     /// Return non-blocking advisory findings.
     #[must_use]
-    pub fn advisory_findings(&self) -> Vec<&RustHarnessFinding> {
+    pub fn advisory_findings(&self) -> Vec<&AspRustFinding> {
         self.findings
             .iter()
             .filter(|finding| finding.severity == RustDiagnosticSeverity::Info)
@@ -974,7 +974,7 @@ impl RustHarnessReport {
     /// Panics with the compact rendered advice when advisory findings exist.
     #[track_caller]
     pub fn assert_no_advisory_findings(&self) {
-        let rendered = crate::render_rust_project_harness_advice(self);
+        let rendered = crate::render_asp_rust_advice(self);
         assert!(rendered.is_empty(), "{rendered}");
     }
 
@@ -985,10 +985,6 @@ impl RustHarnessReport {
     /// Panics with the compact rendered report when blocking findings exist.
     #[track_caller]
     pub fn assert_clean(&self) {
-        assert!(
-            self.is_clean(),
-            "{}",
-            crate::render_rust_project_harness(self)
-        );
+        assert!(self.is_clean(), "{}", crate::render_asp_rust(self));
     }
 }

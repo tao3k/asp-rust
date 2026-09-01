@@ -1,22 +1,73 @@
 //! Downstream and workspace build-gate policy configuration.
 
-use crate::model::RustHarnessConfig;
+use std::path::{Path, PathBuf};
 
-use super::RustProjectHarnessDependencyBaseline;
+use crate::model::AspRustConfig;
+
+use super::AspRustDependencyBaseline;
+
+/// Explicit authority supplied by a downstream build-support package.
+///
+/// The harness deliberately does not infer ASP state, Cargo output, or policy
+/// registry locations. The downstream owner chooses the cache lifecycle and
+/// binds the declarative policy digest used by the cache key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AspRustBuildGateAuthority {
+    cache_root: PathBuf,
+    policy_digest: String,
+}
+
+impl AspRustBuildGateAuthority {
+    /// Bind one downstream policy to an explicit cache owner.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the cache root is empty or the policy digest is
+    /// not a content-addressed identity.
+    pub fn new(
+        cache_root: impl Into<PathBuf>,
+        policy_digest: impl Into<String>,
+    ) -> Result<Self, String> {
+        let cache_root = cache_root.into();
+        let policy_digest = policy_digest.into();
+        if cache_root.as_os_str().is_empty() {
+            return Err("build-gate cache root must not be empty".to_string());
+        }
+        if !policy_digest.starts_with("blake3-256:") || policy_digest.len() <= "blake3-256:".len() {
+            return Err("build-gate policy digest must use blake3-256 identity".to_string());
+        }
+        Ok(Self {
+            cache_root,
+            policy_digest,
+        })
+    }
+
+    /// Return the downstream-owned cache root.
+    #[must_use]
+    pub fn cache_root(&self) -> &Path {
+        &self.cache_root
+    }
+
+    /// Return the declarative policy identity.
+    #[must_use]
+    pub fn policy_digest(&self) -> &str {
+        &self.policy_digest
+    }
+}
 
 /// Downstream crate-owned policy consumed by a thin `build.rs`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RustProjectHarnessDownstreamPolicy {
+pub struct AspRustDownstreamPolicy {
     gate_label: String,
-    config: RustHarnessConfig,
-    dependency_baseline: Option<RustProjectHarnessDependencyBaseline>,
+    config: AspRustConfig,
+    dependency_baseline: Option<AspRustDependencyBaseline>,
 }
 
-impl RustProjectHarnessDownstreamPolicy {
+impl AspRustDownstreamPolicy {
     /// Create a downstream policy around a complete harness config.
     /// Return the build-gate label.
     #[must_use]
-    pub fn new(gate_label: impl Into<String>, config: RustHarnessConfig) -> Self {
+    pub fn new(gate_label: impl Into<String>, config: AspRustConfig) -> Self {
         Self {
             gate_label: gate_label.into(),
             config,
@@ -32,7 +83,7 @@ impl RustProjectHarnessDownstreamPolicy {
 
     /// Attach an exact dependency baseline.
     #[must_use]
-    pub fn config(&self) -> &RustHarnessConfig {
+    pub fn config(&self) -> &AspRustConfig {
         &self.config
     }
 
@@ -40,31 +91,31 @@ impl RustProjectHarnessDownstreamPolicy {
     #[must_use]
     pub fn with_dependency_baseline(
         mut self,
-        dependency_baseline: RustProjectHarnessDependencyBaseline,
+        dependency_baseline: AspRustDependencyBaseline,
     ) -> Self {
         self.dependency_baseline = Some(dependency_baseline);
         self
     }
 
     #[must_use]
-    pub fn dependency_baseline(&self) -> Option<&RustProjectHarnessDependencyBaseline> {
+    pub fn dependency_baseline(&self) -> Option<&AspRustDependencyBaseline> {
         self.dependency_baseline.as_ref()
     }
 }
 
 /// Workspace-owned policy baseline shared by multiple downstream crates.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RustProjectHarnessWorkspacePolicy {
+pub struct AspRustWorkspacePolicy {
     workspace_label: String,
-    config: RustHarnessConfig,
-    dependency_baseline: Option<RustProjectHarnessDependencyBaseline>,
+    config: AspRustConfig,
+    dependency_baseline: Option<AspRustDependencyBaseline>,
 }
 
-impl RustProjectHarnessWorkspacePolicy {
+impl AspRustWorkspacePolicy {
     /// Create a workspace policy around a shared harness config.
     /// Return the workspace label.
     #[must_use]
-    pub fn new(workspace_label: impl Into<String>, config: RustHarnessConfig) -> Self {
+    pub fn new(workspace_label: impl Into<String>, config: AspRustConfig) -> Self {
         Self {
             workspace_label: workspace_label.into(),
             config,
@@ -80,7 +131,7 @@ impl RustProjectHarnessWorkspacePolicy {
 
     /// Attach the dependency baseline inherited by member policies.
     #[must_use]
-    pub fn config(&self) -> &RustHarnessConfig {
+    pub fn config(&self) -> &AspRustConfig {
         &self.config
     }
 
@@ -88,7 +139,7 @@ impl RustProjectHarnessWorkspacePolicy {
     #[must_use]
     pub fn with_dependency_baseline(
         mut self,
-        dependency_baseline: RustProjectHarnessDependencyBaseline,
+        dependency_baseline: AspRustDependencyBaseline,
     ) -> Self {
         self.dependency_baseline = Some(dependency_baseline);
         self
@@ -96,17 +147,14 @@ impl RustProjectHarnessWorkspacePolicy {
 
     /// Derive a member policy from the shared config.
     #[must_use]
-    pub fn dependency_baseline(&self) -> Option<&RustProjectHarnessDependencyBaseline> {
+    pub fn dependency_baseline(&self) -> Option<&AspRustDependencyBaseline> {
         self.dependency_baseline.as_ref()
     }
 
     /// Derive a member policy after applying a config transformation.
     #[must_use]
-    pub fn member_crate(
-        &self,
-        crate_label: impl Into<String>,
-    ) -> RustProjectHarnessDownstreamPolicy {
-        self.attach_dependency_baseline(RustProjectHarnessDownstreamPolicy::new(
+    pub fn member_crate(&self, crate_label: impl Into<String>) -> AspRustDownstreamPolicy {
+        self.attach_dependency_baseline(AspRustDownstreamPolicy::new(
             self.member_gate_label(crate_label),
             self.config.clone(),
         ))
@@ -117,11 +165,11 @@ impl RustProjectHarnessWorkspacePolicy {
         &self,
         crate_label: impl Into<String>,
         configure: F,
-    ) -> RustProjectHarnessDownstreamPolicy
+    ) -> AspRustDownstreamPolicy
     where
-        F: FnOnce(RustHarnessConfig) -> RustHarnessConfig,
+        F: FnOnce(AspRustConfig) -> AspRustConfig,
     {
-        self.attach_dependency_baseline(RustProjectHarnessDownstreamPolicy::new(
+        self.attach_dependency_baseline(AspRustDownstreamPolicy::new(
             self.member_gate_label(crate_label),
             configure(self.config.clone()),
         ))
@@ -133,8 +181,8 @@ impl RustProjectHarnessWorkspacePolicy {
 
     fn attach_dependency_baseline(
         &self,
-        policy: RustProjectHarnessDownstreamPolicy,
-    ) -> RustProjectHarnessDownstreamPolicy {
+        policy: AspRustDownstreamPolicy,
+    ) -> AspRustDownstreamPolicy {
         match self.dependency_baseline.clone() {
             Some(dependency_baseline) => policy.with_dependency_baseline(dependency_baseline),
             None => policy,

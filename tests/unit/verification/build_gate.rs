@@ -1,20 +1,16 @@
-use rust_lang_project_harness::{
-    RUST_PROJECT_HARNESS_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID,
-    RUST_PROJECT_HARNESS_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION,
-    RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID,
-    RustProjectHarnessDependencyBaseline, RustProjectHarnessDownstreamPolicy,
-    RustProjectHarnessWorkspaceEvidenceGraphEdgeKind,
-    RustProjectHarnessWorkspaceEvidenceGraphMemberInput,
-    RustProjectHarnessWorkspaceEvidenceGraphNodeKind, RustProjectHarnessWorkspacePolicy,
-    RustProjectHarnessWorkspaceTrustLoopStepStatus,
-    assert_rust_project_harness_dependency_baseline, assert_rust_project_harness_downstream_policy,
-    assert_rust_project_harness_verification_with_config,
-    assert_rust_workspace_harness_downstream_policies, default_rust_harness_config,
-    render_rust_project_harness_downstream_policy_receipt_json,
-    render_rust_project_harness_workspace_evidence_graph_receipt_json,
+use asp_rust::{
+    ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID,
+    ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION,
+    ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID, AspRustDependencyBaseline,
+    AspRustDownstreamPolicy, AspRustWorkspaceEvidenceGraphEdgeKind,
+    AspRustWorkspaceEvidenceGraphMemberInput, AspRustWorkspaceEvidenceGraphNodeKind,
+    AspRustWorkspacePolicy, AspRustWorkspaceTrustLoopStepStatus,
+    asp_rust_downstream_policy_receipt, asp_rust_workspace_evidence_graph_receipt,
+    assert_asp_rust_dependency_baseline, assert_asp_rust_downstream_policy,
+    assert_asp_rust_verification_with_config, assert_rust_workspace_harness_downstream_policies,
+    default_asp_rust_config, render_asp_rust_downstream_policy_receipt_json,
+    render_asp_rust_workspace_evidence_graph_receipt_json,
     rust_downstream_verification_gate_guide_markdown,
-    rust_project_harness_downstream_policy_receipt,
-    rust_project_harness_workspace_evidence_graph_receipt,
 };
 use std::fs;
 use tempfile::TempDir;
@@ -32,24 +28,20 @@ fn build_gate_verification_requires_reports_for_configured_task_kinds() {
     let root = temp.path();
     write_api_project(root);
 
-    let performance_only_config = default_rust_harness_config()
+    let performance_only_config = default_asp_rust_config()
         .with_latency_sensitive_performance_owner(
             "src/api.rs",
             "API request path owns latency-sensitive dispatch",
         );
-    assert_rust_project_harness_verification_with_config(
-        root,
-        &performance_only_config,
-        "api crate",
-    );
+    assert_asp_rust_verification_with_config(root, &performance_only_config, "api crate");
 
-    let stability_only_config = default_rust_harness_config().with_availability_stability_owner(
+    let stability_only_config = default_asp_rust_config().with_availability_stability_owner(
         "src/api.rs",
         "API request path must degrade and recover predictably",
     );
-    assert_rust_project_harness_verification_with_config(root, &stability_only_config, "api crate");
+    assert_asp_rust_verification_with_config(root, &stability_only_config, "api crate");
 
-    let complete_config = default_rust_harness_config()
+    let complete_config = default_asp_rust_config()
         .with_latency_sensitive_performance_owner(
             "src/api.rs",
             "API request path owns latency-sensitive dispatch",
@@ -58,7 +50,7 @@ fn build_gate_verification_requires_reports_for_configured_task_kinds() {
             "src/api.rs",
             "API request path must degrade and recover predictably",
         );
-    assert_rust_project_harness_verification_with_config(root, &complete_config, "api crate");
+    assert_asp_rust_verification_with_config(root, &complete_config, "api crate");
 }
 
 fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
@@ -77,9 +69,9 @@ fn downstream_policy_receipt_projects_verification_and_dependency_contract() {
     let root = temp.path();
     write_api_project(root);
 
-    let policy = RustProjectHarnessDownstreamPolicy::new(
+    let policy = AspRustDownstreamPolicy::new(
         "example-workspace::api",
-        default_rust_harness_config()
+        default_asp_rust_config()
             .with_latency_sensitive_performance_owner(
                 "src/api.rs",
                 "API request path owns latency-sensitive dispatch",
@@ -89,31 +81,25 @@ fn downstream_policy_receipt_projects_verification_and_dependency_contract() {
                 "API request path must degrade and recover predictably",
             ),
     )
-    .with_dependency_baseline(
-        RustProjectHarnessDependencyBaseline::new().require_git_package(
-            "rust-lang-project-harness",
-            "0.1.2",
-            "rev=abc123",
-        ),
-    );
+    .with_dependency_baseline(AspRustDependencyBaseline::new().require_git_package(
+        "asp-rust",
+        "0.1.2",
+        "rev=abc123",
+    ));
 
-    let receipt =
-        rust_project_harness_downstream_policy_receipt(root, &policy).expect("policy receipt");
+    let receipt = asp_rust_downstream_policy_receipt(root, &policy).expect("policy receipt");
 
     assert_eq!(
         receipt.schema_id,
-        RUST_PROJECT_HARNESS_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID
+        ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID
     );
     assert_eq!(
         receipt.schema_version,
-        RUST_PROJECT_HARNESS_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION
+        ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION
     );
     assert_eq!(receipt.gate_label, "example-workspace::api");
     assert_eq!(receipt.dependency_baseline_packages.len(), 1);
-    assert_eq!(
-        receipt.dependency_baseline_packages[0].name,
-        "rust-lang-project-harness"
-    );
+    assert_eq!(receipt.dependency_baseline_packages[0].name, "asp-rust");
     assert_eq!(
         receipt.dependency_baseline_packages[0].source_contains,
         "rev=abc123"
@@ -135,12 +121,11 @@ fn downstream_policy_receipt_projects_verification_and_dependency_contract() {
             && obligation.task_kinds.iter().any(|kind| kind == "stability")
     }));
 
-    let json =
-        render_rust_project_harness_downstream_policy_receipt_json(&receipt).expect("receipt json");
+    let json = render_asp_rust_downstream_policy_receipt_json(&receipt).expect("receipt json");
     let value: serde_json::Value = serde_json::from_str(&json).expect("valid receipt json");
     assert_eq!(
         value["schema_id"],
-        RUST_PROJECT_HARNESS_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID
+        ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID
     );
     assert_eq!(value["gate_label"], "example-workspace::api");
     assert_eq!(
@@ -160,9 +145,9 @@ fn workspace_evidence_graph_receipt_connects_multi_crate_trust_loop() {
     write_api_project(&api_root);
     write_api_project(&worker_root);
 
-    let workspace_policy = RustProjectHarnessWorkspacePolicy::new(
+    let workspace_policy = AspRustWorkspacePolicy::new(
         "example-workspace",
-        default_rust_harness_config()
+        default_asp_rust_config()
             .with_latency_sensitive_performance_owner(
                 "src/api.rs",
                 "API request path owns latency-sensitive dispatch",
@@ -172,24 +157,22 @@ fn workspace_evidence_graph_receipt_connects_multi_crate_trust_loop() {
                 "API request path must degrade and recover predictably",
             ),
     )
-    .with_dependency_baseline(
-        RustProjectHarnessDependencyBaseline::new().require_git_package(
-            "rust-lang-project-harness",
-            "0.1.2",
-            "rev=abc123",
-        ),
-    );
+    .with_dependency_baseline(AspRustDependencyBaseline::new().require_git_package(
+        "asp-rust",
+        "0.1.2",
+        "rev=abc123",
+    ));
 
-    let receipt = rust_project_harness_workspace_evidence_graph_receipt(
+    let receipt = asp_rust_workspace_evidence_graph_receipt(
         workspace_root,
         workspace_policy.workspace_label(),
         vec![
-            RustProjectHarnessWorkspaceEvidenceGraphMemberInput::new(
+            AspRustWorkspaceEvidenceGraphMemberInput::new(
                 "api",
                 &api_root,
                 workspace_policy.member_crate("api"),
             ),
-            RustProjectHarnessWorkspaceEvidenceGraphMemberInput::new(
+            AspRustWorkspaceEvidenceGraphMemberInput::new(
                 "worker",
                 &worker_root,
                 workspace_policy.member_crate("worker"),
@@ -200,7 +183,7 @@ fn workspace_evidence_graph_receipt_connects_multi_crate_trust_loop() {
 
     assert_eq!(
         receipt.schema_id,
-        RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID
+        ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID
     );
     assert_eq!(receipt.workspace_label, "example-workspace");
     assert_eq!(receipt.summary.member_crate_count, 2);
@@ -215,50 +198,64 @@ fn workspace_evidence_graph_receipt_connects_multi_crate_trust_loop() {
         receipt
             .nodes
             .iter()
-            .any(|node| node.kind == RustProjectHarnessWorkspaceEvidenceGraphNodeKind::Workspace)
+            .any(|node| node.kind == AspRustWorkspaceEvidenceGraphNodeKind::Workspace)
     );
-    assert!(receipt.nodes.iter().any(|node| {
-        node.kind == RustProjectHarnessWorkspaceEvidenceGraphNodeKind::MemberCrate
-    }));
-    assert!(receipt.nodes.iter().any(|node| node.kind
-        == RustProjectHarnessWorkspaceEvidenceGraphNodeKind::DependencyBaselinePackage));
-    assert!(receipt.nodes.iter().any(
-        |node| node.kind == RustProjectHarnessWorkspaceEvidenceGraphNodeKind::ReportObligation
-    ));
-    assert!(receipt.edges.iter().any(|edge| edge.kind
-        == RustProjectHarnessWorkspaceEvidenceGraphEdgeKind::RequiresDependencyBaseline));
+    assert!(
+        receipt
+            .nodes
+            .iter()
+            .any(|node| { node.kind == AspRustWorkspaceEvidenceGraphNodeKind::MemberCrate })
+    );
+    assert!(
+        receipt
+            .nodes
+            .iter()
+            .any(|node| node.kind
+                == AspRustWorkspaceEvidenceGraphNodeKind::DependencyBaselinePackage)
+    );
+    assert!(
+        receipt
+            .nodes
+            .iter()
+            .any(|node| node.kind == AspRustWorkspaceEvidenceGraphNodeKind::ReportObligation)
+    );
     assert!(
         receipt
             .edges
             .iter()
             .any(|edge| edge.kind
-                == RustProjectHarnessWorkspaceEvidenceGraphEdgeKind::RequiresReport)
+                == AspRustWorkspaceEvidenceGraphEdgeKind::RequiresDependencyBaseline)
+    );
+    assert!(
+        receipt
+            .edges
+            .iter()
+            .any(|edge| edge.kind == AspRustWorkspaceEvidenceGraphEdgeKind::RequiresReport)
     );
     assert!(receipt.trust_loop_steps.iter().any(|step| {
         step.key == "performance_stability_reports"
-            && step.status == RustProjectHarnessWorkspaceTrustLoopStepStatus::Required
+            && step.status == AspRustWorkspaceTrustLoopStepStatus::Required
     }));
     assert!(
         receipt
             .trust_loop_steps
             .iter()
             .any(|step| step.key == "security_review"
-                && step.status == RustProjectHarnessWorkspaceTrustLoopStepStatus::NotConfigured)
+                && step.status == AspRustWorkspaceTrustLoopStepStatus::NotConfigured)
     );
     assert!(
         receipt
             .trust_loop_steps
             .iter()
             .any(|step| step.key == "build_gate"
-                && step.status == RustProjectHarnessWorkspaceTrustLoopStepStatus::Enforced)
+                && step.status == AspRustWorkspaceTrustLoopStepStatus::Enforced)
     );
 
-    let json =
-        render_rust_project_harness_workspace_evidence_graph_receipt_json(&receipt).expect("json");
+    let json = render_asp_rust_workspace_evidence_graph_receipt_json(&receipt).expect("json");
     let value: serde_json::Value = serde_json::from_str(&json).expect("valid json");
     assert_eq!(
         value["schema_id"],
-        RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID
+        ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID
     );
     assert_eq!(value["summary"]["member_crate_count"], 2);
     assert_eq!(
@@ -284,31 +281,22 @@ fn downstream_verification_gate_guide_classifies_api_and_cli_surfaces() {
     assert!(guide.contains("harness/mod.rs"), "{guide}");
     assert!(guide.contains("owners.rs"), "{guide}");
     assert!(guide.contains("verification.rs"), "{guide}");
+    assert!(guide.contains("AspRustDownstreamPolicy"), "{guide}");
     assert!(
-        guide.contains("RustProjectHarnessDownstreamPolicy"),
+        guide.contains("assert_asp_rust_downstream_policy_from_env"),
         "{guide}"
     );
     assert!(
-        guide.contains("assert_rust_project_harness_downstream_policy_from_env"),
+        guide.contains("assert_asp_rust_verification_from_env_with_config"),
         "{guide}"
     );
+    assert!(guide.contains("AspRustDependencyBaseline"), "{guide}");
     assert!(
-        guide.contains("assert_rust_project_harness_verification_from_env_with_config"),
-        "{guide}"
-    );
-    assert!(
-        guide.contains("RustProjectHarnessDependencyBaseline"),
-        "{guide}"
-    );
-    assert!(
-        guide.contains("assert_rust_project_harness_dependency_baseline"),
+        guide.contains("assert_asp_rust_dependency_baseline"),
         "{guide}"
     );
     assert!(guide.contains("dependencies.rs"), "{guide}");
-    assert!(
-        guide.contains("[rust-harness-dependency-guidance]"),
-        "{guide}"
-    );
+    assert!(guide.contains("[asp-rust-dependency-guidance]"), "{guide}");
     assert!(
         guide.contains("with_availability_stability_owner"),
         "{guide}"
@@ -318,10 +306,7 @@ fn downstream_verification_gate_guide_classifies_api_and_cli_surfaces() {
         "{guide}"
     );
     assert!(guide.contains("## Workspace Layout"), "{guide}");
-    assert!(
-        guide.contains("RustProjectHarnessWorkspacePolicy"),
-        "{guide}"
-    );
+    assert!(guide.contains("AspRustWorkspacePolicy"), "{guide}");
     assert!(guide.contains("member_crate_with_config"), "{guide}");
     assert!(
         guide.contains("A workspace should own common policy once"),
@@ -331,7 +316,7 @@ fn downstream_verification_gate_guide_classifies_api_and_cli_surfaces() {
         guide.contains("cargo test automatically triggers the member build.rs gate"),
         "{guide}"
     );
-    assert!(guide.contains("[rust-harness-agent-guidance]"), "{guide}");
+    assert!(guide.contains("[asp-rust-agent-guidance]"), "{guide}");
 }
 
 #[test]
@@ -340,9 +325,9 @@ fn downstream_policy_object_keeps_build_script_thin() {
     let root = temp.path();
     write_api_project(root);
 
-    let policy = RustProjectHarnessDownstreamPolicy::new(
+    let policy = AspRustDownstreamPolicy::new(
         "api crate",
-        default_rust_harness_config()
+        default_asp_rust_config()
             .with_cargo_check_advice_allow_explanation(THIN_BUILD_SCRIPT_ADVICE_ALLOW)
             .with_latency_sensitive_performance_owner(
                 "src/api.rs",
@@ -354,7 +339,7 @@ fn downstream_policy_object_keeps_build_script_thin() {
             ),
     );
 
-    let report = assert_rust_project_harness_downstream_policy(root, &policy);
+    let report = assert_asp_rust_downstream_policy(root, &policy);
 
     assert_eq!(policy.gate_label(), "api crate");
     assert!(report.is_clean(), "{report:?}");
@@ -369,7 +354,7 @@ fn downstream_policy_requires_criterion_bench_manifest_when_performance_adapter_
     let policy = criterion_downstream_policy("api crate");
 
     let missing_bench = std::panic::catch_unwind(|| {
-        assert_rust_project_harness_downstream_policy(root, &policy);
+        assert_asp_rust_downstream_policy(root, &policy);
     })
     .expect_err("criterion performance gate should require a bench manifest");
     let message = panic_message(missing_bench);
@@ -401,7 +386,7 @@ fn downstream_policy_accepts_criterion_bench_manifest_contract() {
     write_criterion_bench_contract(root);
 
     let policy = criterion_downstream_policy("api crate");
-    let report = assert_rust_project_harness_downstream_policy(root, &policy);
+    let report = assert_asp_rust_downstream_policy(root, &policy);
 
     assert!(report.is_clean(), "{report:?}");
 }
@@ -424,7 +409,7 @@ fn downstream_member_policy_does_not_apply_performance_contract_to_siblings() {
     write_api_project(&plain_member);
 
     let policy = criterion_downstream_policy("benchmarked member");
-    let report = assert_rust_project_harness_downstream_policy(&benchmarked_member, &policy);
+    let report = assert_asp_rust_downstream_policy(&benchmarked_member, &policy);
 
     assert!(report.is_clean(), "{report:?}");
     assert!(
@@ -444,15 +429,15 @@ fn downstream_policy_asserts_dependency_baseline_from_cargo_lock() {
 version = 4
 
 [[package]]
-name = "rust-lang-project-harness"
+name = "asp-rust"
 version = "0.1.2"
 source = "git+https://github.com/tao3k/agent-semantic-protocols?rev=abc123#abc123"
 "#,
     );
 
-    let policy = RustProjectHarnessDownstreamPolicy::new(
+    let policy = AspRustDownstreamPolicy::new(
         "api crate",
-        default_rust_harness_config()
+        default_asp_rust_config()
             .with_cargo_check_advice_allow_explanation(THIN_BUILD_SCRIPT_ADVICE_ALLOW)
             .with_latency_sensitive_performance_owner(
                 "src/api.rs",
@@ -463,15 +448,13 @@ source = "git+https://github.com/tao3k/agent-semantic-protocols?rev=abc123#abc12
                 "API request path must degrade and recover predictably",
             ),
     )
-    .with_dependency_baseline(
-        RustProjectHarnessDependencyBaseline::new().require_git_package(
-            "rust-lang-project-harness",
-            "0.1.2",
-            "rev=abc123",
-        ),
-    );
+    .with_dependency_baseline(AspRustDependencyBaseline::new().require_git_package(
+        "asp-rust",
+        "0.1.2",
+        "rev=abc123",
+    ));
 
-    let report = assert_rust_project_harness_downstream_policy(root, &policy);
+    let report = assert_asp_rust_downstream_policy(root, &policy);
 
     assert!(report.is_clean(), "{report:?}");
     assert_eq!(
@@ -495,24 +478,21 @@ fn dependency_baseline_reports_duplicate_or_stale_entries_with_agent_guidance() 
 version = 4
 
 [[package]]
-name = "rust-lang-project-harness"
+name = "asp-rust"
 version = "0.1.1"
 source = "git+https://github.com/tao3k/agent-semantic-protocols?rev=old#old"
 
 [[package]]
-name = "rust-lang-project-harness"
+name = "asp-rust"
 version = "0.1.2"
 source = "git+https://github.com/tao3k/agent-semantic-protocols?rev=new#new"
 "#,
     );
-    let baseline = RustProjectHarnessDependencyBaseline::new().require_git_package(
-        "rust-lang-project-harness",
-        "0.1.2",
-        "rev=new",
-    );
+    let baseline =
+        AspRustDependencyBaseline::new().require_git_package("asp-rust", "0.1.2", "rev=new");
 
     let duplicate = std::panic::catch_unwind(|| {
-        assert_rust_project_harness_dependency_baseline(root, &baseline, "api crate");
+        assert_asp_rust_dependency_baseline(root, &baseline, "api crate");
     })
     .expect_err("duplicate lockfile package should fail baseline");
     let message = panic_message(duplicate);
@@ -521,7 +501,7 @@ source = "git+https://github.com/tao3k/agent-semantic-protocols?rev=new#new"
         "{message}"
     );
     assert!(
-        message.contains("[rust-harness-dependency-guidance]"),
+        message.contains("[asp-rust-dependency-guidance]"),
         "{message}"
     );
     assert!(message.contains("cargo tree -i <package>"), "{message}");
@@ -535,9 +515,9 @@ fn workspace_policy_reuses_common_config_for_member_crates() {
     let root = temp.path();
     write_api_project(root);
 
-    let workspace_policy = RustProjectHarnessWorkspacePolicy::new(
+    let workspace_policy = AspRustWorkspacePolicy::new(
         "example-workspace",
-        default_rust_harness_config()
+        default_asp_rust_config()
             .with_cargo_check_advice_allow_explanation(WORKSPACE_POLICY_ADVICE_ALLOW)
             .with_latency_sensitive_performance_owner(
                 "src/api.rs",
@@ -550,7 +530,7 @@ fn workspace_policy_reuses_common_config_for_member_crates() {
     );
 
     let api_policy = workspace_policy.member_crate("api");
-    let report = assert_rust_project_harness_downstream_policy(root, &api_policy);
+    let report = assert_asp_rust_downstream_policy(root, &api_policy);
 
     assert_eq!(workspace_policy.workspace_label(), "example-workspace");
     assert_eq!(api_policy.gate_label(), "example-workspace::api");
@@ -596,20 +576,20 @@ fn explicit_workspace_builder_composes_cargo_admitted_package_atoms() {
     fs::create_dir_all(&worker).expect("create worker member");
     write_api_project(&api);
     write_api_project(&worker);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_cargo_check_advice_allow_explanation(WORKSPACE_POLICY_ADVICE_ALLOW);
-    let template = RustProjectHarnessWorkspacePolicy::new("fixture", config.clone());
+    let template = AspRustWorkspacePolicy::new("fixture", config.clone());
 
     let report = assert_rust_workspace_harness_downstream_policies(
         workspace,
         &config,
         [
-            RustProjectHarnessWorkspaceEvidenceGraphMemberInput::new(
+            AspRustWorkspaceEvidenceGraphMemberInput::new(
                 "api",
                 &api,
                 template.member_crate("api"),
             ),
-            RustProjectHarnessWorkspaceEvidenceGraphMemberInput::new(
+            AspRustWorkspaceEvidenceGraphMemberInput::new(
                 "worker",
                 &worker,
                 template.member_crate("worker"),
@@ -645,15 +625,15 @@ fn explicit_workspace_builder_rejects_unregistered_directory() {
     fs::create_dir_all(&unregistered).expect("create unregistered package");
     write_api_project(&admitted);
     write_api_project(&unregistered);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_cargo_check_advice_allow_explanation(WORKSPACE_POLICY_ADVICE_ALLOW);
-    let policy = RustProjectHarnessDownstreamPolicy::new("unregistered", config.clone());
+    let policy = AspRustDownstreamPolicy::new("unregistered", config.clone());
 
     let rejected = std::panic::catch_unwind(|| {
         assert_rust_workspace_harness_downstream_policies(
             workspace,
             &config,
-            [RustProjectHarnessWorkspaceEvidenceGraphMemberInput::new(
+            [AspRustWorkspaceEvidenceGraphMemberInput::new(
                 "unregistered",
                 &unregistered,
                 policy,
@@ -667,14 +647,12 @@ fn explicit_workspace_builder_rejects_unregistered_directory() {
 #[test]
 fn workspace_policy_shares_dependency_baseline_with_member_crates() {
     let workspace_policy =
-        RustProjectHarnessWorkspacePolicy::new("example-workspace", default_rust_harness_config())
-            .with_dependency_baseline(
-                RustProjectHarnessDependencyBaseline::new().require_git_package(
-                    "rust-lang-project-harness",
-                    "0.1.2",
-                    "rev=abc123",
-                ),
-            );
+        AspRustWorkspacePolicy::new("example-workspace", default_asp_rust_config())
+            .with_dependency_baseline(AspRustDependencyBaseline::new().require_git_package(
+                "asp-rust",
+                "0.1.2",
+                "rev=abc123",
+            ));
 
     let api_policy = workspace_policy.member_crate("api");
 
@@ -700,10 +678,10 @@ fn write_cargo_lock(root: &std::path::Path, contents: &str) {
     fs::write(root.join("Cargo.lock"), contents.trim_start()).expect("write Cargo.lock");
 }
 
-fn criterion_downstream_policy(gate_label: &str) -> RustProjectHarnessDownstreamPolicy {
-    RustProjectHarnessDownstreamPolicy::new(
+fn criterion_downstream_policy(gate_label: &str) -> AspRustDownstreamPolicy {
+    AspRustDownstreamPolicy::new(
         gate_label,
-        default_rust_harness_config()
+        default_asp_rust_config()
             .with_cargo_check_advice_allow_explanation(CRITERION_POLICY_ADVICE_ALLOW)
             .with_criterion_performance_verification()
             .with_latency_sensitive_performance_owner(

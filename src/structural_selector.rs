@@ -1,6 +1,6 @@
 //! Harness-owned structural-selector encoding.
 
-use agent_semantic_content_identity::{CanonicalItemIdentity, CanonicalItemSelector};
+use crate::content_identity::{CanonicalItemIdentity, CanonicalItemSelector};
 
 /// Parses a canonical item selector into provider-owned identity fields.
 pub fn parse_canonical_item_selector(selector: &str) -> Result<CanonicalItemSelector, String> {

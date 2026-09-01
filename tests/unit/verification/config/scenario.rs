@@ -1,11 +1,11 @@
 use std::collections::BTreeSet;
 
-use rust_lang_project_harness::{
-    RustHarnessConfig, RustOwnerResponsibility, RustVerificationProfileHint,
-    RustVerificationReceipt, RustVerificationSkillBinding, RustVerificationSkillDescriptor,
-    RustVerificationTaskKind, RustVerificationTaskState, RustVerificationWaiver,
-    default_rust_harness_config, plan_rust_project_verification_with_config,
-    render_rust_verification_plan, render_rust_verification_skill_contracts,
+use asp_rust::{
+    AspRustConfig, RustOwnerResponsibility, RustVerificationProfileHint, RustVerificationReceipt,
+    RustVerificationSkillBinding, RustVerificationSkillDescriptor, RustVerificationTaskKind,
+    RustVerificationTaskState, RustVerificationWaiver, default_asp_rust_config,
+    plan_rust_project_verification_with_config, render_rust_verification_plan,
+    render_rust_verification_skill_contracts,
 };
 use tempfile::TempDir;
 
@@ -149,7 +149,7 @@ impl SkillDescriptorCase {
             Self::RegressionHarness => {
                 RustVerificationSkillDescriptor::new("rust-verification-regression")
                     .with_adapter("harness")
-                    .with_tool("rust-lang-project-harness")
+                    .with_tool("asp-rust")
                     .with_command("cargo test verification::regression")
                     .with_standard("architecture drift remains within configured baseline")
                     .with_required_inputs(["baseline", "owner", "thresholds"])
@@ -297,8 +297,8 @@ fn render_skill_contract_scenario(scenario: &VerificationSkillContractScenario) 
 }
 
 impl VerificationSkillContractScenario {
-    fn initial_config(self) -> RustHarnessConfig {
-        let mut config = default_rust_harness_config()
+    fn initial_config(self) -> AspRustConfig {
+        let mut config = default_asp_rust_config()
             .with_verification_skill_binding(self.kind, self.descriptor.binding())
             .with_verification_skill_descriptor(self.descriptor.descriptor());
         if let Some(responsibility) = self.responsibility {
@@ -359,7 +359,7 @@ struct ScenarioStatus {
 }
 
 fn scenario_status(
-    plan: &rust_lang_project_harness::RustVerificationPlan,
+    plan: &asp_rust::RustVerificationPlan,
     kind: RustVerificationTaskKind,
 ) -> ScenarioStatus {
     let task = plan.tasks.iter().find(|task| task.kind == kind);

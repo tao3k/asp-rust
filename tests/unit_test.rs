@@ -1,17 +1,13 @@
 #![deny(dead_code)]
 
-#[cfg(feature = "cli")]
-#[path = "unit/cli/mod.rs"]
-mod cli;
-
 #[path = "unit/public_api/mod.rs"]
 mod public_api;
 
 #[path = "unit/policy_contract.rs"]
 mod policy_contract;
 
-#[path = "unit/harness_rules.rs"]
-mod harness_rules;
+#[path = "unit/asp_rust_rules.rs"]
+mod asp_rust_rules;
 
 #[path = "unit/policy_config.rs"]
 mod policy_config;
@@ -62,9 +58,3 @@ mod provider_workspace_search_identity;
 mod search;
 #[path = "unit/structural_selector.rs"]
 mod structural_selector;
-
-#[path = "unit/query_workspace_contract.rs"]
-mod query_workspace_contract;
-
-#[path = "unit/rs_harness_attribute.rs"]
-mod rs_harness_attribute;

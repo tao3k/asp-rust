@@ -113,9 +113,11 @@ fn cfg_labels_from_expression(expression: &str) -> BTreeSet<String> {
             }
             token.clear();
             in_quote = !in_quote;
-        } else if in_quote {
-            token.push(character);
-        } else if character.is_ascii_alphanumeric() || character == '_' || character == '-' {
+        } else if in_quote
+            || character.is_ascii_alphanumeric()
+            || character == '_'
+            || character == '-'
+        {
             token.push(character);
         } else {
             push_cfg_label(&mut labels, &mut token);

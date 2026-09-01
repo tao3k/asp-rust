@@ -296,7 +296,7 @@ fn public_impl_function_return_syntax(item_impl: &syn::ItemImpl) -> Vec<RustFunc
     let trait_path = item_impl
         .trait_
         .as_ref()
-        .map(|(_, path, _)| path.to_token_stream().to_string());
+        .map(|(path, _)| path.to_token_stream().to_string());
     item_impl
         .items
         .iter()
@@ -331,7 +331,7 @@ fn signature_return_syntax(
         function_name: signature.ident.to_string(),
         type_text: return_type.to_token_stream().to_string(),
         is_async: signature.asyncness.is_some(),
-        is_unsafe: signature.unsafety.is_some(),
+        is_unsafe: matches!(&signature.safety, syn::Safety::Unsafe(_)),
         receiver: signature_receiver(signature),
         impl_type,
         trait_path,
@@ -349,14 +349,13 @@ fn signature_receiver(signature: &syn::Signature) -> Option<String> {
         let syn::FnArg::Receiver(receiver) = arg else {
             return None;
         };
-        Some(
-            match (receiver.reference.is_some(), receiver.mutability.is_some()) {
-                (true, true) => "&mut-self".to_string(),
-                (true, false) => "&self".to_string(),
-                (false, true) => "mut-self".to_string(),
-                (false, false) => "self".to_string(),
-            },
-        )
+        Some(match &receiver.kind {
+            syn::ReceiverKind::Reference(_, _, Some(_)) => "&mut-self".to_string(),
+            syn::ReceiverKind::Reference(_, _, None) => "&self".to_string(),
+            syn::ReceiverKind::Value if receiver.mutability.is_some() => "mut-self".to_string(),
+            syn::ReceiverKind::Value | syn::ReceiverKind::Typed(_, _) => "self".to_string(),
+            _ => "self".to_string(),
+        })
     })
 }
 

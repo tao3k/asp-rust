@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::{
@@ -20,11 +20,8 @@ fn interface_mod_policy_rejects_inline_module_implementation() {
     )
     .expect("write mod");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R001");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -45,11 +42,8 @@ fn source_bloat_policy_reports_private_implementation_pile() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\nmod pile;\n").expect("write lib");
     fs::write(root.join("src/pile.rs"), private_implementation_pile()).expect("write pile");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R002");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -70,11 +64,8 @@ fn source_bloat_policy_reports_test_support_pile() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     fs::write(root.join("tests/support.rs"), private_implementation_pile()).expect("write support");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R002");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -100,11 +91,8 @@ fn source_bloat_policy_reports_absolute_line_pressure_without_item_pressure() {
     )
     .expect("write generated");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R002");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -128,11 +116,8 @@ fn source_bloat_policy_allows_999_source_lines_below_1000_gate() {
     )
     .expect("write boundary module");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         findings_for_rule(&report, "RUST-MOD-R002").is_empty(),
@@ -154,11 +139,8 @@ fn source_bloat_policy_reports_invalid_source_absolute_line_pressure() {
     )
     .expect("write broken");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R002");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -203,11 +185,8 @@ fn module_source_layout_policy_rejects_file_and_mod_rs_pair() {
     )
     .expect("write mod form");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R007");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -228,11 +207,8 @@ fn inline_source_module_policy_rejects_reasoning_tree_collapse() {
     )
     .expect("write domain");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R008");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -253,11 +229,8 @@ fn orphan_source_file_policy_rejects_unreachable_module_file() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     fs::write(root.join("src/forgotten.rs"), "//! Forgotten owner.\n").expect("write orphan");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R009");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -283,11 +256,8 @@ fn orphan_policy_does_not_treat_latest_feature_as_cfg_test() {
     .expect("write lib");
     fs::write(root.join("src/optional.rs"), "//! Optional owner.\n").expect("write optional");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(!has_rule(&report, "RUST-MOD-R009"), "{:?}", report.findings);
 }

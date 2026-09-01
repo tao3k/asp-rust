@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use crate::model::RustHarnessConfig;
+use crate::model::AspRustConfig;
 
 use super::api::RustSearchOptions;
 use super::context::{PackageSearchContext, search_contexts};
@@ -35,7 +35,7 @@ impl SyntaxFactHit {
 
 pub(super) fn render_search_query(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -121,7 +121,7 @@ pub(super) fn render_search_query(
 
 fn render_unsupported_query(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {

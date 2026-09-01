@@ -1,6 +1,6 @@
 //! Unit role: canonical structural-selector scope codec.
 
-use rust_lang_project_harness::structural_selector::{
+use asp_rust::structural_selector::{
     encode_canonical_item_identity_path, parse_canonical_item_selector,
 };
 

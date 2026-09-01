@@ -165,9 +165,10 @@ fn http_body(response: &str) -> Result<&str, String> {
 }
 
 #[test]
-fn unsupported_provider_command_uses_the_generic_cli_error() {
+fn provider_binary_rejects_every_non_server_command() {
     let output = command(&["not-a-command"]);
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).expect("UTF-8 asp-rust stderr");
+    assert!(stderr.contains("only admitted process argument is `serve`"));
     assert!(!stderr.contains("provider runtime requires"));
 }

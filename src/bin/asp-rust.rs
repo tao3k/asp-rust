@@ -5,5 +5,5 @@
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    rust_lang_project_harness::run_cli_from_env()
+    asp_rust::run_provider_server_from_env()
 }

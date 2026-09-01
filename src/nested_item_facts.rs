@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
-use agent_semantic_content_identity::{
+use crate::content_identity::{
     CanonicalItemKind, CanonicalItemScopeKind, CanonicalItemScopeSymbol, CanonicalItemSymbol,
 };
 
@@ -254,7 +254,7 @@ impl<'ast> Visit<'ast> for RustNestedItemFactVisitorV1<'_> {
         let trait_owner = item
             .trait_
             .as_ref()
-            .map(|(_, path, _)| path.to_token_stream().to_string());
+            .map(|(path, _)| path.to_token_stream().to_string());
         let previous_impl_owner = self.impl_owner.replace(impl_owner.clone());
         let previous_trait_owner = std::mem::replace(&mut self.trait_owner, trait_owner);
         self.record("impl", impl_owner.clone(), item.span(), &item.attrs);

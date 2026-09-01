@@ -1,21 +1,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::discovery::{discover_rust_files, rust_project_harness_scope};
+use crate::discovery::{asp_rust_scope, discover_rust_files};
 use crate::parser::{
     CargoDependencyFacts, ParsedRustModule, RustReasoningTreeFacts, parse_cargo_dependency_facts,
     parse_rust_file, rust_reasoning_tree_facts,
 };
 use crate::path::normalize_lexical_path;
-use crate::{RustHarnessConfig, RustProjectHarnessScope};
+use crate::{AspRustConfig, AspRustScope};
 
 use super::RustSearchOptions;
 use super::format::{package_label, package_roots_for_request};
 
-pub(super) fn parse_scope(
-    scope: &RustProjectHarnessScope,
-    config: &RustHarnessConfig,
-) -> Vec<ParsedRustModule> {
+pub(super) fn parse_scope(scope: &AspRustScope, config: &AspRustConfig) -> Vec<ParsedRustModule> {
     discover_rust_files(
         &scope.monitored_paths(),
         &config.ignored_dir_names,
@@ -28,7 +25,7 @@ pub(super) fn parse_scope(
 
 pub(super) struct PackageSearchContext {
     pub(super) package_root: PathBuf,
-    pub(super) scope: RustProjectHarnessScope,
+    pub(super) scope: AspRustScope,
     pub(super) parsed_modules: Vec<ParsedRustModule>,
     pub(super) reasoning_tree: RustReasoningTreeFacts,
     pub(super) cargo_dependencies: Vec<CargoDependencyFacts>,
@@ -39,7 +36,7 @@ pub(super) type SourceSymbolIndex = BTreeMap<String, BTreeMap<PathBuf, Vec<Strin
 
 pub(super) fn search_contexts(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<Vec<PackageSearchContext>, String> {
     package_roots_for_request(project_root, config, options.package.as_deref()).map(|roots| {
@@ -52,7 +49,7 @@ pub(super) fn search_contexts(
 
 pub(super) fn search_contexts_for_path_query(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
     query: &str,
 ) -> Result<Vec<PackageSearchContext>, String> {
@@ -61,7 +58,7 @@ pub(super) fn search_contexts_for_path_query(
 
 pub(super) fn search_contexts_for_path_queries(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
     queries: &[&str],
 ) -> Result<Vec<PackageSearchContext>, String> {
@@ -282,8 +279,8 @@ fn exact_rust_path_in_package(path: &Path, package_root: &Path) -> Option<PathBu
         .map(Path::to_path_buf)
 }
 
-fn package_search_context(package_root: &Path, config: &RustHarnessConfig) -> PackageSearchContext {
-    let scope = rust_project_harness_scope(
+fn package_search_context(package_root: &Path, config: &AspRustConfig) -> PackageSearchContext {
+    let scope = asp_rust_scope(
         package_root,
         config.include_tests,
         &config.source_dir_names,

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 use crate::discovery::discover_cargo_package_roots;
 use crate::parser::{
     CargoDependencyFacts, CargoDependencyKind, ParsedRustModule, RustReasoningOwnerBranchFacts,
@@ -168,7 +168,7 @@ pub(super) fn render_item_locator_line_with_read(
     let symbol = item_display_name(item).replace(char::is_whitespace, "-");
     let kind = canonical_rust_item_kind(item.kind);
     let mut identity =
-        agent_semantic_content_identity::CanonicalItemIdentity::new("rust", kind, symbol.as_str());
+        crate::content_identity::CanonicalItemIdentity::new("rust", kind, symbol.as_str());
     if let Some(implementation_owner) = item.impl_target_name.as_deref() {
         identity = identity.with_scope("implementation-owner", "type", implementation_owner);
     }
@@ -194,7 +194,7 @@ pub(super) fn render_projection_item_locator_line_with_read(
     item: &crate::parser::native_syntax::item_projection::RustItemProjectionNodeSyntax,
 ) -> Option<String> {
     let identity = item.canonical_item_identity.as_ref()?;
-    let mut shared_identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+    let mut shared_identity = crate::content_identity::CanonicalItemIdentity::new(
         identity.language_id.as_str(),
         identity.kind.as_str(),
         identity.symbol.as_str(),
@@ -203,7 +203,7 @@ pub(super) fn render_projection_item_locator_line_with_read(
         .scopes
         .iter()
         .map(|scope| {
-            agent_semantic_content_identity::CanonicalItemScope::new(
+            crate::content_identity::CanonicalItemScope::new(
                 scope.relation.as_str(),
                 scope.kind.as_str(),
                 scope.symbol.as_str(),
@@ -231,19 +231,15 @@ fn render_canonical_item_locator_line(
     kind: &str,
     line: usize,
     end_line: usize,
-    identity: &agent_semantic_content_identity::CanonicalItemIdentity,
+    identity: &crate::content_identity::CanonicalItemIdentity,
     core_line: String,
 ) -> String {
     let structural_selector = format!(
         "rust://{read_path}#{}",
-        agent_semantic_content_identity::structural_selector::encode_canonical_item_identity_path(
-            identity,
-        )
+        crate::structural_selector::encode_canonical_item_identity_path(identity)
     );
-    let canonical_item_selector = agent_semantic_content_identity::CanonicalItemSelector::new(
-        identity.clone(),
-        &structural_selector,
-    );
+    let canonical_item_selector =
+        crate::content_identity::CanonicalItemSelector::new(identity.clone(), &structural_selector);
     let canonical_item_selector = serde_json::to_string(&canonical_item_selector)
         .expect("canonical Rust item selector must serialize");
     format!(
@@ -365,7 +361,7 @@ pub(super) fn owner_role_for_path(package_root: &Path, path: &Path) -> &'static 
 
 pub(super) fn package_roots_for_request(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     selected_package: Option<&str>,
 ) -> Result<Vec<PathBuf>, String> {
     if !project_root.exists() {

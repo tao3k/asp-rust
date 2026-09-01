@@ -14,7 +14,7 @@ mod path_resolution;
 mod reasoning_tree;
 mod source_metrics;
 mod source_path;
-#[cfg(any(feature = "cli", feature = "search", test))]
+#[cfg(feature = "search")]
 pub(crate) mod syntax_abi;
 mod use_tree;
 
@@ -23,15 +23,17 @@ pub(crate) use cargo_cfg::parse_cargo_cfg_facts;
 pub(crate) use cargo_dependency_facts::{
     CargoDependencyFacts, CargoDependencyKind, parse_cargo_dependency_facts,
 };
+#[cfg(feature = "search")]
+pub(crate) use cargo_manifest::parse_cargo_workspace_member_roots;
 pub(crate) use cargo_manifest::{
     CargoBenchTargetFacts, CargoManifestFacts, parse_cargo_manifest, parse_required_cargo_manifest,
 };
-#[cfg(feature = "cli")]
+#[cfg(all(test, feature = "provider-server"))]
 pub(crate) use cargo_manifest::{cargo_package_root_for_path, cargo_project_root_for_path};
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 pub(crate) use cargo_manifest::{
     cargo_workspace_member_roots_from_candidates, parse_cargo_project_facts,
-    parse_cargo_workspace_member_roots, workspace_member_pattern_matches,
+    workspace_member_pattern_matches,
 };
 pub(crate) use cargo_test_targets::parse_cargo_test_targets;
 pub(crate) use location::{file_location, path_line_location, source_line, span_location};
@@ -43,7 +45,7 @@ pub(crate) use native_syntax::{
     RustPublicEnumVariantFieldSyntax, RustPublicStructFieldSyntax, RustPublicTypeAliasSyntax,
     RustTopLevelItemSyntax,
 };
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 pub(crate) use parsed_module::parse_rust_source;
 pub(crate) use parsed_module::{ParsedRustModule, parse_rust_file};
 pub(crate) use path_resolution::resolve_rust_path_attr;

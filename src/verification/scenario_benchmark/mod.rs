@@ -1,4 +1,4 @@
-//! Scenario benchmark contracts for Rust harness fixtures.
+//! Scenario benchmark contracts for ASP Rust fixtures.
 
 mod contract;
 mod contract_gate;

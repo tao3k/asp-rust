@@ -1,4 +1,4 @@
-use rust_lang_project_harness::nested_item_facts::{
+use asp_rust::nested_item_facts::{
     RustItemScopeFactV1, project_rust_nested_item_code_v1, rust_nested_item_facts_v1,
 };
 

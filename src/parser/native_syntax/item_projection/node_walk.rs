@@ -16,7 +16,7 @@ fn append_trait_projection_nodes(
     let trait_owner = item_trait.ident.to_string();
     for trait_item in &item_trait.items {
         if let syn::TraitItem::Fn(method) = trait_item {
-            let identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+            let identity = crate::content_identity::CanonicalItemIdentity::new(
                 "rust",
                 "trait-function",
                 method.sig.ident.to_string(),
@@ -143,7 +143,7 @@ fn append_impl_projection_nodes(
     let implementation_owner = quote::ToTokens::to_token_stream(item_impl.self_ty.as_ref())
         .to_string()
         .replace(' ', "");
-    let trait_owner = item_impl.trait_.as_ref().map(|(_, path, _)| {
+    let trait_owner = item_impl.trait_.as_ref().map(|(path, _)| {
         quote::ToTokens::to_token_stream(path)
             .to_string()
             .replace(' ', "")
@@ -151,7 +151,7 @@ fn append_impl_projection_nodes(
     for impl_item in &item_impl.items {
         match impl_item {
             syn::ImplItem::Fn(method) => {
-                let mut identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+                let mut identity = crate::content_identity::CanonicalItemIdentity::new(
                     "rust",
                     "method",
                     method.sig.ident.to_string(),
@@ -515,7 +515,7 @@ fn push_canonical_projection_node(
     role: &'static str,
     label: impl Into<String>,
     depth: usize,
-    canonical_item_identity: agent_semantic_content_identity::CanonicalItemIdentity,
+    canonical_item_identity: crate::content_identity::CanonicalItemIdentity,
 ) {
     push_projection_node(nodes, syntax, kind, role, label, depth);
     nodes

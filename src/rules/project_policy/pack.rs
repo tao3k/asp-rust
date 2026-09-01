@@ -3,7 +3,7 @@
 use crate::parser::{
     ParsedRustModule, parse_cargo_manifest, parse_cargo_test_targets, rust_reasoning_tree_facts,
 };
-use crate::{RustHarnessConfig, RustHarnessFinding, RustHarnessRule, RustProjectHarnessScope};
+use crate::{AspRustConfig, AspRustFinding, AspRustRule, AspRustScope};
 
 use super::build_gate::build_gate_findings;
 use super::catalog::rules_by_id;
@@ -53,15 +53,15 @@ pub(crate) const MAX_TEST_SUPPORT_EFFECTIVE_LINES: usize = 1000;
 
 /// Return compact metadata for Rust project-policy rules.
 #[must_use]
-pub fn rust_project_policy_rules() -> Vec<RustHarnessRule> {
+pub fn rust_project_policy_rules() -> Vec<AspRustRule> {
     rules_by_id().into_values().collect()
 }
 
 pub(crate) fn evaluate_workspace(
     workspace_root: &std::path::Path,
-    package_scopes: &[RustProjectHarnessScope],
-    config: &RustHarnessConfig,
-) -> Vec<RustHarnessFinding> {
+    package_scopes: &[AspRustScope],
+    config: &AspRustConfig,
+) -> Vec<AspRustFinding> {
     let rules = rules_by_id();
     super::verification_integration::workspace_performance_verification_findings(
         workspace_root,
@@ -72,10 +72,10 @@ pub(crate) fn evaluate_workspace(
 }
 
 pub(crate) fn evaluate(
-    scope: Option<&RustProjectHarnessScope>,
+    scope: Option<&AspRustScope>,
     modules: &[ParsedRustModule],
-    config: &RustHarnessConfig,
-) -> Vec<RustHarnessFinding> {
+    config: &AspRustConfig,
+) -> Vec<AspRustFinding> {
     let Some(scope) = scope else {
         return Vec::new();
     };

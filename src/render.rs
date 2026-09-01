@@ -1,17 +1,17 @@
-//! Agent-first compact text rendering for Rust harness diagnostics.
+//! Agent-first compact text rendering for ASP Rust diagnostics.
 
 use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::Path;
 
-use crate::{RustDiagnosticSeverity, RustHarnessFinding, RustHarnessReport};
+use crate::{AspRustFinding, AspRustReport, RustDiagnosticSeverity};
 
 const FAILURE_FRONTIER_CONTEXT_LINES: usize = 12;
 
 /// Render a compact diagnostic report with advice enabled.
 #[must_use]
-pub fn render_rust_project_harness(report: &RustHarnessReport) -> String {
-    render_rust_project_harness_with_options(report, None, true)
+pub fn render_asp_rust(report: &AspRustReport) -> String {
+    render_asp_rust_with_options(report, None, true)
 }
 
 /// Render a structured JSON diagnostic report for tool consumers.
@@ -21,16 +21,14 @@ pub fn render_rust_project_harness(report: &RustHarnessReport) -> String {
 /// # Errors
 ///
 /// Returns a serialization error if the report cannot be encoded as JSON.
-pub fn render_rust_project_harness_json(
-    report: &RustHarnessReport,
-) -> Result<String, serde_json::Error> {
+pub fn render_asp_rust_json(report: &AspRustReport) -> Result<String, serde_json::Error> {
     serde_json::to_string(report)
 }
 
 /// Render a compact failure frontier for the next exact source reads.
 #[must_use]
-pub fn render_rust_project_harness_failure_frontier(
-    report: &RustHarnessReport,
+pub fn render_asp_rust_failure_frontier(
+    report: &AspRustReport,
     project_root: &Path,
     max_hot_blocks: usize,
 ) -> String {
@@ -75,15 +73,15 @@ pub fn render_rust_project_harness_failure_frontier(
 
 /// Render only non-blocking agent advice.
 #[must_use]
-pub fn render_rust_project_harness_advice(report: &RustHarnessReport) -> String {
+pub fn render_asp_rust_advice(report: &AspRustReport) -> String {
     let severities = BTreeSet::from([RustDiagnosticSeverity::Info]);
     render_finding_list(&report.blocking_findings(Some(&severities)))
 }
 
 /// Render a compact diagnostic report with explicit severity and advice options.
 #[must_use]
-pub fn render_rust_project_harness_with_options(
-    report: &RustHarnessReport,
+pub fn render_asp_rust_with_options(
+    report: &AspRustReport,
     severities: Option<&BTreeSet<RustDiagnosticSeverity>>,
     include_advice: bool,
 ) -> String {
@@ -104,7 +102,7 @@ pub fn render_rust_project_harness_with_options(
     render_finding_list(&findings)
 }
 
-fn render_finding(finding: &RustHarnessFinding) -> String {
+fn render_finding(finding: &AspRustFinding) -> String {
     let path = finding
         .location
         .path
@@ -132,9 +130,9 @@ fn render_finding(finding: &RustHarnessFinding) -> String {
 }
 
 fn deduplicate_advice_findings<'a>(
-    advice_findings: &[&'a RustHarnessFinding],
-    blocking_findings: &[&RustHarnessFinding],
-) -> Vec<&'a RustHarnessFinding> {
+    advice_findings: &[&'a AspRustFinding],
+    blocking_findings: &[&AspRustFinding],
+) -> Vec<&'a AspRustFinding> {
     let blocking_keys = blocking_findings
         .iter()
         .map(|finding| finding_key(finding))
@@ -146,7 +144,7 @@ fn deduplicate_advice_findings<'a>(
         .collect()
 }
 
-fn finding_key(finding: &RustHarnessFinding) -> (String, Option<String>, usize, usize) {
+fn finding_key(finding: &AspRustFinding) -> (String, Option<String>, usize, usize) {
     (
         finding.rule_id.clone(),
         finding
@@ -159,7 +157,7 @@ fn finding_key(finding: &RustHarnessFinding) -> (String, Option<String>, usize, 
     )
 }
 
-fn render_finding_list(findings: &[&RustHarnessFinding]) -> String {
+fn render_finding_list(findings: &[&AspRustFinding]) -> String {
     findings
         .iter()
         .map(|finding| render_finding(finding))
@@ -176,7 +174,7 @@ struct FailureFrontierHotBlock {
 }
 
 fn failure_frontier_hot_blocks(
-    report: &RustHarnessReport,
+    report: &AspRustReport,
     project_root: &Path,
     max_hot_blocks: usize,
 ) -> Vec<FailureFrontierHotBlock> {

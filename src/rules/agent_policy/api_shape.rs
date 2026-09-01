@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use crate::parser::{ParsedRustModule, path_line_location, source_line};
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use crate::rules::display_path;
 
@@ -15,8 +15,8 @@ use super::{
 
 pub(super) fn api_shape_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut findings = public_tuple_api_surface_findings(module, rules);
     findings.extend(public_dynamic_json_api_surface_findings(module, rules));
     findings
@@ -24,8 +24,8 @@ pub(super) fn api_shape_findings(
 
 fn public_tuple_api_surface_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_PUBLIC_TUPLE_API_SURFACE_V1];
     module
         .syntax_facts
@@ -41,7 +41,7 @@ fn public_tuple_api_surface_findings(
                 return None;
             }
             let element_list = surface.element_contract_types.join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public function `{}` {} as anonymous tuple with primitive elements: {element_list}.",
@@ -59,8 +59,8 @@ fn public_tuple_api_surface_findings(
 
 fn public_dynamic_json_api_surface_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_PUBLIC_DYNAMIC_JSON_API_BOUNDARY_V1];
     module
         .syntax_facts
@@ -80,7 +80,7 @@ fn public_dynamic_json_api_surface_findings(
             ) {
                 return None;
             }
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public function `{}` {} as dynamic JSON `{}` through `{}`.",

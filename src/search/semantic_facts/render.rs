@@ -10,7 +10,7 @@ use super::collection_graph::{emit_collection_field_graph_facts, semantic_fact_o
 use super::contract::{LANGUAGE_ID, PROVIDER_ID};
 
 /// Render bounded semantic graph facts for collection-field search enrichment.
-pub fn render_rust_project_harness_search_semantic_facts_json(
+pub fn render_asp_rust_search_semantic_facts_json(
     project_root: &Path,
     query: &str,
     input: &str,

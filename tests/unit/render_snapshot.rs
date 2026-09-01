@@ -1,31 +1,31 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-use rust_lang_project_harness::{
-    RustDiagnosticSeverity, RustHarnessFinding, RustHarnessReport, RustInvariantCandidate,
+use asp_rust::{
+    AspRustFinding, AspRustReport, RustDiagnosticSeverity, RustInvariantCandidate,
     RustInvariantCandidateStatus, RustInvariantEvidence, RustInvariantEvidenceKind,
     RustInvariantId, RustInvariantKind, RustInvariantReceiptKind, RustInvariantRulePackId,
-    RustInvariantSourceRuleId, RustModuleReport, SourceLocation, render_rust_project_harness,
-    render_rust_project_harness_failure_frontier, render_rust_project_harness_json,
+    RustInvariantSourceRuleId, RustModuleReport, SourceLocation, render_asp_rust,
+    render_asp_rust_failure_frontier, render_asp_rust_json,
 };
 
 #[test]
 fn compact_text_render_matches_snapshot() {
-    let rendered = render_rust_project_harness(&snapshot_report());
+    let rendered = render_asp_rust(&snapshot_report());
 
     assert_eq!(
         rendered,
-        include_str!("snapshots/rust_project_harness_compact_text.snap")
+        include_str!("snapshots/asp_rust_compact_text.snap")
     );
 }
 
 #[test]
 fn json_render_matches_snapshot() {
-    let rendered = render_rust_project_harness_json(&snapshot_report()).expect("render json");
+    let rendered = render_asp_rust_json(&snapshot_report()).expect("render json");
 
     assert_eq!(
         rendered,
-        include_str!("snapshots/rust_project_harness_json.snap").trim_end()
+        include_str!("snapshots/asp_rust_json.snap").trim_end()
     );
 }
 
@@ -46,7 +46,7 @@ fn failure_frontier_render_points_to_deduplicated_hot_blocks() {
         invariant_candidate("candidate-3", "RUST-MOD-R001", second_path, 3),
     ];
 
-    let rendered = render_rust_project_harness_failure_frontier(&report, &temp_root, 4);
+    let rendered = render_asp_rust_failure_frontier(&report, &temp_root, 4);
 
     assert!(rendered.contains(
         "[fail] rust blockingFindings=1 advisoryFindings=0 changedInvariants=3 hotBlocks=2"
@@ -65,15 +65,15 @@ fn failure_frontier_render_points_to_deduplicated_hot_blocks() {
     ));
 }
 
-fn snapshot_report() -> RustHarnessReport {
+fn snapshot_report() -> AspRustReport {
     let source_path = PathBuf::from("$TEMP/src/lib.rs");
-    RustHarnessReport {
+    AspRustReport {
         modules: vec![RustModuleReport {
             path: source_path.clone(),
             is_valid: true,
             parse_error: None,
         }],
-        findings: vec![RustHarnessFinding {
+        findings: vec![AspRustFinding {
             rule_id: "RUST-AGENT-PROJECT-003".to_string(),
             pack_id: "rust.project_policy".to_string(),
             severity: RustDiagnosticSeverity::Warning,

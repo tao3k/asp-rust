@@ -9,7 +9,7 @@
   "providerRegistration": "asp-provider-registration.json",
   "schemaBundleReceipt": "../schemas/.asp-schema-manager-receipt.json",
   "workspaceArtifact": {
-    "root": "languages/rust-lang-project-harness/target/release/asp-rust",
+    "root": "languages/asp-rust/target/release/asp-rust",
     "entrypoint": "."
   },
   "workspaceBuild": {
@@ -17,14 +17,14 @@
     "args": [
       "install"
     ],
-    "workingDirectory": "languages/rust-lang-project-harness",
+    "workingDirectory": "languages/asp-rust",
     "sourceSnapshotAnchors": [
-      "languages/rust-lang-project-harness/Justfile",
-      "languages/rust-lang-project-harness/Cargo.toml",
-      "languages/rust-lang-project-harness/Cargo.lock"
+      "languages/asp-rust/Justfile",
+      "languages/asp-rust/Cargo.toml",
+      "languages/asp-rust/Cargo.lock"
     ],
     "derivedPaths": [
-      "languages/rust-lang-project-harness/target"
+      "languages/asp-rust/target"
     ],
     "env": {}
   }

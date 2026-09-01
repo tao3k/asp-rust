@@ -4,9 +4,9 @@ use std::path::Path;
 use tempfile::TempDir;
 
 use crate::runner::{
-    RustHarnessRunScope, analyze_rust_project_once, run_rust_project_harness_with_config_for_scope,
+    AspRustRunScope, analyze_rust_project_once, run_asp_rust_with_config_for_scope,
 };
-use crate::{RustHarnessConfig, plan_rust_verification_from_harness_analysis};
+use crate::{AspRustConfig, plan_rust_verification_from_harness_analysis};
 
 fn write_file(root: &Path, relative_path: &str, contents: &str) {
     let path = root.join(relative_path);
@@ -29,9 +29,9 @@ fn report_and_verification_share_one_parse_pass() {
         "src/lib.rs",
         "pub fn answer() -> u32 { 42 }\n",
     );
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
 
-    let analysis = analyze_rust_project_once(project.path(), &config, RustHarnessRunScope::Package)
+    let analysis = analyze_rust_project_once(project.path(), &config, AspRustRunScope::Package)
         .expect("analyze project once");
     let _report = analysis.to_report(&config);
     assert_eq!(analysis.parse_pass_count(), 1);
@@ -43,10 +43,10 @@ fn package_scope_requires_a_parsed_cargo_graph_anchor() {
     let project = TempDir::new().expect("temp project");
     write_file(project.path(), "src/lib.rs", "pub fn unowned() {}\n");
 
-    let error = run_rust_project_harness_with_config_for_scope(
+    let error = run_asp_rust_with_config_for_scope(
         project.path(),
-        &RustHarnessConfig::default(),
-        RustHarnessRunScope::Package,
+        &AspRustConfig::default(),
+        AspRustRunScope::Package,
     )
     .expect_err("manifest-free directory must not become a Cargo package atom");
 
@@ -77,16 +77,13 @@ fn package_scope_does_not_expand_local_path_dependencies() {
     );
     write_file(&dependency, "src/lib.rs", "pub fn dependency() {}\n");
 
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
     let package_report =
-        run_rust_project_harness_with_config_for_scope(&app, &config, RustHarnessRunScope::Package)
+        run_asp_rust_with_config_for_scope(&app, &config, AspRustRunScope::Package)
             .expect("package report");
-    let workspace_report = run_rust_project_harness_with_config_for_scope(
-        &app,
-        &config,
-        RustHarnessRunScope::ProjectWorkspace,
-    )
-    .expect("workspace report");
+    let workspace_report =
+        run_asp_rust_with_config_for_scope(&app, &config, AspRustRunScope::ProjectWorkspace)
+            .expect("workspace report");
 
     assert!(
         package_report

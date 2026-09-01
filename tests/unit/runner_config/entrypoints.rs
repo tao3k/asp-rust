@@ -1,9 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::{
-    RustHarnessConfig, run_rust_project_harness_for_scope,
-    run_rust_project_harness_with_config_for_scope,
-};
+use asp_rust::{AspRustConfig, run_asp_rust_for_scope, run_asp_rust_with_config_for_scope};
 use tempfile::TempDir;
 
 use super::support::{has_module_path, has_package_path, has_rule, write_manifest};
@@ -28,11 +25,8 @@ fn default_project_runner_covers_cargo_package_rust_targets() {
     fs::create_dir_all(root.join("tests/unit")).expect("create unit tests");
     fs::write(root.join("tests/unit/helper.rs"), "fn helper() {}\n").expect("write helper");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(report.is_clean(), "{:?}", report.findings);
     assert_eq!(report.file_count(), 6);
@@ -59,17 +53,14 @@ fn custom_source_roots_are_policy_source_roots() {
     )
     .expect("write custom source");
 
-    let config = RustHarnessConfig {
+    let config = AspRustConfig {
         include_tests: false,
-        ..RustHarnessConfig::default()
+        ..AspRustConfig::default()
     }
     .with_source_path("crates/core", "custom source root fixture");
-    let report = run_rust_project_harness_with_config_for_scope(
-        root,
-        &config,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report =
+        run_asp_rust_with_config_for_scope(root, &config, asp_rust::AspRustRunScope::Package)
+            .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-AGENT-PROJECT-003"));
     assert!(has_rule(&report, "RUST-AGENT-DOCS-MODULE-001"));
@@ -91,28 +82,22 @@ fn include_tests_false_skips_test_root_parsing_not_test_layout_policy() {
     fs::write(root.join("tests/unit/broken.rs"), "fn broken( {\n").expect("write broken test");
     fs::write(
         root.join("tests/custom_gate.rs"),
-        "rust_lang_project_harness::rust_project_harness_gate!();\n",
+        "asp_rust::asp_rust_gate!();\n",
     )
     .expect("write custom gate");
 
-    let default_report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run default project harness");
+    let default_report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run default project harness");
     assert!(has_rule(&default_report, "RUST-SYN-R001"));
 
-    let config = RustHarnessConfig {
+    let config = AspRustConfig {
         include_tests: false,
-        ..RustHarnessConfig::default()
+        ..AspRustConfig::default()
     }
     .with_tests_excluded("fixture intentionally skips test-root parsing");
-    let report = run_rust_project_harness_with_config_for_scope(
-        root,
-        &config,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report =
+        run_asp_rust_with_config_for_scope(root, &config, asp_rust::AspRustRunScope::Package)
+            .expect("run project harness");
 
     assert!(!has_rule(&report, "RUST-SYN-R001"));
     assert!(has_rule(&report, "RUST-AGENT-PROJECT-001"));
@@ -135,15 +120,12 @@ fn root_test_target_policy_rejects_top_level_test_implementation() {
     fs::create_dir(root.join("tests")).expect("create tests");
     fs::write(
         root.join("tests/unit_test.rs"),
-        "rust_lang_project_harness::rust_project_harness_gate!();\n#[test]\nfn inline_test() {}\n",
+        "asp_rust::asp_rust_gate!();\n#[test]\nfn inline_test() {}\n",
     )
     .expect("write root test target");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-AGENT-PROJECT-007"));
 }
@@ -158,16 +140,13 @@ fn root_test_target_policy_accepts_thin_aggregate() {
     fs::create_dir_all(root.join("tests/unit")).expect("create unit tests");
     fs::write(
         root.join("tests/unit_test.rs"),
-        "rust_lang_project_harness::rust_project_harness_gate!();\n#[path = \"unit/helper.rs\"]\nmod helper;\n",
+        "asp_rust::asp_rust_gate!();\n#[path = \"unit/helper.rs\"]\nmod helper;\n",
     )
     .expect("write root test target");
     fs::write(root.join("tests/unit/helper.rs"), "fn helper() {}\n").expect("write helper");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         !has_rule(&report, "RUST-AGENT-PROJECT-007"),
@@ -194,11 +173,8 @@ fn explicit_cargo_target_under_standard_suite_owns_its_test_implementation() {
     )
     .expect("write isolated target");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(!has_rule(&report, "RUST-AGENT-PROJECT-007"));
     assert!(!has_rule(&report, "RUST-AGENT-PROJECT-008"));
@@ -214,16 +190,13 @@ fn root_test_target_policy_rejects_implicit_module_mounts() {
     fs::create_dir_all(root.join("tests/unit")).expect("create unit tests");
     fs::write(
         root.join("tests/unit_test.rs"),
-        "rust_lang_project_harness::rust_project_harness_gate!();\nmod helper;\n",
+        "asp_rust::asp_rust_gate!();\nmod helper;\n",
     )
     .expect("write root test target");
     fs::write(root.join("tests/unit/helper.rs"), "fn helper() {}\n").expect("write helper");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-AGENT-PROJECT-008"));
 }
@@ -243,16 +216,13 @@ fn root_test_target_policy_rejects_project_local_suite_exceptions() {
     .expect("write policy config");
     fs::write(
         root.join("tests/unit_test.rs"),
-        "rust_lang_project_harness::rust_project_harness_gate!();\n#[path = \"contract/helper.rs\"]\nmod helper;\n",
+        "asp_rust::asp_rust_gate!();\n#[path = \"contract/helper.rs\"]\nmod helper;\n",
     )
     .expect("write root test target");
     fs::write(root.join("tests/contract/helper.rs"), "fn helper() {}\n").expect("write helper");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-AGENT-PROJECT-002"));
     assert!(has_rule(&report, "RUST-AGENT-PROJECT-008"));
@@ -271,11 +241,8 @@ fn crate_facade_policy_rejects_implementation_in_lib_rs() {
     .expect("write lib");
     fs::write(root.join("src/owned.rs"), "//! Owned module.\n").expect("write owned module");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-MOD-R004"));
 }
@@ -297,11 +264,8 @@ fn crate_facade_policy_accepts_proc_macro_exports() {
     )
     .expect("write owned module");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(!has_rule(&report, "RUST-MOD-R004"), "{:?}", report.findings);
 }
@@ -319,11 +283,8 @@ fn binary_entrypoint_policy_rejects_top_level_implementation() {
     )
     .expect("write bin");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-MOD-R005"));
 }
@@ -345,11 +306,8 @@ fn binary_entrypoint_policy_accepts_thin_entrypoint() {
     )
     .expect("write bin");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(!has_rule(&report, "RUST-MOD-R005"), "{:?}", report.findings);
 }
@@ -367,11 +325,8 @@ fn build_script_policy_rejects_top_level_implementation() {
     )
     .expect("write build script");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-MOD-R006"));
 }

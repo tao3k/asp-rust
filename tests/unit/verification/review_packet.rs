@@ -1,12 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-use rust_lang_project_harness::{
-    RustDiagnosticSeverity, RustHarnessReport, RustInvariantCandidate,
-    RustInvariantCandidateStatus, RustInvariantEvidence, RustInvariantEvidenceKind,
-    RustInvariantId, RustInvariantKind, RustInvariantReceiptKind, RustInvariantRulePackId,
-    RustInvariantSourceRuleId, RustReviewPacketInput, RustReviewPacketReceiptKind,
-    RustReviewPacketWaiver, RustReviewPacketWaiverStatus, RustVerificationExecutionExitCode,
+use asp_rust::{
+    AspRustReport, RustDiagnosticSeverity, RustInvariantCandidate, RustInvariantCandidateStatus,
+    RustInvariantEvidence, RustInvariantEvidenceKind, RustInvariantId, RustInvariantKind,
+    RustInvariantReceiptKind, RustInvariantRulePackId, RustInvariantSourceRuleId,
+    RustReviewPacketInput, RustReviewPacketReceiptKind, RustReviewPacketWaiver,
+    RustReviewPacketWaiverStatus, RustVerificationExecutionExitCode,
     RustVerificationExecutionReceipt, RustVerificationExecutionReceiptId,
     RustVerificationExecutionSummary, RustVerificationToolAdapter, SourceLocation,
     build_rust_review_packet,
@@ -15,7 +15,7 @@ use rust_lang_project_harness::{
 #[test]
 fn p5_review_packet_summarizes_invariants_receipts_and_stale_waivers() {
     let candidate_id = RustInvariantId("agent-r027:src.model.rs:42".to_owned());
-    let report = RustHarnessReport {
+    let report = AspRustReport {
         modules: Vec::new(),
         findings: Vec::new(),
         invariant_candidates: vec![RustInvariantCandidate {

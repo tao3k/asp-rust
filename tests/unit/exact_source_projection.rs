@@ -31,7 +31,7 @@ let authority = super::super::ExactProjectionAuthority {
         query_pack_digest: "c".repeat(64),
     };
     let packet = provider_native_exact_projection_packet(
-        "rs-harness",
+        "asp-rust",
         requested_selector,
         &resolved,
         "live-hit",
@@ -80,7 +80,7 @@ let authority = super::super::ExactProjectionAuthority {
             query_pack_digest: "c".repeat(64),
         };
         let packet = provider_native_exact_projection_packet(
-            "rs-harness",
+            "asp-rust",
             &requested_selector,
             &resolved,
             "live-hit",
@@ -135,7 +135,7 @@ let authority = super::super::ExactProjectionAuthority {
         query_pack_digest: "c".repeat(64),
     };
     let packet = provider_native_exact_projection_packet(
-        "rs-harness",
+        "asp-rust",
         "rust://src/lib.rs#item/function/selected",
         &resolved,
         "live-hit",

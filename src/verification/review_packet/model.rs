@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    RustBehaviorSnapshot, RustDeterminismReadiness, RustFormalProofPilot, RustHarnessReport,
+    AspRustReport, RustBehaviorSnapshot, RustDeterminismReadiness, RustFormalProofPilot,
     RustVerificationExecutionReceipt,
 };
 
@@ -50,7 +50,7 @@ pub struct RustReviewPacketInput {
     /// Project root used for path normalization.
     pub project_root: PathBuf,
     /// Current harness report carrying invariant candidates.
-    pub report: RustHarnessReport,
+    pub report: AspRustReport,
     /// Executable verification receipts.
     pub receipts: Vec<RustVerificationExecutionReceipt>,
     /// Observable behavior snapshots.

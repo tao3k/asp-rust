@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::{findings_for_rule, write_manifest};
@@ -23,11 +23,8 @@ fn repeated_namespace_policy_includes_file_stems() {
     )
     .expect("write repeated namespace module");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-SOURCE-NAMESPACE-003");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -53,11 +50,8 @@ fn branch_module_without_intent_doc_is_agent_advice() {
     fs::write(root.join("src/domain/parse.rs"), "//! Parse leaf.\n").expect("write parse");
     fs::write(root.join("src/domain/render.rs"), "//! Render leaf.\n").expect("write render");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-DOCS-BRANCH-008");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -75,11 +69,8 @@ fn branch_intent_counts_resolved_reasoning_tree_edges() {
     fs::write(root.join("src/domain/mod.rs"), "mod parse;\nmod missing;\n").expect("write domain");
     fs::write(root.join("src/domain/parse.rs"), "//! Parse leaf.\n").expect("write parse");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-DOCS-BRANCH-008");
     assert!(findings.is_empty(), "{:?}", report.findings);
@@ -95,11 +86,8 @@ fn generic_source_module_paths_are_agent_advice() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\nmod helpers;\n").expect("write lib");
     fs::write(root.join("src/helpers.rs"), "//! Helper bucket.\n").expect("write helpers");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-SOURCE-PATH-007");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -121,11 +109,8 @@ fn generic_public_module_names_are_agent_advice() {
     .expect("write lib");
     fs::write(root.join("src/utils.rs"), "//! Utility bucket.\n").expect("write utils");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-SOURCE-MODULE-006");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -150,11 +135,8 @@ fn public_doc_policy_ignores_comment_text_that_mentions_docs() {
     )
     .expect("write owner");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-DOCS-PUBLIC-002");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -175,11 +157,8 @@ fn module_intent_policy_uses_native_inner_doc_attributes() {
     )
     .expect("write owner");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-DOCS-MODULE-001");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -195,7 +174,7 @@ fn repeated_namespace_policy_covers_default_test_roots() {
     fs::create_dir_all(root.join("tests/unit/unit")).expect("create repeated test namespace");
     fs::write(
         root.join("tests/unit_test.rs"),
-        "rust_lang_project_harness::rust_project_harness_gate!();\n#[path = \"unit/unit.rs\"]\nmod unit;\n",
+        "asp_rust::asp_rust_gate!();\n#[path = \"unit/unit.rs\"]\nmod unit;\n",
     )
     .expect("write test root");
     fs::write(
@@ -209,11 +188,8 @@ fn repeated_namespace_policy_covers_default_test_roots() {
     )
     .expect("write repeated test helper");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-SOURCE-NAMESPACE-003");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -254,11 +230,8 @@ fn duplicated_public_names_are_reported_as_agent_advice() {
     )
     .expect("write beta types");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert_eq!(
         findings_for_rule(&report, "RUST-AGENT-API-NAME-004").len(),
@@ -280,11 +253,8 @@ fn generic_source_module_paths_with_boundary_doc_are_not_agent_advice() {
     )
     .expect("write helpers");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-SOURCE-PATH-007");
     assert_eq!(findings.len(), 0, "{:?}", report.findings);
@@ -324,11 +294,8 @@ fn duplicated_public_names_with_boundary_doc_are_not_agent_advice() {
     )
     .expect("write beta types");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-API-NAME-004");
     assert_eq!(findings.len(), 0, "{:?}", report.findings);
@@ -350,11 +317,8 @@ fn branch_module_with_intent_doc_is_not_agent_advice() {
     fs::write(root.join("src/domain/parse.rs"), "//! Parse leaf.\n").expect("write parse");
     fs::write(root.join("src/domain/render.rs"), "//! Render leaf.\n").expect("write render");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-DOCS-BRANCH-008");
     assert_eq!(findings.len(), 0, "{:?}", report.findings);
@@ -374,11 +338,8 @@ fn public_doc_policy_with_real_doc_suppresses_finding() {
     )
     .expect("write owner");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-DOCS-PUBLIC-002");
     assert_eq!(findings.len(), 0, "{:?}", report.findings);
@@ -400,11 +361,8 @@ fn public_primitive_identifier_params_are_agent_advice() {
     )
     .expect("write api");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-API-TYPE-012");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -433,11 +391,8 @@ fn public_typed_identifier_params_are_not_agent_advice() {
     )
     .expect("write api");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-API-TYPE-012").is_empty());
     assert!(report.is_clean(), "{:?}", report.findings);

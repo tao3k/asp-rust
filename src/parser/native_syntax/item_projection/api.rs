@@ -6,7 +6,7 @@ pub(crate) struct RustItemProjectionNodeSyntax {
     pub role: &'static str,
     pub label: String,
     pub depth: usize,
-    pub canonical_item_identity: Option<agent_semantic_content_identity::CanonicalItemIdentity>,
+    pub canonical_item_identity: Option<crate::content_identity::CanonicalItemIdentity>,
 }
 
 pub(in crate::parser::native_syntax) fn item_projection_nodes(

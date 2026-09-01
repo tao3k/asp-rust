@@ -12,7 +12,7 @@ Each scenario is an end-to-end provider mutation check:
 ```
 
 The runner copies `input/` to a temporary project, invokes
-`rs-harness ast-patch <mode> --packet - <temp-project>`, asserts receipt fields
+`asp rust ast-patch <mode> --packet - <temp-project>`, asserts receipt fields
 from `scenario.json`, and compares the final filesystem tree to `expected/`.
 Successful scenarios may also declare `compactChecks`. Those checks run after
 the provider apply and rustfmt pass, so they verify both products from the same

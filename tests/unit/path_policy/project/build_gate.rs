@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{render_rust_project_harness, run_rust_project_harness_for_scope};
+use asp_rust::{render_asp_rust, run_asp_rust_for_scope};
 use tempfile::TempDir;
 
 use crate::path_policy::support::{has_rule, write_manifest};
@@ -15,11 +15,8 @@ fn complete_build_gate_clears_source_cargo_test_gate_requirement() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     write_configured_build_gate(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         !has_rule(&report, "RUST-AGENT-PROJECT-009"),
@@ -42,11 +39,8 @@ fn downstream_policy_build_gate_clears_build_gate_requirement() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     write_downstream_policy_build_gate(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         !has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -64,11 +58,8 @@ fn workspace_wrapper_build_gate_clears_direct_harness_dependency_requirement() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     write_workspace_wrapper_build_gate(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         !has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -86,11 +77,8 @@ fn ordinary_workspace_alias_does_not_clear_build_gate_requirement() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     write_ordinary_workspace_alias_build_gate(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -120,11 +108,8 @@ fn complete_build_gate_clears_root_test_target_gate_requirement() {
     )
     .expect("write suite");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         !has_rule(&report, "RUST-AGENT-PROJECT-006"),
@@ -144,23 +129,20 @@ fn harness_enabled_build_script_requires_build_gate_snapshot() {
     let root = temp.path();
     fs::write(
         root.join("Cargo.toml"),
-        "[package]\nname = \"missing-build-gate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nrust-lang-project-harness = { path = \".\" }\n",
+        "[package]\nname = \"missing-build-gate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nasp-rust = { path = \".\" }\n",
     )
     .expect("write manifest");
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!(config = { rust_lang_project_harness::default_rust_harness_config() });\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!(config = { asp_rust::default_asp_rust_config() });\n",
     )
     .expect("write lib");
     fs::write(root.join("build.rs"), "fn main() {}\n").expect("write build script");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
-    let rendered = normalize_temp_root(&render_rust_project_harness(&report), root);
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
+    let rendered = normalize_temp_root(&render_asp_rust(&report), root);
 
     assert!(
         has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -176,17 +158,14 @@ fn harness_dependency_requires_cargo_check_build_gate_without_build_script() {
     let root = temp.path();
     fs::write(
         root.join("Cargo.toml"),
-        "[package]\nname = \"missing-cargo-check-gate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nrust-lang-project-harness = { path = \".\" }\n",
+        "[package]\nname = \"missing-cargo-check-gate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nasp-rust = { path = \".\" }\n",
     )
     .expect("write manifest");
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -208,11 +187,8 @@ fn harness_build_dependency_requires_root_build_script() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -230,15 +206,12 @@ fn build_gate_default_config_requires_explicit_verification_config() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     fs::write(
         root.join("build.rs"),
-        "fn main() {\n    rust_lang_project_harness::assert_rust_project_harness_build_clean_from_env();\n}\n",
+        "fn main() {\n    asp_rust::assert_asp_rust_build_clean_from_env();\n}\n",
     )
     .expect("write build script");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         has_rule(&report, "RUST-AGENT-PROJECT-011"),
@@ -261,11 +234,8 @@ fn build_gate_call_requires_build_dependency() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     write_configured_build_gate(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -283,11 +253,8 @@ fn non_harness_build_script_does_not_require_build_gate() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\n").expect("write lib");
     fs::write(root.join("build.rs"), "fn main() {}\n").expect("write build script");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         !has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -300,7 +267,7 @@ fn write_build_harness_manifest(root: &Path, name: &str) {
     fs::write(
         root.join("Cargo.toml"),
         format!(
-            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[build-dependencies]\nrust-lang-project-harness = {{ path = \".\" }}\n",
+            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[build-dependencies]\nasp-rust = {{ path = \".\" }}\n",
         ),
     )
     .expect("write manifest");
@@ -309,7 +276,7 @@ fn write_build_harness_manifest(root: &Path, name: &str) {
 fn write_configured_build_gate(root: &Path) {
     fs::write(
         root.join("build.rs"),
-        "fn main() {\n    let config = rust_lang_project_harness::default_rust_harness_config();\n    rust_lang_project_harness::assert_rust_project_harness_cargo_check_clean_from_env_with_config(&config);\n}\n",
+        "fn main() {\n    let config = asp_rust::default_asp_rust_config();\n    asp_rust::assert_asp_rust_cargo_check_clean_from_env_with_config(&config);\n}\n",
     )
     .expect("write build script");
 }
@@ -333,7 +300,7 @@ fn write_ordinary_workspace_alias_build_gate(root: &Path) {
 fn write_downstream_policy_build_gate(root: &Path) {
     fs::write(
         root.join("build.rs"),
-        "fn main() {\n    let config = rust_lang_project_harness::default_rust_harness_config();\n    let policy = rust_lang_project_harness::RustProjectHarnessWorkspacePolicy::new(\"test-workspace\", config).member_crate(\"downstream-policy-build-gate\");\n    rust_lang_project_harness::assert_rust_project_harness_downstream_policy_from_env(&policy);\n}\n",
+        "fn main() {\n    let config = asp_rust::default_asp_rust_config();\n    let policy = asp_rust::AspRustWorkspacePolicy::new(\"test-workspace\", config).member_crate(\"downstream-policy-build-gate\");\n    asp_rust::assert_asp_rust_downstream_policy_from_env(&policy);\n}\n",
     )
     .expect("write build script");
 }

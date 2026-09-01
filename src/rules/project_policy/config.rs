@@ -18,7 +18,7 @@ const ALLOWED_TEST_ROOT_FILES: &[&str] = &[
     "lib.rs",
     "mod.rs",
     "performance_test.rs",
-    "rust-project-harness-gate.rs",
+    "asp-rust-gate.rs",
     "scenarios_test.rs",
     "unit_test.rs",
     "xiuxian-testing-gate.rs",

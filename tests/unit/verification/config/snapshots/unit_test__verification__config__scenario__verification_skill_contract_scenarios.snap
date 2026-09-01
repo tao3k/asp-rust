@@ -1,5 +1,6 @@
 ---
 source: tests/unit/verification/config/scenario.rs
+assertion_line: 206
 expression: rendered
 ---
 [scenario] stress_k6_triggered_by_public_api
@@ -89,14 +90,14 @@ expression: rendered
    |final: active=1 state=pending contract_ref=rust-verification-regression@harness
    |verify: [verify] src/api.rs
    |verify:    |owner: src/api
-   |verify:    |regression: pending phase=scheduled_regression fingerprint=rustv:cf590a7d531359da skill=rust-verification-regression@harness contract_ref=rust-verification-regression@harness
+   |verify:    |regression: pending phase=scheduled_regression fingerprint=rustv:f242fcd50df363d9 skill=rust-verification-regression@harness contract_ref=rust-verification-regression@harness
    |verify: 
    |verify: [verify-report]
    |verify:    |bundle: renderer=render_rust_verification_report_bundle_json artifact=verification_report_bundle.json artifacts=2
    |verify:    |required: verification_plan_json renderer=render_rust_verification_plan_json artifact=verification_plan.json tasks=1 kinds=regression
    |verify:    |required: task_index_json renderer=build_rust_verification_task_index + render_rust_verification_task_index_json artifact=task_index.json tasks=1 kinds=regression
    |contracts: [skill-contract] rust-verification-regression@harness
-   |contracts:    |tool: rust-lang-project-harness
+   |contracts:    |tool: asp-rust
    |contracts:    |run: cargo test verification::regression
    |contracts:    |standard: architecture drift remains within configured baseline
    |contracts:    |inputs: baseline,owner,thresholds

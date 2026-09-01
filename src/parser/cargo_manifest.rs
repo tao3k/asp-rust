@@ -1,28 +1,28 @@
 //! Cargo manifest facts owned by the parser layer.
 
 use std::collections::BTreeSet;
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 use std::collections::HashSet;
-#[cfg(feature = "cli")]
+#[cfg(any(feature = "provider-server", feature = "search"))]
 use std::fs;
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 use std::io;
 use std::path::{Path, PathBuf};
 
 use cargo_toml::{Dependency, DepsSet, Manifest, Product};
 
-const HARNESS_PACKAGE_NAME: &str = "rust-lang-project-harness";
+const HARNESS_PACKAGE_NAME: &str = "asp-rust";
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CargoManifestFacts {
     pub(crate) has_package: bool,
-    #[cfg(feature = "cli")]
+    #[cfg(any(feature = "provider-server", feature = "search"))]
     pub(crate) package_name: Option<String>,
     pub(crate) package_edition: Option<String>,
     pub(crate) workspace_members: Vec<String>,
     pub(crate) workspace_excludes: Vec<String>,
     pub(crate) path_dependency_roots: Vec<PathBuf>,
-    #[cfg(feature = "cli")]
+    #[cfg(feature = "provider-server")]
     pub(crate) package_targets: Vec<CargoPackageTargetFacts>,
     pub(crate) source_target_files: Vec<PathBuf>,
     pub(crate) example_targets: Vec<CargoExampleTargetFacts>,
@@ -47,7 +47,7 @@ pub(crate) struct CargoBenchTargetFacts {
     pub(crate) required_features: Vec<String>,
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct CargoPackageTargetFacts {
     pub(crate) name: String,
@@ -75,7 +75,7 @@ pub(crate) fn parse_required_cargo_manifest(
     Ok(cargo_manifest_facts(project_root, &manifest))
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 pub(crate) fn parse_cargo_project_facts(
     project_root: &Path,
     candidate_paths: &BTreeSet<PathBuf>,
@@ -106,12 +106,12 @@ pub(crate) fn parse_cargo_project_facts(
     )
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 struct CandidateFilesystem<'a> {
     candidate_paths: &'a BTreeSet<PathBuf>,
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 impl cargo_toml::AbstractFilesystem for CandidateFilesystem<'_> {
     fn file_names_in(&self, relative_directory: &str) -> io::Result<HashSet<Box<str>>> {
         let directory = Path::new(relative_directory);
@@ -126,7 +126,7 @@ impl cargo_toml::AbstractFilesystem for CandidateFilesystem<'_> {
     }
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 fn read_candidate_manifest(project_root: &Path) -> Option<Manifest> {
     fs::read(project_root.join("Cargo.toml"))
         .ok()
@@ -134,9 +134,9 @@ fn read_candidate_manifest(project_root: &Path) -> Option<Manifest> {
 }
 
 fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManifestFacts {
-    let references_harness = manifest_references_harness(&manifest);
+    let references_harness = manifest_references_harness(manifest);
     let references_harness_build_dependency =
-        manifest_references_harness_build_dependency(&manifest);
+        manifest_references_harness_build_dependency(manifest);
     let package_name = manifest
         .package
         .as_ref()
@@ -153,22 +153,22 @@ fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManife
         .as_ref()
         .map(|workspace| (workspace.members.clone(), workspace.exclude.clone()))
         .unwrap_or_default();
-    #[cfg(feature = "cli")]
-    let package_targets = manifest_package_targets(project_root, &manifest);
-    let source_target_files = manifest_source_target_files(project_root, &manifest);
+    #[cfg(feature = "provider-server")]
+    let package_targets = manifest_package_targets(project_root, manifest);
+    let source_target_files = manifest_source_target_files(project_root, manifest);
     let example_targets = manifest_example_targets(project_root, &manifest.example);
     let test_target_files = manifest_test_target_files(project_root, &manifest.test);
     let bench_targets = manifest_bench_targets(project_root, &manifest.bench);
-    let path_dependency_roots = manifest_path_dependency_roots(project_root, &manifest);
+    let path_dependency_roots = manifest_path_dependency_roots(project_root, manifest);
     CargoManifestFacts {
         has_package,
-        #[cfg(feature = "cli")]
+        #[cfg(any(feature = "provider-server", feature = "search"))]
         package_name,
         package_edition,
         workspace_members,
         workspace_excludes,
         path_dependency_roots,
-        #[cfg(feature = "cli")]
+        #[cfg(feature = "provider-server")]
         package_targets,
         source_target_files,
         example_targets,
@@ -179,7 +179,7 @@ fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManife
     }
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "search")]
 pub(crate) fn parse_cargo_workspace_member_roots(project_root: &Path) -> Vec<PathBuf> {
     let Some(manifest) = read_manifest(project_root) else {
         return Vec::new();
@@ -204,7 +204,7 @@ pub(crate) fn parse_cargo_workspace_member_roots(project_root: &Path) -> Vec<Pat
     roots.into_iter().collect()
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 pub(crate) fn cargo_workspace_member_roots_from_candidates(
     project_root: &Path,
     facts: &CargoManifestFacts,
@@ -230,13 +230,13 @@ pub(crate) fn cargo_workspace_member_roots_from_candidates(
         .collect()
 }
 
-#[cfg(feature = "cli")]
+#[cfg(all(test, feature = "provider-server"))]
 pub(crate) fn cargo_project_root_for_path(path: &Path) -> Result<PathBuf, String> {
     cargo_package_root_for_path(path)
         .map(|manifest_dir| cargo_project_root_for_manifest_dir(&manifest_dir))
 }
 
-#[cfg(feature = "cli")]
+#[cfg(all(test, feature = "provider-server"))]
 pub(crate) fn cargo_package_root_for_path(path: &Path) -> Result<PathBuf, String> {
     let canonical = fs::canonicalize(path).map_err(|error| {
         format!(
@@ -263,7 +263,7 @@ pub(crate) fn cargo_package_root_for_path(path: &Path) -> Result<PathBuf, String
     Err("failed to find Rust project root: Cargo.toml not found".to_string())
 }
 
-#[cfg(feature = "cli")]
+#[cfg(all(test, feature = "provider-server"))]
 fn cargo_project_root_for_manifest_dir(manifest_dir: &Path) -> PathBuf {
     let manifest = read_manifest(manifest_dir);
     if manifest
@@ -283,7 +283,7 @@ fn cargo_project_root_for_manifest_dir(manifest_dir: &Path) -> PathBuf {
     cargo_parent_workspace_root(manifest_dir).unwrap_or_else(|| manifest_dir.to_path_buf())
 }
 
-#[cfg(feature = "cli")]
+#[cfg(all(test, feature = "provider-server"))]
 fn cargo_parent_workspace_root(manifest_dir: &Path) -> Option<PathBuf> {
     let mut current = manifest_dir.parent();
     while let Some(candidate) = current {
@@ -297,7 +297,7 @@ fn cargo_parent_workspace_root(manifest_dir: &Path) -> Option<PathBuf> {
     None
 }
 
-#[cfg(feature = "cli")]
+#[cfg(all(test, feature = "provider-server"))]
 fn workspace_contains_manifest_dir(
     workspace_root: &Path,
     manifest: &Manifest,
@@ -323,7 +323,7 @@ fn workspace_contains_manifest_dir(
         .any(|pattern| workspace_member_pattern_matches(pattern, &relative))
 }
 
-#[cfg(feature = "cli")]
+#[cfg(any(feature = "provider-server", feature = "search"))]
 pub(crate) fn workspace_member_pattern_matches(pattern: &str, relative: &str) -> bool {
     if !pattern.contains('*') {
         return pattern == relative;
@@ -339,7 +339,7 @@ pub(crate) fn workspace_member_pattern_matches(pattern: &str, relative: &str) ->
         )
 }
 
-#[cfg(feature = "cli")]
+#[cfg(any(feature = "provider-server", feature = "search"))]
 fn workspace_member_component_matches(pattern: &str, value: &str) -> bool {
     if pattern == "*" {
         return true;
@@ -371,7 +371,7 @@ fn workspace_member_component_matches(pattern: &str, value: &str) -> bool {
     pattern.ends_with('*') || remaining.is_empty()
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "search")]
 fn expand_workspace_member_pattern(
     project_root: &Path,
     pattern: &str,
@@ -388,7 +388,7 @@ fn expand_workspace_member_pattern(
     expand_workspace_member_components(project_root, &components, roots);
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "search")]
 fn expand_workspace_member_components(
     current: &Path,
     components: &[&str],
@@ -520,7 +520,7 @@ fn manifest_source_target_files(project_root: &Path, manifest: &Manifest) -> Vec
     target_files
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 fn manifest_package_targets(
     project_root: &Path,
     manifest: &Manifest,
@@ -530,10 +530,10 @@ fn manifest_package_targets(
         .as_ref()
         .map(|package| package.name.as_str());
     let mut targets = Vec::new();
-    if let Some(target) = manifest.lib.as_ref() {
-        if let Some(target) = package_target_fact(project_root, target, "library", package_name) {
-            targets.push(target);
-        }
+    if let Some(target) = manifest.lib.as_ref()
+        && let Some(target) = package_target_fact(project_root, target, "library", package_name)
+    {
+        targets.push(target);
     }
     for (products, kind) in [
         (manifest.bin.as_slice(), "binary"),
@@ -552,7 +552,7 @@ fn manifest_package_targets(
     targets
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 fn package_target_fact(
     project_root: &Path,
     target: &Product,
@@ -570,7 +570,7 @@ fn package_target_fact(
     Some(CargoPackageTargetFacts { name, kind, path })
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "provider-server")]
 fn cargo_default_target_name(
     project_root: &Path,
     path: &Path,

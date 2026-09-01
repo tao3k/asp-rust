@@ -1,7 +1,7 @@
 //! Rust modularity rule catalog and evaluator.
 
 use crate::parser::{ParsedRustModule, rust_reasoning_tree_facts};
-use crate::{RustHarnessFinding, RustHarnessRule, RustProjectHarnessScope};
+use crate::{AspRustFinding, AspRustRule, AspRustScope};
 
 use super::catalog::rules_by_id;
 use super::entrypoints::{
@@ -36,14 +36,14 @@ pub(crate) const MIN_SOURCE_IMPLEMENTATION_ITEMS: usize = 45;
 
 /// Return compact metadata for Rust modularity rules.
 #[must_use]
-pub fn rust_modularity_rules() -> Vec<RustHarnessRule> {
+pub fn rust_modularity_rules() -> Vec<AspRustRule> {
     rules_by_id().into_values().collect()
 }
 
 pub(crate) fn evaluate(
-    scope: Option<&RustProjectHarnessScope>,
+    scope: Option<&AspRustScope>,
     modules: &[ParsedRustModule],
-) -> Vec<RustHarnessFinding> {
+) -> Vec<AspRustFinding> {
     let Some(scope) = scope else {
         return Vec::new();
     };

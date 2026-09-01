@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::RustProjectHarnessScope;
+use crate::AspRustScope;
 use crate::parser::{ParsedRustModule, RustReasoningOwnerBranchFacts};
 
 use super::RustSearchOptions;
@@ -25,7 +25,7 @@ pub(super) fn module_allowed(
 }
 
 pub(super) fn path_allowed_by_scope(
-    project_resolution: &RustProjectHarnessScope,
+    project_resolution: &AspRustScope,
     package_root: &Path,
     path: &Path,
     options: &RustSearchOptions,
@@ -47,14 +47,14 @@ fn scope_terms(scope: &str) -> impl Iterator<Item = &str> {
 }
 
 pub(super) fn module_is_scope(
-    scope: &RustProjectHarnessScope,
+    scope: &AspRustScope,
     module: &ParsedRustModule,
     scope_name: &str,
 ) -> bool {
     path_is_scope(scope, &module.report.path, scope_name)
 }
 
-fn path_is_scope(scope: &RustProjectHarnessScope, path: &Path, scope_name: &str) -> bool {
+fn path_is_scope(scope: &AspRustScope, path: &Path, scope_name: &str) -> bool {
     match scope_name {
         "src" => scope
             .source_paths

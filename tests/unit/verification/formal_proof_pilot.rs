@@ -1,4 +1,4 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustFormalProofPilotInput, RustFormalProofPilotStatus,
     build_rust_dependency_graph_acyclicity_proof_pilot,
 };

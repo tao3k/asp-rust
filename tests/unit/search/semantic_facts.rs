@@ -1,9 +1,8 @@
 use std::fs;
 
-use rust_lang_project_harness::{
-    render_rust_project_harness_dependency_topology_json,
-    render_rust_project_harness_dependency_topology_metadata_json,
-    render_rust_project_harness_search_semantic_facts_json,
+use asp_rust::{
+    render_asp_rust_dependency_topology_json, render_asp_rust_dependency_topology_metadata_json,
+    render_asp_rust_search_semantic_facts_json,
 };
 use serde_json::Value as JsonValue;
 
@@ -22,7 +21,7 @@ fn semantic_facts_project_scan_finds_collection_fields_without_candidate_owner()
     .expect("write model");
     fs::write(tempdir.path().join("src/lexical.rs"), "fn vec_hit() {}\n").expect("write lexical");
 
-    let rendered = render_rust_project_harness_search_semantic_facts_json(
+    let rendered = render_asp_rust_search_semantic_facts_json(
         tempdir.path(),
         "Vec scalar collection fields",
         "src/lexical.rs:1:1:Vec\n",
@@ -123,7 +122,7 @@ fn semantic_facts_emit_cargo_package_build_dependency_and_test_targets() {
     )
     .expect("write test");
 
-    let rendered = render_rust_project_harness_search_semantic_facts_json(
+    let rendered = render_asp_rust_search_semantic_facts_json(
         tempdir.path(),
         "Vec field cargo test tokio dependency",
         "src/lib.rs:2:1:entries\n",
@@ -211,8 +210,7 @@ fn dependency_topology_packet_projects_cargo_dependencies() {
     .expect("write manifest");
     fs::write(tempdir.path().join("src/lib.rs"), "pub fn api() {}\n").expect("write lib");
 
-    let rendered =
-        render_rust_project_harness_dependency_topology_json(tempdir.path()).expect("render facts");
+    let rendered = render_asp_rust_dependency_topology_json(tempdir.path()).expect("render facts");
     let packet: JsonValue = serde_json::from_str(&rendered).expect("json");
     assert_eq!(
         packet["schemaId"].as_str(),
@@ -291,10 +289,9 @@ fn dependency_topology_metadata_packet_is_a_compact_cache_key() {
     .expect("write manifest");
     fs::write(tempdir.path().join("src/lib.rs"), "pub fn api() {}\n").expect("write lib");
 
-    let full =
-        render_rust_project_harness_dependency_topology_json(tempdir.path()).expect("render full");
-    let rendered = render_rust_project_harness_dependency_topology_metadata_json(tempdir.path())
-        .expect("render metadata");
+    let full = render_asp_rust_dependency_topology_json(tempdir.path()).expect("render full");
+    let rendered =
+        render_asp_rust_dependency_topology_metadata_json(tempdir.path()).expect("render metadata");
     let packet: JsonValue = serde_json::from_str(&rendered).expect("json");
 
     assert_eq!(
@@ -380,8 +377,7 @@ fn dependency_topology_expands_cargo_workspace_members() {
     )
     .expect("write worker lib");
 
-    let rendered =
-        render_rust_project_harness_dependency_topology_json(tempdir.path()).expect("render facts");
+    let rendered = render_asp_rust_dependency_topology_json(tempdir.path()).expect("render facts");
     let packet: JsonValue = serde_json::from_str(&rendered).expect("json");
     assert_eq!(packet["packetKind"].as_str(), Some("dependency-topology"));
     assert!(

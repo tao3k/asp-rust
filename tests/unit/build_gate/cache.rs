@@ -3,32 +3,30 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 
-use crate::{
-    RustHarnessConfig, RustHarnessReport, RustProjectHarnessDownstreamPolicyReceipt,
-    RustVerificationPlan,
-};
+use crate::{AspRustConfig, AspRustDownstreamPolicyReceipt, AspRustReport, RustVerificationPlan};
 
 use super::{
-    BuildGateCacheContract, RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_ID,
-    RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_VERSION, RustProjectHarnessBuildGateCacheRecord,
-    RustProjectHarnessBuildGateSnapshot, TEMP_FILE_SEQUENCE, build_gate_cache_payload_digest,
-    build_gate_cache_root, cache_path, content_digest, load_build_gate_cache,
-    snapshot_build_gate_inputs, store_build_gate_cache,
+    ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID, ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
+    AspRustBuildGateCacheRecord, AspRustBuildGateSnapshot, BuildGateCacheContract,
+    TEMP_FILE_SEQUENCE, build_gate_cache_payload_digest, build_gate_cache_root, cache_path,
+    content_digest, load_build_gate_cache, reset_snapshot_file_read_count,
+    snapshot_build_gate_inputs, snapshot_build_gate_inputs_with_cache, snapshot_file_read_count,
+    store_build_gate_cache,
 };
 
 fn temp_root(name: &str) -> PathBuf {
     let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "rust-project-harness-build-gate-cache-{name}-{}-{sequence}",
+        "asp-rust-build-gate-cache-{name}-{}-{sequence}",
         std::process::id()
     ))
 }
 
 fn empty_record(
     cache_key: String,
-    snapshot: RustProjectHarnessBuildGateSnapshot,
-) -> RustProjectHarnessBuildGateCacheRecord {
-    let receipt = RustProjectHarnessDownstreamPolicyReceipt {
+    snapshot: AspRustBuildGateSnapshot,
+) -> AspRustBuildGateCacheRecord {
+    let receipt = AspRustDownstreamPolicyReceipt {
         schema_id: "test.receipt".to_string(),
         schema_version: "1".to_string(),
         gate_label: "test".to_string(),
@@ -40,13 +38,13 @@ fn empty_record(
         stability_report_obligation: false,
         report_obligations: Vec::new(),
     };
-    RustProjectHarnessBuildGateCacheRecord {
-        schema_id: RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_ID.to_string(),
-        schema_version: RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_VERSION.to_string(),
+    AspRustBuildGateCacheRecord {
+        schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID.to_string(),
+        schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION.to_string(),
         cache_key,
         snapshot,
         payload_digest: build_gate_cache_payload_digest(
-            &RustHarnessReport {
+            &AspRustReport {
                 modules: Vec::new(),
                 findings: Vec::new(),
                 invariant_candidates: Vec::new(),
@@ -60,7 +58,7 @@ fn empty_record(
             &[],
         )
         .expect("digest empty cache payload"),
-        report: RustHarnessReport {
+        report: AspRustReport {
             modules: Vec::new(),
             findings: Vec::new(),
             invariant_candidates: Vec::new(),
@@ -81,7 +79,7 @@ fn snapshot_hashes_complete_content_before_parse() {
     fs::create_dir_all(root.join("src")).expect("create source root");
     fs::write(root.join("Cargo.toml"), "[package]\nname='fixture'\n").expect("write manifest");
     fs::write(root.join("src/lib.rs"), "pub fn old() {}\n").expect("write source");
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
     let first = snapshot_build_gate_inputs(&root, &config).expect("first snapshot");
     fs::write(root.join("src/lib.rs"), "pub fn new() {}\n").expect("change source");
     let second = snapshot_build_gate_inputs(&root, &config).expect("second snapshot");
@@ -110,7 +108,7 @@ fn package_snapshot_excludes_nested_workspace_member_inputs() {
     )
     .expect("write nested manifest");
     fs::write(nested.join("src/lib.rs"), "pub fn before() {}\n").expect("write nested source");
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
 
     let before = snapshot_build_gate_inputs(&root, &config).expect("snapshot before");
     fs::write(nested.join("src/lib.rs"), "pub fn after() {}\n").expect("change nested source");
@@ -129,7 +127,7 @@ fn package_snapshot_excludes_nested_workspace_member_inputs() {
 }
 
 #[test]
-fn build_gate_cache_requires_state_home_and_stays_under_runtime() {
+fn generic_build_gate_cache_requires_explicit_state_home() {
     let root = temp_root("state-home");
     let state_home = root.join("state");
     let project = root.join("project");
@@ -145,10 +143,54 @@ fn build_gate_cache_requires_state_home_and_stays_under_runtime() {
 }
 
 #[test]
+fn cached_snapshot_reads_only_changed_files() {
+    let root = temp_root("incremental-snapshot");
+    let cache = root.join("cache");
+    fs::create_dir_all(root.join("src")).expect("create source root");
+    fs::write(root.join("Cargo.toml"), "[package]\nname='fixture'\n").expect("write manifest");
+    fs::write(root.join("src/lib.rs"), "mod value;\n").expect("write facade");
+    fs::write(root.join("src/value.rs"), "pub fn value() -> usize { 1 }\n")
+        .expect("write implementation");
+    let config = AspRustConfig::default();
+
+    reset_snapshot_file_read_count();
+    let cold =
+        snapshot_build_gate_inputs_with_cache(&root, &config, Some(&cache)).expect("cold snapshot");
+    assert_eq!(snapshot_file_read_count(), 3);
+
+    reset_snapshot_file_read_count();
+    let warm =
+        snapshot_build_gate_inputs_with_cache(&root, &config, Some(&cache)).expect("warm snapshot");
+    assert_eq!(warm, cold);
+    assert_eq!(
+        snapshot_file_read_count(),
+        0,
+        "warm snapshot must reuse every unchanged file digest"
+    );
+
+    fs::write(
+        root.join("src/value.rs"),
+        "pub fn value() -> usize { 22 }\n",
+    )
+    .expect("change one implementation");
+    reset_snapshot_file_read_count();
+    let changed = snapshot_build_gate_inputs_with_cache(&root, &config, Some(&cache))
+        .expect("changed snapshot");
+    assert_ne!(changed.digest, cold.digest);
+    assert_eq!(
+        snapshot_file_read_count(),
+        1,
+        "one changed file must not re-read the complete package"
+    );
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn corrupt_cache_is_a_cold_miss_and_atomic_record_round_trips() {
     let root = temp_root("round-trip");
     fs::create_dir_all(&root).expect("create cache root");
-    let snapshot = RustProjectHarnessBuildGateSnapshot {
+    let snapshot = AspRustBuildGateSnapshot {
         digest: content_digest(b"[]"),
         file_count: 0,
         byte_count: 0,
@@ -216,7 +258,7 @@ fn symlinked_file_is_not_a_snapshot_input() {
     fs::write(&target, "pub fn first() {}\n").expect("write external source");
     std::os::unix::fs::symlink(&target, root.join("src/external.rs"))
         .expect("create source symlink");
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
     let first = snapshot_build_gate_inputs(&root, &config).expect("first snapshot");
     fs::write(&target, "pub fn second() {}\n").expect("change external source");
     let second = snapshot_build_gate_inputs(&root, &config).expect("second snapshot");
@@ -240,7 +282,7 @@ fn symlinked_directory_is_not_a_snapshot_input() {
     fs::create_dir_all(&target).expect("create external directory");
     fs::write(target.join("generated.rs"), "pub fn first() {}\n").expect("write external source");
     std::os::unix::fs::symlink(&target, root.join("linked")).expect("create directory symlink");
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
     let first = snapshot_build_gate_inputs(&root, &config).expect("first snapshot");
     fs::write(target.join("generated.rs"), "pub fn second() {}\n").expect("change external source");
     let second = snapshot_build_gate_inputs(&root, &config).expect("second snapshot");
@@ -255,16 +297,16 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
     fs::create_dir_all(root.join("src")).expect("create source root");
     fs::write(root.join("Cargo.toml"), "[package]\nname='fixture'\n").expect("write manifest");
     fs::write(root.join("src/lib.rs"), "pub fn value() -> usize { 1 }\n").expect("write source");
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
     let snapshot = snapshot_build_gate_inputs(&root, &config).expect("snapshot");
-    let baseline = vec![RustProjectHarnessDependencyBaselinePackageReceipt {
+    let baseline = vec![AspRustDependencyBaselinePackageReceipt {
         name: "dependency".to_string(),
         version: "1.0.0".to_string(),
         source_contains: "rev=one".to_string(),
     }];
     let key = build_gate_cache_key(
         &config,
-        RustHarnessRunScope::ProjectWorkspace,
+        AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
     )
@@ -279,7 +321,7 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
         .insert(crate::RustVerificationTaskKind::Performance);
     let nested_key = build_gate_cache_key(
         &nested_policy,
-        RustHarnessRunScope::ProjectWorkspace,
+        AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
     )
@@ -288,66 +330,83 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
     changed_baseline[0].source_contains = "rev=two".to_string();
     let baseline_key = build_gate_cache_key(
         &config,
-        RustHarnessRunScope::ProjectWorkspace,
+        AspRustRunScope::ProjectWorkspace,
         &changed_baseline,
         &snapshot,
     )
     .expect("changed baseline key");
-    let scope_key =
-        build_gate_cache_key(&config, RustHarnessRunScope::Package, &baseline, &snapshot)
-            .expect("changed scope key");
+    let scope_key = build_gate_cache_key(&config, AspRustRunScope::Package, &baseline, &snapshot)
+        .expect("changed scope key");
     let schema_key = build_gate_cache_key_with_contract(
         &config,
-        RustHarnessRunScope::ProjectWorkspace,
+        AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
         BuildGateCacheContract {
             schema_id: "changed.schema",
-            schema_version: RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_VERSION,
+            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
             harness_version: env!("CARGO_PKG_VERSION"),
             harness_provider_digest: &harness_provider_digest,
+            policy_authority_digest: "blake3-256:test-policy-authority",
         },
     )
     .expect("changed schema key");
     let schema_version_key = build_gate_cache_key_with_contract(
         &config,
-        RustHarnessRunScope::ProjectWorkspace,
+        AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
         BuildGateCacheContract {
-            schema_id: RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_ID,
+            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
             schema_version: "changed-schema-version",
             harness_version: env!("CARGO_PKG_VERSION"),
             harness_provider_digest: &harness_provider_digest,
+            policy_authority_digest: "blake3-256:test-policy-authority",
         },
     )
     .expect("changed schema version key");
     let harness_key = build_gate_cache_key_with_contract(
         &config,
-        RustHarnessRunScope::ProjectWorkspace,
+        AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
         BuildGateCacheContract {
-            schema_id: RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_ID,
-            schema_version: RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_VERSION,
+            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
+            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
             harness_version: "changed-harness",
             harness_provider_digest: &harness_provider_digest,
+            policy_authority_digest: "blake3-256:test-policy-authority",
         },
     )
     .expect("changed harness key");
     let provider_key = build_gate_cache_key_with_contract(
         &config,
-        RustHarnessRunScope::ProjectWorkspace,
+        AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
         BuildGateCacheContract {
-            schema_id: RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_ID,
-            schema_version: RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_VERSION,
+            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
+            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
             harness_version: env!("CARGO_PKG_VERSION"),
             harness_provider_digest: "changed-provider-digest",
+            policy_authority_digest: "blake3-256:test-policy-authority",
         },
     )
     .expect("changed provider key");
+    let policy_authority_key = build_gate_cache_key_with_contract(
+        &config,
+        AspRustRunScope::ProjectWorkspace,
+        &baseline,
+        &snapshot,
+        BuildGateCacheContract {
+            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
+            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
+            harness_version: env!("CARGO_PKG_VERSION"),
+            harness_provider_digest: &harness_provider_digest,
+            policy_authority_digest: "blake3-256:changed-policy-authority",
+        },
+    )
+    .expect("changed policy authority key");
 
     for changed in [
         nested_key,
@@ -357,6 +416,7 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
         schema_version_key,
         harness_key,
         provider_key,
+        policy_authority_key,
     ] {
         assert_ne!(changed, key);
     }
@@ -395,16 +455,13 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("write implementation");
     crate::runner::reset_analyze_rust_project_call_count();
-    let policy = crate::RustProjectHarnessDownstreamPolicy::new(
-        "cache-fixture",
-        RustHarnessConfig::default(),
-    );
+    let policy = crate::AspRustDownstreamPolicy::new("cache-fixture", AspRustConfig::default());
     let initial_snapshot =
         crate::build_gate::cache::snapshot_build_gate_inputs(&project, policy.config())
             .expect("snapshot initial cache inputs");
     let initial_key = crate::build_gate::cache::build_gate_cache_key(
         policy.config(),
-        RustHarnessRunScope::Package,
+        AspRustRunScope::Package,
         &[],
         &initial_snapshot,
     )
@@ -415,7 +472,7 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         "snapshot and cache-key construction must not run the analyzer"
     );
 
-    let cold = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+    let cold = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 1);
@@ -437,7 +494,7 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
             .expect("snapshot warm cache inputs");
     let warm_key = crate::build_gate::cache::build_gate_cache_key(
         policy.config(),
-        RustHarnessRunScope::Package,
+        AspRustRunScope::Package,
         &[],
         &warm_snapshot,
     )
@@ -446,7 +503,7 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         warm_key, initial_key,
         "warm cache key drifted after cold run"
     );
-    let warm = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+    let warm = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 1);
@@ -462,13 +519,13 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
             .expect("snapshot changed cache inputs");
     let changed_key = crate::build_gate::cache::build_gate_cache_key(
         policy.config(),
-        RustHarnessRunScope::Package,
+        AspRustRunScope::Package,
         &[],
         &changed_snapshot,
     )
     .expect("build changed cache key");
     assert_ne!(changed_key, initial_key);
-    let changed = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+    let changed = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 2);
@@ -479,10 +536,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         "changed source must publish a new cache record"
     );
 
-    let changed_warm =
-        crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
-            &project, &policy, &cache,
-        );
+    let changed_warm = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+        &project, &policy, &cache,
+    );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 2);
     assert_eq!(changed_warm, changed);
 
@@ -501,13 +557,13 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
             .expect("snapshot renamed cache inputs");
     let renamed_key = crate::build_gate::cache::build_gate_cache_key(
         policy.config(),
-        RustHarnessRunScope::Package,
+        AspRustRunScope::Package,
         &[],
         &renamed_snapshot,
     )
     .expect("build renamed cache key");
     assert_ne!(renamed_key, changed_key);
-    let renamed = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+    let renamed = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 3);
@@ -516,10 +572,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
             .is_some(),
         "renamed source must publish a new cache record"
     );
-    let renamed_warm =
-        crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
-            &project, &policy, &cache,
-        );
+    let renamed_warm = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+        &project, &policy, &cache,
+    );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 3);
     assert_eq!(renamed_warm, renamed);
 
@@ -534,13 +589,13 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
             .expect("snapshot deleted cache inputs");
     let deleted_key = crate::build_gate::cache::build_gate_cache_key(
         policy.config(),
-        RustHarnessRunScope::Package,
+        AspRustRunScope::Package,
         &[],
         &deleted_snapshot,
     )
     .expect("build deleted cache key");
     assert_ne!(deleted_key, renamed_key);
-    let deleted = crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
+    let deleted = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 4);
@@ -549,10 +604,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
             .is_some(),
         "deleted source must publish a new cache record"
     );
-    let deleted_warm =
-        crate::build_gate::assert_rust_project_harness_downstream_policy_with_state_home(
-            &project, &policy, &cache,
-        );
+    let deleted_warm = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+        &project, &policy, &cache,
+    );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 4);
     assert_eq!(deleted_warm, deleted);
 
@@ -563,7 +617,7 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
 fn same_key_concurrent_publish_is_valid_and_leaves_no_temporary_files() {
     let root = std::sync::Arc::new(temp_root("concurrent-publish"));
     fs::create_dir_all(root.as_ref()).expect("create cache root");
-    let snapshot = RustProjectHarnessBuildGateSnapshot {
+    let snapshot = AspRustBuildGateSnapshot {
         digest: content_digest(b"[]"),
         file_count: 0,
         byte_count: 0,
@@ -600,4 +654,4 @@ fn same_key_concurrent_publish_is_valid_and_leaves_no_temporary_files() {
     let _ = fs::remove_dir_all(root.as_ref());
 }
 use crate::build_gate::cache::{build_gate_cache_key, build_gate_cache_key_with_contract};
-use crate::{RustHarnessRunScope, RustProjectHarnessDependencyBaselinePackageReceipt};
+use crate::{AspRustDependencyBaselinePackageReceipt, AspRustRunScope};

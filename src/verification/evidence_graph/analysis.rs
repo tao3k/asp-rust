@@ -22,7 +22,7 @@ pub const RUST_EVIDENCE_GRAPH_ANALYSIS_PROTOCOL_ID: &str =
 pub const RUST_EVIDENCE_GRAPH_ANALYSIS_PROTOCOL_VERSION: &str = "1";
 /// Graph-turbo packet kind discriminator.
 pub const RUST_EVIDENCE_GRAPH_ANALYSIS_PACKET_KIND: &str = "graph-turbo-request";
-/// Graph-turbo algorithm id used by asp-graph-turbo.
+/// Graph-turbo algorithm profile served by asp-python-graphs.
 pub const RUST_EVIDENCE_GRAPH_ANALYSIS_ALGORITHM: &str = "typed-ppr-diverse";
 /// Request surface for Rust evidence graph analysis.
 pub const RUST_EVIDENCE_GRAPH_ANALYSIS_SURFACE: &str = "evidence-analyze";

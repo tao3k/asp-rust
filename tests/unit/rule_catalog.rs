@@ -1,4 +1,4 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustDiagnosticSeverity, rust_agent_policy_rules, rust_modularity_rules,
     rust_project_policy_rules, rust_rule_pack_descriptors, rust_syntax_rules,
 };

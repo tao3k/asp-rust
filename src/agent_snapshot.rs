@@ -4,17 +4,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
-use crate::discovery::{
-    discover_cargo_package_roots, discover_rust_files, rust_project_harness_scope,
-};
-use crate::model::RustHarnessConfig;
+use crate::discovery::{asp_rust_scope, discover_cargo_package_roots, discover_rust_files};
+use crate::model::AspRustConfig;
 use crate::parser::{
     RustModuleChildEdge, RustReasoningImportFacts, RustReasoningOwnerBranchFacts,
     RustReasoningOwnerBranchRole, RustReasoningOwnerDependencyFacts, parse_rust_file,
     rust_reasoning_tree_facts,
 };
 use crate::rules::evaluate_default_rule_packs_with_config;
-use crate::{RustDiagnosticSeverity, RustHarnessFinding, RustProjectHarnessScope};
+use crate::{AspRustFinding, AspRustScope, RustDiagnosticSeverity};
 
 const MAX_AGENT_SNAPSHOT_BRANCH_LINES: usize = 24;
 const MAX_AGENT_SNAPSHOT_CHILD_EDGES: usize = 8;
@@ -22,16 +20,13 @@ const MAX_AGENT_SNAPSHOT_CHILD_EDGES: usize = 8;
 /// Render a compact project-structure snapshot for repair-oriented agents.
 ///
 /// The snapshot is derived from parser reasoning-tree facts and intentionally
-/// avoids the full `RustHarnessReport` JSON shape.
+/// avoids the full `AspRustReport` JSON shape.
 ///
 /// # Errors
 ///
 /// Returns an error when the project root does not exist.
-pub fn render_rust_project_harness_agent_snapshot(project_root: &Path) -> Result<String, String> {
-    render_rust_project_harness_agent_snapshot_with_config(
-        project_root,
-        &RustHarnessConfig::default(),
-    )
+pub fn render_asp_rust_agent_snapshot(project_root: &Path) -> Result<String, String> {
+    render_asp_rust_agent_snapshot_with_config(project_root, &AspRustConfig::default())
 }
 
 /// Render a compact project-structure snapshot with explicit harness config.
@@ -39,9 +34,9 @@ pub fn render_rust_project_harness_agent_snapshot(project_root: &Path) -> Result
 /// # Errors
 ///
 /// Returns an error when the project root does not exist.
-pub fn render_rust_project_harness_agent_snapshot_with_config(
+pub fn render_asp_rust_agent_snapshot_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
 ) -> Result<String, String> {
     if !project_root.exists() {
         return Err(format!(
@@ -77,10 +72,10 @@ pub fn render_rust_project_harness_agent_snapshot_with_config(
 fn render_package_snapshot_for_root(
     snapshot_root: &Path,
     package_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     include_package_heading: bool,
 ) -> Option<String> {
-    let scope = rust_project_harness_scope(
+    let scope = asp_rust_scope(
         package_root,
         config.include_tests,
         &config.source_dir_names,
@@ -100,9 +95,9 @@ fn render_package_snapshot_for_root(
 
 fn render_package_snapshot(
     snapshot_root: &Path,
-    scope: &RustProjectHarnessScope,
+    scope: &AspRustScope,
     parsed_modules: &[crate::parser::ParsedRustModule],
-    findings: &[RustHarnessFinding],
+    findings: &[AspRustFinding],
     include_package_heading: bool,
 ) -> String {
     let reasoning_tree = rust_reasoning_tree_facts(scope, parsed_modules);
@@ -206,8 +201,8 @@ fn push_metric_if(parts: &mut Vec<String>, label: &str, count: usize, should_ren
 }
 
 fn parse_scope(
-    scope: &RustProjectHarnessScope,
-    config: &RustHarnessConfig,
+    scope: &AspRustScope,
+    config: &AspRustConfig,
 ) -> Vec<crate::parser::ParsedRustModule> {
     discover_rust_files(
         &scope.monitored_paths(),
@@ -382,7 +377,7 @@ fn import_root_label(root: crate::parser::RustUseImportRootKind) -> &'static str
     }
 }
 
-fn grouped_findings(package_root: &Path, findings: &[RustHarnessFinding]) -> Vec<String> {
+fn grouped_findings(package_root: &Path, findings: &[AspRustFinding]) -> Vec<String> {
     let mut groups = BTreeMap::<(RustDiagnosticSeverity, String, String), FindingGroup>::new();
     for finding in findings {
         let key = (

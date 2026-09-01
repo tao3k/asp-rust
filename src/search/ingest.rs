@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 use crate::parser::{ParsedRustModule, RustTopLevelItemSyntax};
 
 use super::RustSearchOptions;
@@ -26,9 +26,9 @@ use super::recency::compare_paths_by_recency;
 ///
 /// Returns an error when the project root or selected package cannot be
 /// resolved.
-pub fn render_rust_project_harness_search_ingest_with_config(
+pub fn render_asp_rust_search_ingest_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     input: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -59,7 +59,7 @@ pub fn render_rust_project_harness_search_ingest_with_config(
 
 fn ingest_pipe_contexts(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<Vec<PackageSearchContext>, String> {
     if options.output_view.as_deref() == Some("seeds") {

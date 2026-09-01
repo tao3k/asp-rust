@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 
 use super::{
     cargo, compare, density, dependency, format, guide, namespace, owner, owner_view, prime, query,
@@ -41,7 +41,7 @@ pub struct RustSearchViewRequest<'a> {
     /// Project root to inspect.
     pub project_root: &'a Path,
     /// Harness configuration used for discovery and parser policy.
-    pub config: &'a RustHarnessConfig,
+    pub config: &'a AspRustConfig,
     /// Search source view such as `prime`, `dependency`, or `deps`.
     pub view: &'a str,
     /// Optional query consumed by views such as `symbol` or `deps`.
@@ -51,7 +51,7 @@ pub struct RustSearchViewRequest<'a> {
 }
 
 /// Renders the Rust search view through an explicit request object.
-pub fn render_rust_project_harness_search_view_with_config(
+pub fn render_asp_rust_search_view_with_config(
     request: &RustSearchViewRequest<'_>,
 ) -> Result<String, String> {
     let rendered = render_search_view_packet(request)?;
@@ -306,7 +306,7 @@ fn reasoning_block(
 
 fn render_reasoning_profile(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     profile: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {

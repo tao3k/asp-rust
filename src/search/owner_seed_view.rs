@@ -1,7 +1,7 @@
 use std::fmt::Write;
 use std::path::Path;
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 
 use super::RustSearchOptions;
 use super::context::exact_owner_path_matches;
@@ -9,7 +9,7 @@ use super::format::{display_project_path, package_label, package_roots_for_reque
 
 pub(super) fn render_exact_path_owner_seed_view(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<Option<String>, String> {
@@ -53,7 +53,7 @@ pub(super) fn render_exact_path_owner_seed_view(
 
 fn fast_related_test_paths(
     package_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     owner_path: &str,
 ) -> Vec<String> {
     let owner_tokens = fast_owner_path_tokens(owner_path);

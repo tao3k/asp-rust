@@ -1,23 +1,15 @@
-//! Architecture gate for the independently distributable Rust language harness.
+//! Architecture gate for the independently distributable ASP Rust provider.
 
 use std::path::Path;
 
 const DEPENDENCY_TABLES: [&str; 3] = ["dependencies", "build-dependencies", "dev-dependencies"];
-const SHARED_CONTRACT_CRATES: [&str; 2] = [
-    "agent-semantic-content-identity",
-    "agent-semantic-provider-transport",
-];
-const SHARED_CONTRACT_MODULES: [&str; 2] = [
-    "agent_semantic_content_identity",
-    "agent_semantic_provider_transport",
-];
 
 fn source_dependency_violations(root: &Path) -> Vec<String> {
     let mut pending = vec![root.to_path_buf()];
     let mut violations = Vec::new();
     while let Some(directory) = pending.pop() {
-        for entry in std::fs::read_dir(&directory).expect("read Rust harness source directory") {
-            let path = entry.expect("read Rust harness source entry").path();
+        for entry in std::fs::read_dir(&directory).expect("read ASP Rust source directory") {
+            let path = entry.expect("read ASP Rust source entry").path();
             if path.is_dir() {
                 pending.push(path);
                 continue;
@@ -25,13 +17,9 @@ fn source_dependency_violations(root: &Path) -> Vec<String> {
             if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
                 continue;
             }
-            let source = std::fs::read_to_string(&path).expect("read Rust harness source");
+            let source = std::fs::read_to_string(&path).expect("read ASP Rust source");
             for (line_index, line) in source.lines().enumerate() {
-                if line.contains("agent_semantic_")
-                    && !SHARED_CONTRACT_MODULES
-                        .iter()
-                        .any(|module| line.contains(module))
-                {
+                if line.contains("agent_semantic_") {
                     violations.push(format!(
                         "{}:{}:{}",
                         path.display(),
@@ -47,17 +35,17 @@ fn source_dependency_violations(root: &Path) -> Vec<String> {
 }
 
 #[test]
-fn rust_harness_depends_only_on_shared_v1_contracts() {
-    let harness_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+fn asp_rust_has_no_parent_monorepo_dependencies() {
+    let asp_rust_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut violations = Vec::new();
     for manifest_path in [
-        harness_root.join("Cargo.toml"),
-        harness_root.join("rs-harness/Cargo.toml"),
+        asp_rust_root.join("Cargo.toml"),
+        asp_rust_root.join("build-support/Cargo.toml"),
     ] {
         let manifest_text =
-            std::fs::read_to_string(&manifest_path).expect("read Rust harness Cargo.toml");
+            std::fs::read_to_string(&manifest_path).expect("read ASP Rust Cargo.toml");
         let manifest: toml::Value =
-            toml::from_str(&manifest_text).expect("parse Rust harness Cargo.toml");
+            toml::from_str(&manifest_text).expect("parse ASP Rust Cargo.toml");
         violations.extend(
             manifest_dependency_violations(&manifest)
                 .into_iter()
@@ -65,15 +53,15 @@ fn rust_harness_depends_only_on_shared_v1_contracts() {
         );
     }
     for source_root in [
-        harness_root.join("src"),
-        harness_root.join("rs-harness/src"),
+        asp_rust_root.join("src"),
+        asp_rust_root.join("build-support/src"),
     ] {
         violations.extend(source_dependency_violations(&source_root));
     }
 
     assert!(
         violations.is_empty(),
-        "rust-lang-project-harness may depend only on shared v1 contracts: {}",
+        "asp-rust must not depend on parent agent-semantic crates: {}",
         violations.join(", ")
     );
 }
@@ -120,12 +108,10 @@ fn dependency_violations(dependency_table: &toml::Value, table_path: &str) -> Ve
                 .get("path")
                 .and_then(toml::Value::as_str)
                 .unwrap_or_default();
-            let is_asp_package = package_name.starts_with("agent-semantic-")
-                && !SHARED_CONTRACT_CRATES.contains(&package_name);
-            let is_asp_path = path.split(['/', '\\']).any(|component| {
-                component.starts_with("agent-semantic-")
-                    && !SHARED_CONTRACT_CRATES.contains(&component)
-            });
+            let is_asp_package = package_name.starts_with("agent-semantic-");
+            let is_asp_path = path
+                .split(['/', '\\'])
+                .any(|component| component.starts_with("agent-semantic-"));
             (is_asp_package || is_asp_path)
                 .then(|| format!("{table_path}.{dependency_name} -> {package_name} ({path})"))
         })

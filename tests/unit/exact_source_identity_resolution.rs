@@ -30,7 +30,7 @@ fn source(items: Vec<ParseArtifactItem>) -> PinnedSource {
 
 fn workspace(owners: &[(&str, Vec<ParseArtifactItem>)]) -> PinnedWorkspace {
     PinnedWorkspace {
-        provider_id: "rs-harness".to_string(),
+        provider_id: "asp-rust".to_string(),
         root_digest: "blake3-256:workspace-fixture".to_string(),
         exact_projection_authority: None,
         sources: owners
@@ -165,7 +165,7 @@ impl Parse for CliOptions {
     let items = crate::exact_source_parse_artifact::parse_owner_items_v1(source_text)
         .expect("parse canonical identity fixture");
     let workspace = PinnedWorkspace {
-        provider_id: "rs-harness".to_string(),
+        provider_id: "asp-rust".to_string(),
         root_digest: "blake3-256:producer-consumer-round-trip".to_string(),
         exact_projection_authority: None,
         sources: [(
@@ -296,7 +296,7 @@ fn owner_missing_packet_carries_generation_evidence_and_lexical_recovery() {
         "rust://src/moved.rs#item/function/inventory",
     );
     let pinned = PinnedWorkspace {
-        provider_id: "rs-harness".to_string(),
+        provider_id: "asp-rust".to_string(),
         root_digest: "b".repeat(64),
         exact_projection_authority: Some(ExactProjectionAuthority {
             projection_kind: "source".to_string(),

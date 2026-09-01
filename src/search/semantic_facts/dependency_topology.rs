@@ -27,7 +27,7 @@ const MANIFEST_FILE: &str = "Cargo.toml";
 const LOCKFILE_FILE: &str = "Cargo.lock";
 
 /// Renders Cargo dependency topology metadata for cache and freshness checks.
-pub fn render_rust_project_harness_dependency_topology_metadata_json(
+pub fn render_asp_rust_dependency_topology_metadata_json(
     project_root: &Path,
 ) -> Result<String, String> {
     let packet = build_dependency_topology_metadata_packet(project_root);
@@ -40,9 +40,7 @@ pub fn render_rust_project_harness_dependency_topology_metadata_json(
 }
 
 /// Renders the Cargo dependency topology packet for Rust search facts.
-pub fn render_rust_project_harness_dependency_topology_json(
-    project_root: &Path,
-) -> Result<String, String> {
+pub fn render_asp_rust_dependency_topology_json(project_root: &Path) -> Result<String, String> {
     let packet = build_dependency_topology_packet(project_root);
     serde_json::to_string_pretty(&packet)
         .map(|mut text| {

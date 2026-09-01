@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::{render_rust_project_harness, run_rust_project_harness_for_scope};
+use asp_rust::{render_asp_rust, run_asp_rust_for_scope};
 use tempfile::TempDir;
 
 use super::support::{
@@ -44,11 +44,8 @@ fn project_runner_discovers_only_manifest_registered_member_crates() {
     )
     .expect("write inline lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::ProjectWorkspace,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::ProjectWorkspace)
+        .expect("run project harness");
 
     assert_eq!(report.workspace_member_scopes.len(), 2);
     assert!(has_module_path(&report, "crates/gated/src/lib.rs"));
@@ -64,7 +61,7 @@ fn project_runner_discovers_only_manifest_registered_member_crates() {
     focused_report
         .findings
         .retain(|finding| finding.rule_id == "RUST-AGENT-PROJECT-003");
-    let rendered = normalize_temp_root(&render_rust_project_harness(&focused_report), root);
+    let rendered = normalize_temp_root(&render_asp_rust(&focused_report), root);
     insta::assert_snapshot!("workspace_member_inline_source_test", rendered);
 }
 
@@ -87,11 +84,8 @@ fn workspace_manifest_member_globs_are_scanned_as_member_crates() {
     )
     .expect("write member lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::ProjectWorkspace,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::ProjectWorkspace)
+        .expect("run project harness");
 
     assert_eq!(report.workspace_member_scopes.len(), 1);
     assert!(has_module_path(&report, "crates/member/src/lib.rs"));
@@ -117,11 +111,8 @@ fn workspace_member_test_target_policy_accepts_crate_local_suite_mounts() {
     .expect("write member unit target");
     fs::write(member.join("tests/unit/helper.rs"), "fn helper() {}\n").expect("write helper");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::ProjectWorkspace,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::ProjectWorkspace)
+        .expect("run project harness");
 
     assert!(
         !has_rule_for_path_suffix(
@@ -148,11 +139,8 @@ fn include_literal_source_shards_are_reachable_from_the_module_tree() {
     .expect("write ops");
     fs::write(root.join("src/ops/core.rs"), "fn core() {}\n").expect("write core shard");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::ProjectWorkspace,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::ProjectWorkspace)
+        .expect("run project harness");
 
     assert!(
         !has_rule_for_path_suffix(&report, "RUST-MOD-R009", "src/ops/core.rs"),

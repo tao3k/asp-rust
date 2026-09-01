@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::RustProjectHarnessScope;
+use crate::AspRustScope;
 use crate::parser::parse_cargo_manifest;
 use crate::path::normalize_lexical_path;
 
@@ -460,12 +460,12 @@ fn ignored_path_contains_ignored_segment(
 
 /// Build a conventional project scope from a project root.
 #[must_use]
-pub fn rust_project_harness_scope(
+pub fn asp_rust_scope(
     project_root: &Path,
     include_tests: bool,
     source_dir_names: &[String],
     test_dir_names: &[String],
-) -> RustProjectHarnessScope {
+) -> AspRustScope {
     let cargo_manifest = parse_cargo_manifest(project_root);
     let mut package_paths = ["build.rs", "examples", "benches"]
         .iter()
@@ -503,7 +503,7 @@ pub fn rust_project_harness_scope(
     } else {
         BTreeSet::new()
     };
-    RustProjectHarnessScope {
+    AspRustScope {
         project_root: project_root.to_path_buf(),
         source_paths: source_paths.into_iter().collect(),
         test_paths: test_paths.into_iter().collect(),

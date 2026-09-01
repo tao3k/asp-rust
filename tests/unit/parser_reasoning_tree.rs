@@ -3,7 +3,7 @@ use std::fs;
 
 use tempfile::TempDir;
 
-use crate::RustProjectHarnessScope;
+use crate::AspRustScope;
 use crate::parser::{
     RustModuleChildEdgeKind, RustReasoningOwnerBranchRole, RustUseImportRootKind,
     parse_cargo_cfg_facts, parse_cargo_dependency_facts, parse_cargo_manifest, parse_rust_file,
@@ -276,7 +276,7 @@ fn reasoning_tree_interprets_modules_owners_and_child_edges() {
         parse_rust_file(&src.join("alt/custom.rs")),
         parse_rust_file(&src.join("shard.rs")),
     ];
-    let scope = RustProjectHarnessScope {
+    let scope = AspRustScope {
         project_root: root.to_path_buf(),
         source_paths: vec![src.clone()],
         test_paths: Vec::new(),
@@ -492,7 +492,7 @@ fn reasoning_tree_deduplicates_owner_dependencies_by_context_and_keeps_earliest_
         parse_rust_file(&src.join("lib.rs")),
         parse_rust_file(&src.join("domain.rs")),
     ];
-    let scope = RustProjectHarnessScope {
+    let scope = AspRustScope {
         project_root: root.to_path_buf(),
         source_paths: vec![src.clone()],
         test_paths: Vec::new(),
@@ -557,7 +557,7 @@ fn reasoning_tree_derives_crate_repairs_for_deep_relative_imports() {
         parse_rust_file(&src.join("gateway.rs")),
         parse_rust_file(&src.join("gateway/studio/support.rs")),
     ];
-    let scope = RustProjectHarnessScope {
+    let scope = AspRustScope {
         project_root: root.to_path_buf(),
         source_paths: vec![src.clone()],
         test_paths: Vec::new(),
@@ -613,7 +613,7 @@ fn reasoning_tree_marks_test_root_modules_as_test_sources() {
         parse_rust_file(&src.join("lib.rs")),
         parse_rust_file(&tests.join("integration.rs")),
     ];
-    let scope = RustProjectHarnessScope {
+    let scope = AspRustScope {
         project_root: root.to_path_buf(),
         source_paths: vec![src],
         test_paths: vec![tests.clone()],

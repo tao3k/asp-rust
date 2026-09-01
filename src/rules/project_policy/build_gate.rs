@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::parser::{CargoManifestFacts, ParsedRustModule, file_location};
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use super::RUST_PROJ_R012;
 use super::support::display_project_path;
@@ -13,8 +13,8 @@ pub(super) fn build_gate_findings(
     project_root: &Path,
     cargo_manifest: &CargoManifestFacts,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let build_script_path = project_root.join("build.rs");
     let build_script = root_build_script_module(project_root, modules);
     let build_script_exists = build_script.is_some() || build_script_path.exists();
@@ -29,7 +29,7 @@ pub(super) fn build_gate_findings(
 
     let rule = &rules[RUST_PROJ_R012];
     if !cargo_manifest.references_harness_build_dependency && !build_script_exists {
-        return vec![RustHarnessFinding::from_rule(
+        return vec![AspRustFinding::from_rule(
             rule,
             format!(
                 "{} enables the harness without a cargo-check build gate.",
@@ -37,12 +37,12 @@ pub(super) fn build_gate_findings(
             ),
             file_location(project_root.join("Cargo.toml")),
             None,
-            "add rust-lang-project-harness under [build-dependencies] with a thin root build.rs gate, or call a workspace-owned harness wrapper from root build.rs",
+            "add asp-rust under [build-dependencies] with a thin root build.rs gate, or call a workspace-owned harness wrapper from root build.rs",
         )];
     }
 
     if cargo_manifest.references_harness_build_dependency && !build_script_exists {
-        return vec![RustHarnessFinding::from_rule(
+        return vec![AspRustFinding::from_rule(
             rule,
             format!(
                 "{} declares a harness build-dependency but does not provide a root build.rs gate.",
@@ -50,12 +50,12 @@ pub(super) fn build_gate_findings(
             ),
             file_location(project_root.join("Cargo.toml")),
             None,
-            "add a thin root build.rs that calls rust_lang_project_harness::assert_rust_project_harness_downstream_policy_from_env(...) or a workspace-owned harness wrapper",
+            "add a thin root build.rs that calls asp_rust::assert_asp_rust_downstream_policy_with_authority(...) or a workspace-owned harness wrapper",
         )];
     }
 
     if build_script_exists && !has_build_gate_call {
-        return vec![RustHarnessFinding::from_rule(
+        return vec![AspRustFinding::from_rule(
             rule,
             format!(
                 "{} exists in a harness-enabled project but does not mount the build-time harness gate.",
@@ -63,12 +63,12 @@ pub(super) fn build_gate_findings(
             ),
             file_location(&build_script_path),
             None,
-            "call rust_lang_project_harness::assert_rust_project_harness_downstream_policy_from_env(...) or a workspace-owned harness wrapper from root build.rs",
+            "call asp_rust::assert_asp_rust_downstream_policy_with_authority(...) or a workspace-owned harness wrapper from root build.rs",
         )];
     }
 
     if has_direct_build_gate_call && !cargo_manifest.references_harness_build_dependency {
-        return vec![RustHarnessFinding::from_rule(
+        return vec![AspRustFinding::from_rule(
             rule,
             format!(
                 "{} calls the build-time harness gate but Cargo.toml does not declare the harness as a build-dependency.",
@@ -76,7 +76,7 @@ pub(super) fn build_gate_findings(
             ),
             file_location(project_root.join("Cargo.toml")),
             None,
-            "add rust-lang-project-harness under [build-dependencies] so Cargo can compile the build gate",
+            "add asp-rust under [build-dependencies] so Cargo can compile the build gate",
         )];
     }
 
@@ -154,21 +154,22 @@ fn same_path(left: &Path, right: &Path) -> bool {
 }
 
 const BUILD_GATE_FUNCTIONS: &[&str] = &[
-    "assert_rust_project_harness_build_clean",
-    "assert_rust_project_harness_build_clean_with_config",
-    "assert_rust_project_harness_build_clean_from_env",
-    "assert_rust_project_harness_build_clean_from_env_with_config",
-    "assert_rust_project_harness_cargo_check_clean",
-    "assert_rust_project_harness_cargo_check_clean_with_config",
-    "assert_rust_project_harness_cargo_check_clean_from_env",
-    "assert_rust_project_harness_cargo_check_clean_from_env_with_config",
-    "assert_rust_project_harness_downstream_policy",
-    "assert_rust_project_harness_downstream_policy_from_env",
+    "assert_asp_rust_build_clean",
+    "assert_asp_rust_build_clean_with_config",
+    "assert_asp_rust_build_clean_from_env",
+    "assert_asp_rust_build_clean_from_env_with_config",
+    "assert_asp_rust_cargo_check_clean",
+    "assert_asp_rust_cargo_check_clean_with_config",
+    "assert_asp_rust_cargo_check_clean_from_env",
+    "assert_asp_rust_cargo_check_clean_from_env_with_config",
+    "assert_asp_rust_downstream_policy",
+    "assert_asp_rust_downstream_policy_from_env",
+    "assert_asp_rust_downstream_policy_with_authority",
 ];
 
 const DEFAULT_BUILD_GATE_FUNCTIONS: &[&str] = &[
-    "assert_rust_project_harness_build_clean",
-    "assert_rust_project_harness_build_clean_from_env",
-    "assert_rust_project_harness_cargo_check_clean",
-    "assert_rust_project_harness_cargo_check_clean_from_env",
+    "assert_asp_rust_build_clean",
+    "assert_asp_rust_build_clean_from_env",
+    "assert_asp_rust_cargo_check_clean",
+    "assert_asp_rust_cargo_check_clean_from_env",
 ];

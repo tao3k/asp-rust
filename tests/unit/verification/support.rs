@@ -1,20 +1,20 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{
-    RustHarnessConfig, RustOwnerResponsibility, RustVerificationProfileHint,
-    RustVerificationSkillBinding, RustVerificationTaskKind, default_rust_harness_config,
+use asp_rust::{
+    AspRustConfig, RustOwnerResponsibility, RustVerificationProfileHint,
+    RustVerificationSkillBinding, RustVerificationTaskKind, default_asp_rust_config,
 };
 
-pub(super) fn public_api_profile_config() -> RustHarnessConfig {
-    default_rust_harness_config().with_verification_profile_hint(RustVerificationProfileHint::new(
+pub(super) fn public_api_profile_config() -> AspRustConfig {
+    default_asp_rust_config().with_verification_profile_hint(RustVerificationProfileHint::new(
         "src/api.rs",
         [RustOwnerResponsibility::PublicApi],
     ))
 }
 
-pub(super) fn latency_sensitive_performance_config() -> RustHarnessConfig {
-    default_rust_harness_config()
+pub(super) fn latency_sensitive_performance_config() -> AspRustConfig {
+    default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],

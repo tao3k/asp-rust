@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{render_rust_project_harness, run_rust_project_harness_for_scope};
+use asp_rust::{render_asp_rust, run_asp_rust_for_scope};
 use tempfile::TempDir;
 
 #[test]
@@ -26,12 +26,9 @@ fn project_runner_reports_blocking_policy_and_agent_advice() {
     )
     .expect("write root test");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
-    let rendered = normalize_temp_root(&render_rust_project_harness(&report), root);
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
+    let rendered = normalize_temp_root(&render_asp_rust(&report), root);
 
     assert!(!report.is_clean());
     assert!(rendered.contains("RUST-AGENT-PROJECT-001"));

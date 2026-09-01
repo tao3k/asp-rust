@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::RustProjectHarnessScope;
+use crate::AspRustScope;
 
 use super::module_tree::{
     RustModuleChildEdge, RustModuleSourceShadow, external_child_module_edges, is_module_tree_root,
@@ -139,7 +139,7 @@ impl RustReasoningDeepRelativeImportFacts {
 }
 
 pub(crate) fn rust_reasoning_tree_facts(
-    scope: &RustProjectHarnessScope,
+    scope: &AspRustScope,
     modules: &[ParsedRustModule],
 ) -> RustReasoningTreeFacts {
     let module_tree = rust_module_tree_facts(&scope.source_paths, modules);

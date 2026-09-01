@@ -6,7 +6,7 @@ use crate::parser::{
     ParsedRustModule, RustPublicEnumTupleVariantFieldSyntax, RustPublicEnumVariantFieldSyntax,
     RustPublicStructFieldSyntax, RustPublicTypeAliasSyntax, path_line_location, source_line,
 };
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use crate::rules::display_path;
 
@@ -23,8 +23,8 @@ const MIN_ENUM_TUPLE_VARIANT_SEMANTIC_PRIMITIVE_FIELDS: usize = 2;
 
 pub(super) fn data_shape_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
     findings.extend(public_data_struct_primitive_field_findings(module, rules));
     findings.extend(public_enum_variant_primitive_payload_findings(
@@ -39,8 +39,8 @@ pub(super) fn data_shape_findings(
 
 fn public_data_struct_primitive_field_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut fields_by_struct = BTreeMap::<(usize, String), Vec<(usize, String)>>::new();
     for field in &module.syntax_facts.public_struct_fields {
         if field.is_test_context {
@@ -79,7 +79,7 @@ fn public_data_struct_primitive_field_findings(
                 .map(|(_, field)| field)
                 .collect::<Vec<_>>()
                 .join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public data struct `{struct_name}` with primitive semantic fields: {field_list}.",
@@ -95,8 +95,8 @@ fn public_data_struct_primitive_field_findings(
 
 fn public_enum_variant_primitive_payload_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut fields_by_variant = BTreeMap::<(usize, String, String), Vec<(usize, String)>>::new();
     for field in &module.syntax_facts.public_enum_variant_fields {
         if field.is_test_context {
@@ -139,7 +139,7 @@ fn public_enum_variant_primitive_payload_findings(
                 .map(|(_, field)| field)
                 .collect::<Vec<_>>()
                 .join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public enum `{enum_name}` variant `{variant_name}` with primitive semantic payload fields: {field_list}.",
@@ -155,8 +155,8 @@ fn public_enum_variant_primitive_payload_findings(
 
 fn public_type_generic_bound_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut bounds_by_type = BTreeMap::<(usize, &'static str, String), Vec<(usize, String)>>::new();
     for bound in &module.syntax_facts.public_type_generic_bounds {
         if bound.is_test_context {
@@ -189,7 +189,7 @@ fn public_type_generic_bound_findings(
                 .map(|(_, bound)| bound)
                 .collect::<Vec<_>>()
                 .join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public {type_kind} `{type_name}` with duplicated data-type bounds: {bound_list}.",
@@ -205,8 +205,8 @@ fn public_type_generic_bound_findings(
 
 fn public_enum_tuple_variant_payload_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut fields_by_variant = BTreeMap::<(usize, String, String), Vec<(usize, String)>>::new();
     for field in &module.syntax_facts.public_enum_tuple_variant_fields {
         if field.is_test_context {
@@ -252,7 +252,7 @@ fn public_enum_tuple_variant_payload_findings(
                 .map(|(_, field)| field)
                 .collect::<Vec<_>>()
                 .join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public enum `{enum_name}` tuple variant `{variant_name}` with anonymous primitive payload fields: {field_list}.",
@@ -268,8 +268,8 @@ fn public_enum_tuple_variant_payload_findings(
 
 fn public_type_alias_primitive_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_API_PRIMITIVE_TYPE_ALIAS_V1];
     module
         .syntax_facts
@@ -285,7 +285,7 @@ fn public_type_alias_primitive_findings(
                 return None;
             }
             let contract_type = public_type_alias_contract_type(alias)?;
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public semantic type alias `{}` = `{}` over primitive carrier {contract_type}.",
@@ -303,8 +303,8 @@ fn public_type_alias_primitive_findings(
 
 fn public_stringly_state_field_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_DATA_STRINGLY_STATE_FIELD_V1];
     let mut findings = Vec::new();
     findings.extend(public_struct_stringly_state_field_findings(module, rule));
@@ -316,8 +316,8 @@ fn public_stringly_state_field_findings(
 
 fn public_struct_stringly_state_field_findings(
     module: &ParsedRustModule,
-    rule: &RustHarnessRule,
-) -> Vec<RustHarnessFinding> {
+    rule: &AspRustRule,
+) -> Vec<AspRustFinding> {
     let mut fields_by_struct = BTreeMap::<(usize, String), Vec<(usize, String)>>::new();
     for field in &module.syntax_facts.public_struct_fields {
         if field.is_test_context || !is_stringly_state_field(&field.field_name) {
@@ -348,7 +348,7 @@ fn public_struct_stringly_state_field_findings(
                 .map(|(_, field)| field)
                 .collect::<Vec<_>>()
                 .join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public data struct `{struct_name}` with stringly state fields: {field_list}.",
@@ -364,8 +364,8 @@ fn public_struct_stringly_state_field_findings(
 
 fn public_enum_variant_stringly_state_field_findings(
     module: &ParsedRustModule,
-    rule: &RustHarnessRule,
-) -> Vec<RustHarnessFinding> {
+    rule: &AspRustRule,
+) -> Vec<AspRustFinding> {
     let mut fields_by_variant = BTreeMap::<(usize, String, String), Vec<(usize, String)>>::new();
     for field in &module.syntax_facts.public_enum_variant_fields {
         if field.is_test_context || !is_stringly_state_field(&field.field_name) {
@@ -400,7 +400,7 @@ fn public_enum_variant_stringly_state_field_findings(
                 .map(|(_, field)| field)
                 .collect::<Vec<_>>()
                 .join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public enum `{enum_name}` variant `{variant_name}` with stringly state fields: {field_list}.",

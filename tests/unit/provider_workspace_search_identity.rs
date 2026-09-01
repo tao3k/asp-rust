@@ -1,6 +1,6 @@
 //! Unit role: provider-owned workspace snapshot compatibility vectors.
 
-use rust_lang_project_harness::provider_workspace_search_identity::WorkspaceSnapshot;
+use asp_rust::provider_workspace_search_identity::WorkspaceSnapshot;
 
 #[test]
 fn matches_content_identity_workspace_snapshot_vectors() {

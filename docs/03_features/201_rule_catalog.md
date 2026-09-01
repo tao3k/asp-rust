@@ -79,25 +79,25 @@ create unclear root-level test structure.
 The primary downstream harness gate is the build-time gate. Current policy is
 parser-native: it needs Cargo manifest facts and Rust syntax facts, not runtime
 test evaluation. A complete build gate has both a Cargo build-dependency on
-`rust-lang-project-harness` and a root `build.rs` call to
-`assert_rust_project_harness_cargo_check_clean_from_env_with_config(...)` or another
+`asp-rust` and a root `build.rs` call to
+`assert_asp_rust_cargo_check_clean_from_env_with_config(...)` or another
 build-gate assertion:
 
 ```toml
 [build-dependencies]
-rust-lang-project-harness = { git = "https://github.com/tao3k/rust-lang-project-harness", branch = "main" }
+asp-rust = { git = "https://github.com/tao3k/asp-rust", branch = "main" }
 ```
 
 ```rust
 fn main() {
-    let config = rust_lang_project_harness::default_rust_harness_config()
+    let config = asp_rust::default_asp_rust_config()
         .with_verification_profile_hint(
-            rust_lang_project_harness::RustVerificationProfileHint::new(
+            asp_rust::RustVerificationProfileHint::new(
                 "src/lib.rs",
-                [rust_lang_project_harness::RustOwnerResponsibility::PublicApi],
+                [asp_rust::RustOwnerResponsibility::PublicApi],
             ),
         );
-    rust_lang_project_harness::assert_rust_project_harness_cargo_check_clean_from_env_with_config(
+    asp_rust::assert_asp_rust_cargo_check_clean_from_env_with_config(
         &config,
     );
 }
@@ -138,7 +138,7 @@ conventional Cargo layout form the baseline coverage: `src`, explicit
 targets, and root `build.rs`. A build-script gate therefore cannot shrink the
 scan surface just by passing a smaller config. `RUST-AGENT-PROJECT-013` requires every
 custom source or test scope path to have a non-empty explanation, preferably by
-using `RustHarnessConfig::with_source_path(path, explanation)` or
+using `AspRustConfig::with_source_path(path, explanation)` or
 `with_test_path(path, explanation)`. `RUST-AGENT-PROJECT-014` catches attempts to
 remove Cargo-backed `src`, `tests`, or manifest-declared test coverage without
 a matching explanation through `with_source_path_excluded(path, explanation)`,
@@ -150,7 +150,7 @@ a matching explanation through `with_source_path_excluded(path, explanation)`,
 `AGENT-*` rules are `Info` findings. They are designed as repair hints for LLMs
 and are not blocking by default.
 Build-script gates add one Agent-facing layer on top of that library policy:
-the default `assert_rust_project_harness_cargo_check_clean_from_env_with_config(...)`
+the default `assert_asp_rust_cargo_check_clean_from_env_with_config(...)`
 assertion fails on compact agent advice so the repair contract is visible during
 `cargo check`. This does not change rule severity or JSON metadata. Use
 `with_cargo_check_advice_allow_explanation(...)` for an explicit cargo-check
@@ -216,13 +216,13 @@ locator instead of human-oriented code frames that wrap poorly and obscure the
 repair action. The `fix:` line names the intended edit, `Help:` explains the
 concrete parser fact, and `Contract:` states the stable rule expectation.
 
-`render_rust_project_harness()` includes advice by default. A report with only
+`render_asp_rust()` includes advice by default. A report with only
 `Info` findings is still clean, but its advice remains visible as ordinary
-finding blocks. Use `render_rust_project_harness_advice()` when a caller wants
+finding blocks. Use `render_asp_rust_advice()` when a caller wants
 only the non-blocking repair hints.
 
-Structured consumers should use `render_rust_project_harness_json()` or the
-serializable `RustHarnessReport` for JSON output instead of parsing the compact
+Structured consumers should use `render_asp_rust_json()` or the
+serializable `AspRustReport` for JSON output instead of parsing the compact
 text render.
 
 The compact text and JSON render contracts are covered by repository snapshots

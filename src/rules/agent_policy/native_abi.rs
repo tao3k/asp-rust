@@ -4,14 +4,14 @@ use std::collections::BTreeMap;
 
 use crate::parser::{ParsedRustModule, path_line_location, source_line};
 use crate::rules::display_path;
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use super::RUST_AGENT_POLICY_NATIVE_ABI_CONTRACT_V1;
 
 pub(super) fn native_abi_contract_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_NATIVE_ABI_CONTRACT_V1];
     module
         .syntax_facts
@@ -35,7 +35,7 @@ pub(super) fn native_abi_contract_findings(
             if missing.is_empty() {
                 return None;
             }
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes native ABI {} `{}` without {} in the same owner.",

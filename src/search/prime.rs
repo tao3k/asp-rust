@@ -4,13 +4,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
-use crate::discovery::{discover_cargo_package_roots, rust_project_harness_scope};
+use crate::discovery::{asp_rust_scope, discover_cargo_package_roots};
 use crate::parser::{
     RustReasoningOwnerBranchFacts, RustReasoningOwnerBranchRole, RustReasoningTreeFacts,
     parse_cargo_dependency_facts, parse_cargo_manifest, rust_reasoning_tree_facts,
 };
 use crate::rules::evaluate_default_rule_packs_with_config;
-use crate::{RustHarnessConfig, RustHarnessFinding};
+use crate::{AspRustConfig, AspRustFinding};
 
 use super::cargo::manifest_features;
 use super::context::parse_scope;
@@ -35,12 +35,8 @@ use super::recency::compare_paths_by_recency;
 ///
 /// Returns an error when the project root does not exist or when a selected
 /// package cannot be resolved.
-pub fn render_rust_project_harness_search_prime(project_root: &Path) -> Result<String, String> {
-    render_rust_project_harness_search_prime_with_config(
-        project_root,
-        &RustHarnessConfig::default(),
-        None,
-    )
+pub fn render_asp_rust_search_prime(project_root: &Path) -> Result<String, String> {
+    render_asp_rust_search_prime_with_config(project_root, &AspRustConfig::default(), None)
 }
 
 /// Render the RFC search-prime packet with explicit harness config.
@@ -49,9 +45,9 @@ pub fn render_rust_project_harness_search_prime(project_root: &Path) -> Result<S
 ///
 /// Returns an error when the project root does not exist or when a selected
 /// package cannot be resolved.
-pub fn render_rust_project_harness_search_prime_with_config(
+pub fn render_asp_rust_search_prime_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     selected_package: Option<&str>,
 ) -> Result<String, String> {
     render_prime_with_config(
@@ -64,7 +60,7 @@ pub fn render_rust_project_harness_search_prime_with_config(
 
 pub(super) fn render_search_prime(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     selected_package: Option<&str>,
     seed_limit: Option<usize>,
 ) -> Result<String, String> {
@@ -78,7 +74,7 @@ pub(super) fn render_search_prime(
 
 fn render_prime_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     selected_package: Option<&str>,
     mode: PrimeRenderMode,
 ) -> Result<String, String> {
@@ -171,13 +167,13 @@ fn render_workspace_index_prime(project_root: &Path, package_roots: &[PathBuf]) 
 fn render_package_prime(
     project_root: &Path,
     package_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     mode: PrimeRenderMode,
 ) -> String {
     if let PrimeRenderMode::SeedSource { seed_limit } = mode {
         return render_package_prime_seed_source(project_root, package_root, config, seed_limit);
     }
-    let scope = rust_project_harness_scope(
+    let scope = asp_rust_scope(
         package_root,
         config.include_tests,
         &config.source_dir_names,
@@ -295,7 +291,7 @@ fn render_package_prime(
 fn render_package_prime_seed_source(
     project_root: &Path,
     package_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     seed_limit: usize,
 ) -> String {
     let owner_paths = fast_prime_owner_seed_paths(package_root, seed_limit.max(1));
@@ -378,7 +374,7 @@ fn fast_prime_owner_seed_paths(package_root: &Path, seed_limit: usize) -> Vec<Pa
     paths
 }
 
-fn fast_prime_has_test_surface(package_root: &Path, config: &RustHarnessConfig) -> bool {
+fn fast_prime_has_test_surface(package_root: &Path, config: &AspRustConfig) -> bool {
     config
         .test_dir_names
         .iter()
@@ -427,7 +423,7 @@ fn append_prime_graph_synthesis_line(
     package_root: &Path,
     selected_owner_paths: &[PathBuf],
     reasoning_tree: &RustReasoningTreeFacts,
-    findings: &[RustHarnessFinding],
+    findings: &[AspRustFinding],
 ) {
     if selected_owner_paths.is_empty() {
         return;
@@ -547,7 +543,7 @@ fn push_frontier_candidate(
     }
 }
 
-fn finding_owner_paths(package_root: &Path, findings: &[RustHarnessFinding]) -> Vec<String> {
+fn finding_owner_paths(package_root: &Path, findings: &[AspRustFinding]) -> Vec<String> {
     let mut seen = BTreeSet::new();
     findings
         .iter()
@@ -572,7 +568,7 @@ fn graph_edge_count(reasoning_tree: &RustReasoningTreeFacts) -> usize {
 fn ranked_owner_branches<'a>(
     package_root: &Path,
     reasoning_tree: &'a RustReasoningTreeFacts,
-    findings: &[RustHarnessFinding],
+    findings: &[AspRustFinding],
 ) -> Vec<&'a RustReasoningOwnerBranchFacts> {
     let finding_paths = findings
         .iter()

@@ -6,8 +6,8 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::RustProjectHarnessScope;
-use crate::model::RustHarnessConfig;
+use crate::AspRustScope;
+use crate::model::AspRustConfig;
 use crate::parser::{
     CargoDependencyFacts, ParsedRustModule, RustReasoningTreeFacts, parse_cargo_dependency_facts,
     rust_reasoning_tree_facts,
@@ -142,10 +142,7 @@ impl RustVerificationPackageAnalysisProfile {
 pub fn build_rust_verification_analysis_profile(
     project_root: &Path,
 ) -> Result<RustVerificationAnalysisProfile, String> {
-    build_rust_verification_analysis_profile_with_config(
-        project_root,
-        &RustHarnessConfig::default(),
-    )
+    build_rust_verification_analysis_profile_with_config(project_root, &AspRustConfig::default())
 }
 
 /// Build a verification analysis profile with Cargo dependency facts enabled.
@@ -155,7 +152,7 @@ pub fn build_rust_verification_analysis_profile(
 /// Returns an error when the project root does not exist.
 pub fn build_rust_verification_analysis_profile_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
 ) -> Result<RustVerificationAnalysisProfile, String> {
     analyze_rust_verification_project(
         project_root,
@@ -209,13 +206,13 @@ pub fn render_rust_verification_analysis_profile(
 
 pub(super) fn analyze_rust_verification_project(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     cargo_dependency_analysis: RustVerificationCargoDependencyAnalysis,
 ) -> Result<RustVerificationProjectAnalysis, String> {
     let harness_analysis = crate::runner::analyze_rust_project_once(
         project_root,
         config,
-        crate::runner::RustHarnessRunScope::ProjectWorkspace,
+        crate::runner::AspRustRunScope::ProjectWorkspace,
     )?;
     Ok(analyze_rust_verification_from_harness_analysis(
         harness_analysis,
@@ -224,7 +221,7 @@ pub(super) fn analyze_rust_verification_project(
 }
 
 pub(super) fn analyze_rust_verification_from_harness_analysis(
-    harness_analysis: crate::runner::RustHarnessAnalysis,
+    harness_analysis: crate::runner::AspRustAnalysis,
     cargo_dependency_analysis: RustVerificationCargoDependencyAnalysis,
 ) -> RustVerificationProjectAnalysis {
     let started_at = Instant::now();
@@ -262,7 +259,7 @@ pub(super) fn analyze_rust_verification_from_harness_analysis(
 }
 
 fn rust_verification_package_analysis_from_parsed(
-    scope: &RustProjectHarnessScope,
+    scope: &AspRustScope,
     parsed_modules: &[ParsedRustModule],
     cargo_dependencies: Vec<CargoDependencyFacts>,
     started_at: Instant,

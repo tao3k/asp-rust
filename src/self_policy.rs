@@ -5,8 +5,8 @@
 //! package cannot add itself as a build-dependency.
 
 #[cfg(test)]
-fn self_apply_harness_config() -> crate::RustHarnessConfig {
-    let mut config = crate::default_rust_harness_config().with_verification_profile_hint(
+fn self_apply_harness_config() -> crate::AspRustConfig {
+    let mut config = crate::default_asp_rust_config().with_verification_profile_hint(
         crate::RustVerificationProfileHint::new(
             "src/lib.rs",
             [crate::RustOwnerResponsibility::PublicApi],
@@ -19,4 +19,4 @@ fn self_apply_harness_config() -> crate::RustHarnessConfig {
 }
 
 #[cfg(test)]
-crate::rust_project_harness_cargo_test_gate!(config = self_apply_harness_config());
+crate::asp_rust_cargo_test_gate!(config = self_apply_harness_config());

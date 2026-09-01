@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::discovery::{discover_rust_files, rust_project_harness_scope};
-use crate::model::RustHarnessConfig;
+use crate::discovery::{asp_rust_scope, discover_rust_files};
+use crate::model::AspRustConfig;
 use crate::parser::{ParsedRustModule, parse_rust_file};
 
 /// Shared determinism readiness schema id.
@@ -310,11 +310,11 @@ pub fn build_rust_determinism_readiness(
         ));
     }
 
-    let config = RustHarnessConfig {
+    let config = AspRustConfig {
         include_tests: input.include_tests,
         ..Default::default()
     };
-    let scope = rust_project_harness_scope(
+    let scope = asp_rust_scope(
         &input.project_root,
         config.include_tests,
         &config.source_dir_names,

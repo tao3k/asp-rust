@@ -1,6 +1,6 @@
 #[derive(Clone, Debug)]
 pub(crate) struct ParseArtifactItem {
-    pub(crate) identity: agent_semantic_content_identity::CanonicalItemIdentity,
+    pub(crate) identity: crate::content_identity::CanonicalItemIdentity,
     pub(crate) source_byte_start: usize,
     pub(crate) source_byte_end: usize,
 }
@@ -86,12 +86,12 @@ fn collect_impl_parse_artifact_items(item: &syn::ItemImpl, output: &mut Vec<Pars
     let impl_owner = quote::ToTokens::to_token_stream(item.self_ty.as_ref())
         .to_string()
         .replace(' ', "");
-    let trait_owner = item.trait_.as_ref().map(|(_, path, _)| {
+    let trait_owner = item.trait_.as_ref().map(|(path, _)| {
         quote::ToTokens::to_token_stream(path)
             .to_string()
             .replace(' ', "")
     });
-    let mut impl_identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+    let mut impl_identity = crate::content_identity::CanonicalItemIdentity::new(
         "rust",
         "implementation",
         impl_owner.clone(),
@@ -105,7 +105,7 @@ fn collect_impl_parse_artifact_items(item: &syn::ItemImpl, output: &mut Vec<Pars
         syn::ImplItem::Fn(method) => Some(method),
         _ => None,
     }) {
-        let mut identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+        let mut identity = crate::content_identity::CanonicalItemIdentity::new(
             "rust",
             "method",
             method.sig.ident.to_string(),
@@ -129,7 +129,7 @@ fn collect_trait_parse_artifact_items(item: &syn::ItemTrait, output: &mut Vec<Pa
         syn::TraitItem::Fn(method) => Some(method),
         _ => None,
     }) {
-        let identity = agent_semantic_content_identity::CanonicalItemIdentity::new(
+        let identity = crate::content_identity::CanonicalItemIdentity::new(
             "rust",
             "trait-function",
             method.sig.ident.to_string(),
@@ -165,9 +165,7 @@ fn collect_reexport_items(
     };
     if let Some((kind, name)) = identity {
         output.push(ParseArtifactItem {
-            identity: agent_semantic_content_identity::CanonicalItemIdentity::new(
-                "rust", kind, name,
-            ),
+            identity: crate::content_identity::CanonicalItemIdentity::new("rust", kind, name),
             source_byte_start,
             source_byte_end,
         });
@@ -175,9 +173,9 @@ fn collect_reexport_items(
 }
 
 pub(crate) fn with_cfg_scopes(
-    mut identity: agent_semantic_content_identity::CanonicalItemIdentity,
+    mut identity: crate::content_identity::CanonicalItemIdentity,
     attrs: &[syn::Attribute],
-) -> agent_semantic_content_identity::CanonicalItemIdentity {
+) -> crate::content_identity::CanonicalItemIdentity {
     for attribute in attrs
         .iter()
         .filter(|attribute| attribute.path().is_ident("cfg"))
@@ -205,12 +203,12 @@ fn push_parse_artifact_item<T: syn::spanned::Spanned>(
     item: &T,
     output: &mut Vec<ParseArtifactItem>,
 ) {
-    let identity = agent_semantic_content_identity::CanonicalItemIdentity::new("rust", kind, name);
+    let identity = crate::content_identity::CanonicalItemIdentity::new("rust", kind, name);
     push_canonical_parse_artifact_item(with_cfg_scopes(identity, attrs), item, output);
 }
 
 fn push_canonical_parse_artifact_item<T: syn::spanned::Spanned>(
-    identity: agent_semantic_content_identity::CanonicalItemIdentity,
+    identity: crate::content_identity::CanonicalItemIdentity,
     item: &T,
     output: &mut Vec<ParseArtifactItem>,
 ) {

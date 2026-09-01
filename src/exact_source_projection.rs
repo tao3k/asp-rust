@@ -7,9 +7,9 @@ pub(crate) struct ExactProjectionAuthority {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ResolvedExactItem {
-    pub(crate) canonical_selector: agent_semantic_content_identity::CanonicalItemSelector,
+    pub(crate) canonical_selector: crate::content_identity::CanonicalItemSelector,
     pub(crate) owner_path: String,
-    pub(crate) identity: agent_semantic_content_identity::CanonicalItemIdentity,
+    pub(crate) identity: crate::content_identity::CanonicalItemIdentity,
     pub(crate) code: String,
     pub(crate) source_byte_start: usize,
     pub(crate) source_byte_end: usize,
@@ -54,7 +54,7 @@ pub(crate) fn callable_skeleton_projection(
             "languageFacts": {
                 "async": signature.asyncness.is_some(),
                 "const": signature.constness.is_some(),
-                "unsafe": signature.unsafety.is_some(),
+                "unsafe": matches!(&signature.safety, syn::Safety::Unsafe(_)),
                 "inputCount": signature.inputs.len(),
                 "genericParameterCount": signature.generics.params.len(),
             },
@@ -102,53 +102,7 @@ pub(crate) fn callable_skeleton_projection(
     Ok(payload)
 }
 
-pub(crate) fn provider_native_exact_projection_packet(
-    provider_id: &str,
-    requested_structural_selector: &str,
-    projection_kind: &str,
-    resolved: &ResolvedExactItem,
-    resolution_state: &str,
-    authority: &ExactProjectionAuthority,
-) -> Result<serde_json::Value, String> {
-    let identity = resolved.canonical_selector.identity();
-    let normalized_parser_facts = serde_json::json!({
-        "itemKind": identity.kind.as_str(),
-        "itemName": identity.symbol.as_str(),
-        "ownerPath": resolved.owner_path,
-        "resolvedSelector": resolved.canonical_selector.structural_selector,
-        "resolutionState": resolution_state,
-    });
-    let mut packet = serde_json::json!({
-        "schemaId": "agent.semantic-protocols.provider-native-exact-projection",
-        "schemaVersion": "1",
-        "languageId": "rust",
-        "providerId": provider_id,
-        "ownerPath": resolved.owner_path,
-        "requestedStructuralSelector": requested_structural_selector,
-        "structuralSelector": resolved.canonical_selector.structural_selector,
-        "projectionMode": projection_kind,
-        "normalizedParserFacts": normalized_parser_facts,
-        "sourceContentDigest": resolved.owner_blob_digest,
-        "sourceByteStart": resolved.source_byte_start,
-        "sourceByteEnd": resolved.source_byte_end,
-    });
-    match projection_kind {
-        "source" => {
-            packet["projectionText"] = serde_json::Value::String(resolved.code.clone());
-        }
-        "callable-skeleton" => {
-            packet["projectionPayload"] = callable_skeleton_projection(resolved, authority)?;
-        }
-        projection_kind => {
-            return Err(format!(
-                "unsupported provider-native exact projection kind `{projection_kind}`"
-            ));
-        }
-    }
-    Ok(packet)
-}
-
-// Parser-owned projection engine shared by CLI and non-CLI provider callers.
+// Parser-owned projection engine used by the Runtime-managed provider server.
 struct SkeletonCollector<'a> {
     resolved: &'a ResolvedExactItem,
     authority: Option<&'a ExactProjectionAuthority>,
