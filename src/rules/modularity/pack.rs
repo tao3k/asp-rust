@@ -67,15 +67,16 @@ pub(crate) fn evaluate(
         if !module.report.is_valid {
             continue;
         }
-        let is_import_policy_source =
-            module_facts.is_source_module || module_facts.source_path.is_test_source;
+        let is_source_or_test_module = module_facts.is_source_module || module_facts.is_test_module;
         if module_facts.is_source_module {
             findings.extend(crate_facade_findings(module_facts, module, &rules));
             findings.extend(binary_entrypoint_findings(module_facts, module, &rules));
-            findings.extend(interface_mod_findings(module_facts, module, &rules));
             findings.extend(inline_source_module_findings(module_facts, module, &rules));
         }
-        if is_import_policy_source {
+        if is_source_or_test_module {
+            findings.extend(interface_mod_findings(module_facts, module, &rules));
+        }
+        if is_source_or_test_module {
             findings.extend(deep_relative_import_findings(module_facts, module, &rules));
             findings.extend(glob_import_findings(module_facts, module, &rules));
         }

@@ -34,6 +34,45 @@ fn interface_mod_policy_rejects_inline_module_implementation() {
 }
 
 #[test]
+fn package_policy_rejects_inline_implementation_in_test_interface_mod() {
+    let temp = TempDir::new().expect("temp dir");
+    let root = temp.path();
+    write_manifest(root, "test-interface-mod-implementation");
+    fs::create_dir(root.join("src")).expect("create src");
+    fs::create_dir_all(root.join("tests/unit")).expect("create test module tree");
+    fs::create_dir_all(root.join("tests/fixtures/scenario/input/src/runtime"))
+        .expect("create fixture data tree");
+    fs::write(
+        root.join("src/lib.rs"),
+        "//! Test crate.\n#[cfg(test)]\n#[path = \"../tests/unit/mod.rs\"]\nmod tests;\n",
+    )
+    .expect("write lib");
+    fs::write(
+        root.join("tests/unit/mod.rs"),
+        "//! Test interface.\nfn helper() -> usize { 42 }\n",
+    )
+    .expect("write test interface");
+    fs::write(
+        root.join("tests/fixtures/scenario/input/src/runtime/mod.rs"),
+        "//! Rust source used as fixture data.\npub struct FixtureOnly;\n",
+    )
+    .expect("write unmounted fixture source");
+
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
+
+    let findings = findings_for_rule(&report, "RUST-MOD-R001");
+    assert_eq!(findings.len(), 1, "{:?}", report.findings);
+    assert!(
+        findings[0]
+            .location
+            .path
+            .as_ref()
+            .is_some_and(|path| path.ends_with("tests/unit/mod.rs"))
+    );
+}
+
+#[test]
 fn source_bloat_policy_reports_private_implementation_pile() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
