@@ -1,0 +1,22 @@
+harness = "libtest"
+test = "scenario_benchmark_workspace_dependency_graph_package_once_v1_snapshot"
+snapshot = "scenario_benchmark_workspace_dependency_graph_package_once_v1"
+target_total = "5ms"
+max_total = "25ms"
+observed_total = "1ms"
+regression_budget = "5ms"
+memory_budget_bytes = 4194304
+observed_memory_bytes = 1048576
+target_rationale = "Manifest-owned Build DAG derivation must stay parser-native and must not invoke Cargo metadata or compile dependency crates."
+
+[observed_timings]
+manifest_parse = "500us"
+dependency_closure = "250us"
+topological_order = "250us"
+
+[input_expected_comparison]
+input_total = "4ms"
+expected_total = "1ms"
+input_memory_bytes = 2097152
+expected_memory_bytes = 1048576
+interpretation = "The expected Build DAG removes repeated policy execution for the shared diamond dependency."

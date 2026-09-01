@@ -36,6 +36,8 @@ mod search;
 mod self_policy;
 pub mod structural_selector;
 mod verification;
+#[path = "workspace_dependency_graph.rs"]
+mod workspace_build_dag;
 mod workspace_evidence_graph;
 
 pub use asp_rust_rules::{
@@ -311,6 +313,10 @@ pub use verification::{
     assert_rule_fixture_scenario_benchmarks, discover_required_rust_scenario_benchmarks,
     validate_required_rust_scenario_benchmarks, validate_rust_scenario_benchmark,
 };
+pub use workspace_build_dag::{
+    ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID, ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_VERSION,
+    AspRustWorkspaceBuildDag, AspRustWorkspaceBuildDagPackage, asp_rust_workspace_build_dag,
+};
 pub use workspace_evidence_graph::{
     ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID,
     ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_VERSION,
@@ -321,6 +327,6 @@ pub use workspace_evidence_graph::{
     AspRustWorkspaceEvidenceGraphSummaryReceipt, AspRustWorkspaceMemberRunReport,
     AspRustWorkspaceRunReport, AspRustWorkspaceTrustLoopStepReceipt,
     AspRustWorkspaceTrustLoopStepStatus, asp_rust_workspace_evidence_graph_receipt,
-    assert_rust_workspace_harness_downstream_policies,
+    assert_asp_rust_workspace_build_dag_policy,
     render_asp_rust_workspace_evidence_graph_receipt_json,
 };

@@ -20,7 +20,7 @@ procedural macro that would repeat the package policy scan per test.
 - Builds parser-native project facts from Rust source and Cargo manifests.
 - Runs deterministic rule packs for syntax, project policy, modularity, and
   agent repair advice.
-- Provides a build-script `cargo check` gate for downstream crates.
+- Provides package and dependency-graph `cargo check` gates for downstream crates.
 - Exposes parser-owned provider operations through the ASP Server HTTP/JSON
   transport.
 - Plans verification obligations for external skills without running benchmarks,
@@ -45,6 +45,23 @@ fn main() {
     );
 }
 ```
+
+For a multi-package workspace, use the graph gate at the product root rather
+than copying the same full policy gate into every member:
+
+```rust,ignore
+fn main() {
+asp_rust::assert_asp_rust_workspace_build_dag_policy(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")),
+        &harness::workspace_policy(),
+        [env!("CARGO_PKG_NAME")],
+    );
+}
+```
+
+The graph is parsed from local Cargo path dependencies. Selected roots expand
+to a deterministic dependency-first closure, diamond dependencies occur once,
+and the package content-and-policy cache avoids warm-build rescans.
 
 The binary is started by ASP Runtime using the catalog-declared `serve`
 entrypoint. Direct `search`, `query`, `check`, `projection`, and `agent`

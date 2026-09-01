@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 
 use asp_rust::{
     RustScenarioBenchmarkContract, RustScenarioBenchmarkPhase, RustScenarioBenchmarkStatus,
-    RustScenarioBenchmarkViolationKind, assert_rule_fixture_scenario_benchmarks,
-    validate_required_rust_scenario_benchmarks, validate_rust_scenario_benchmark,
+    RustScenarioBenchmarkViolationKind, asp_rust_workspace_build_dag,
+    assert_rule_fixture_scenario_benchmarks, validate_required_rust_scenario_benchmarks,
+    validate_rust_scenario_benchmark,
 };
 use tempfile::TempDir;
 
@@ -57,6 +58,41 @@ fn scenario_benchmark_source_index_fallback_control_v1_snapshot() {
     assert_eq!(
         receipt.benchmark.fallback_reason.as_deref(),
         Some("explicit-miss-or-rejected-only")
+    );
+}
+
+#[test]
+fn scenario_benchmark_workspace_dependency_graph_package_once_v1_snapshot() {
+    let scenario_root = fixture_root("build_system/workspace_dependency_graph_package_once_v1");
+    let receipt = validate_rust_scenario_benchmark(&scenario_root)
+        .expect("validate workspace dependency-graph package-once scenario benchmark");
+    let workspace_root = scenario_root.join(&receipt.scenario.inputs);
+    let build_dag = asp_rust_workspace_build_dag(
+        &workspace_root,
+        &asp_rust::default_asp_rust_config(),
+        ["app"],
+    )
+    .expect("derive the selected package dependency closure");
+    let package_names = build_dag
+        .packages
+        .iter()
+        .map(|package| package.package_name.as_str())
+        .collect::<Vec<_>>();
+
+    assert_eq!(receipt.status, RustScenarioBenchmarkStatus::Pass);
+    assert!(receipt.violations.is_empty(), "{:?}", receipt.violations);
+    assert_eq!(package_names, ["shared", "left", "right", "app"]);
+    assert_eq!(
+        package_names
+            .iter()
+            .filter(|package_name| **package_name == "shared")
+            .count(),
+        1,
+        "the diamond dependency must appear exactly once in the Build DAG"
+    );
+    assert!(
+        receipt.benchmark.observed_total <= receipt.benchmark.max_total,
+        "{receipt:?}"
     );
 }
 

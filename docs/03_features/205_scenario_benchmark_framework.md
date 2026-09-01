@@ -77,6 +77,28 @@ tests/fixtures/ast_patch_scenarios/<scenario-id>/
 
 Every directory with `scenario.toml` under `tests/unit/scenarios` and every directory with `scenario.json` under `tests/fixtures/ast_patch_scenarios` is a required benchmark scenario. The suite gate must fail when any of those roots is missing `benchmark.toml`.
 
+Build-system scenarios are executable graph fixtures rather than prose-only
+examples. The V1 package-once scenario is a four-package Cargo diamond:
+
+```text
+tests/unit/scenarios/build_system/workspace_dependency_graph_package_once_v1/
+  inputs/
+    Cargo.toml
+    app/       # depends on left and right
+    left/      # depends on shared
+    right/     # depends on shared
+    shared/
+  expected/
+  scenario.toml
+  benchmark.toml
+```
+
+Its snapshot test selects `app` through the production Build DAG API and proves
+the dependency-first order `shared`, `left`, `right`, `app`, with `shared`
+present exactly once. Separate focused fixtures cover selected-root closure,
+unknown package rejection, and cycle rejection. This keeps Scenario V1 aligned
+with the downstream build API instead of duplicating graph semantics in TOML.
+
 ## Gate Semantics
 
 The harness reports:

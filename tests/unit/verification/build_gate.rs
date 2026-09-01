@@ -1,14 +1,15 @@
 use asp_rust::{
     ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID,
-    ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION,
+    ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION, ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID,
     ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID, AspRustDependencyBaseline,
     AspRustDownstreamPolicy, AspRustWorkspaceEvidenceGraphEdgeKind,
     AspRustWorkspaceEvidenceGraphMemberInput, AspRustWorkspaceEvidenceGraphNodeKind,
     AspRustWorkspacePolicy, AspRustWorkspaceTrustLoopStepStatus,
-    asp_rust_downstream_policy_receipt, asp_rust_workspace_evidence_graph_receipt,
-    assert_asp_rust_dependency_baseline, assert_asp_rust_downstream_policy,
-    assert_asp_rust_verification_with_config, assert_rust_workspace_harness_downstream_policies,
-    default_asp_rust_config, render_asp_rust_downstream_policy_receipt_json,
+    asp_rust_downstream_policy_receipt, asp_rust_workspace_build_dag,
+    asp_rust_workspace_evidence_graph_receipt, assert_asp_rust_dependency_baseline,
+    assert_asp_rust_downstream_policy, assert_asp_rust_verification_with_config,
+    assert_asp_rust_workspace_build_dag_policy, default_asp_rust_config,
+    render_asp_rust_downstream_policy_receipt_json,
     render_asp_rust_workspace_evidence_graph_receipt_json,
     rust_downstream_verification_gate_guide_markdown,
 };
@@ -313,7 +314,7 @@ fn downstream_verification_gate_guide_classifies_api_and_cli_surfaces() {
         "{guide}"
     );
     assert!(
-        guide.contains("cargo test automatically triggers the member build.rs gate"),
+        guide.contains("`cargo test` automatically triggers that graph gate"),
         "{guide}"
     );
     assert!(guide.contains("[asp-rust-agent-guidance]"), "{guide}");
@@ -562,86 +563,115 @@ fn workspace_policy_reuses_common_config_for_member_crates() {
 }
 
 #[test]
-fn explicit_workspace_builder_composes_cargo_admitted_package_atoms() {
+fn build_dag_deduplicates_diamond_and_orders_dependencies_first() {
     let temp = TempDir::new().expect("temp dir");
     let workspace = temp.path();
-    let api = workspace.join("api");
-    let worker = workspace.join("worker");
-    fs::write(
-        workspace.join("Cargo.toml"),
-        "[workspace]\nmembers=['api', 'worker']\nresolver='2'\n",
-    )
-    .expect("write workspace manifest");
-    fs::create_dir_all(&api).expect("create api member");
-    fs::create_dir_all(&worker).expect("create worker member");
-    write_api_project(&api);
-    write_api_project(&worker);
+    write_dependency_graph_workspace(workspace, false);
     let config = default_asp_rust_config()
         .with_cargo_check_advice_allow_explanation(WORKSPACE_POLICY_ADVICE_ALLOW);
-    let template = AspRustWorkspacePolicy::new("fixture", config.clone());
+    let build_dag =
+        asp_rust_workspace_build_dag(workspace, &config, ["app"]).expect("workspace Build DAG");
 
-    let report = assert_rust_workspace_harness_downstream_policies(
-        workspace,
-        &config,
-        [
-            AspRustWorkspaceEvidenceGraphMemberInput::new(
-                "api",
-                &api,
-                template.member_crate("api"),
-            ),
-            AspRustWorkspaceEvidenceGraphMemberInput::new(
-                "worker",
-                &worker,
-                template.member_crate("worker"),
-            ),
-        ],
+    assert_eq!(build_dag.schema_id, ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID);
+    assert_eq!(build_dag.selected_packages, ["app"]);
+    assert_eq!(
+        build_dag
+            .packages
+            .iter()
+            .map(|package| package.package_name.as_str())
+            .collect::<Vec<_>>(),
+        ["shared", "left", "right", "app"]
+    );
+    assert_eq!(
+        build_dag
+            .packages
+            .iter()
+            .filter(|package| package.package_name == "shared")
+            .count(),
+        1,
+        "diamond dependency must appear once"
     );
 
-    assert_eq!(report.members.len(), 2);
-    for member in report.members {
-        assert!(
-            member
-                .report
-                .root_paths
-                .iter()
-                .all(|path| path.starts_with(&member.project_root)),
-            "workspace composition escaped package atom: {member:?}"
-        );
-    }
+    let workspace_policy = AspRustWorkspacePolicy::new("fixture", config);
+    let report = assert_asp_rust_workspace_build_dag_policy(workspace, &workspace_policy, ["app"]);
+    assert_eq!(report.members.len(), 4);
+    assert_eq!(
+        report
+            .members
+            .iter()
+            .filter(|member| member.crate_label == "shared")
+            .count(),
+        1,
+        "diamond dependency policy must execute once"
+    );
 }
 
 #[test]
-fn explicit_workspace_builder_rejects_unregistered_directory() {
+fn build_dag_selects_only_transitive_closure_and_rejects_unknown_package() {
     let temp = TempDir::new().expect("temp dir");
     let workspace = temp.path();
-    let admitted = workspace.join("admitted");
-    let unregistered = workspace.join("unregistered");
-    fs::write(
-        workspace.join("Cargo.toml"),
-        "[workspace]\nmembers=['admitted']\nresolver='2'\n",
-    )
-    .expect("write workspace manifest");
-    fs::create_dir_all(&admitted).expect("create admitted member");
-    fs::create_dir_all(&unregistered).expect("create unregistered package");
-    write_api_project(&admitted);
-    write_api_project(&unregistered);
+    write_dependency_graph_workspace(workspace, false);
     let config = default_asp_rust_config()
         .with_cargo_check_advice_allow_explanation(WORKSPACE_POLICY_ADVICE_ALLOW);
-    let policy = AspRustDownstreamPolicy::new("unregistered", config.clone());
+    let left = asp_rust_workspace_build_dag(workspace, &config, ["left"]).expect("left closure");
+    assert_eq!(
+        left.packages
+            .iter()
+            .map(|package| package.package_name.as_str())
+            .collect::<Vec<_>>(),
+        ["shared", "left"]
+    );
+    let error = asp_rust_workspace_build_dag(workspace, &config, ["missing"])
+        .expect_err("unknown package must fail closed");
+    assert!(error.contains("unknown package `missing`"), "{error}");
+}
 
-    let rejected = std::panic::catch_unwind(|| {
-        assert_rust_workspace_harness_downstream_policies(
-            workspace,
-            &config,
-            [AspRustWorkspaceEvidenceGraphMemberInput::new(
-                "unregistered",
-                &unregistered,
-                policy,
-            )],
-        );
+#[test]
+fn build_dag_rejects_local_cycle_before_policy_execution() {
+    let temp = TempDir::new().expect("temp dir");
+    let workspace = temp.path();
+    write_dependency_graph_workspace(workspace, true);
+    let error = asp_rust_workspace_build_dag(workspace, &default_asp_rust_config(), ["app"])
+        .expect_err("local dependency cycle must fail closed");
+    assert!(error.contains("contains a cycle"), "{error}");
+}
+
+fn write_dependency_graph_workspace(workspace: &std::path::Path, cycle: bool) {
+    fs::write(
+        workspace.join("Cargo.toml"),
+        "[workspace]\nmembers=['app', 'left', 'right', 'shared']\nresolver='3'\n",
+    )
+    .expect("write workspace manifest");
+    write_dependency_graph_package(workspace, "shared", cycle.then_some("app"));
+    write_dependency_graph_package(workspace, "left", Some("shared"));
+    write_dependency_graph_package(workspace, "right", Some("shared"));
+    let app = workspace.join("app");
+    fs::create_dir_all(app.join("src")).expect("create app source");
+    fs::write(
+        app.join("Cargo.toml"),
+        "[package]\nname='app'\nversion='0.1.0'\nedition='2024'\n\n[dependencies]\nleft={path='../left'}\nright={path='../right'}\n",
+    )
+    .expect("write app manifest");
+    fs::write(app.join("src/lib.rs"), "//! App package.\n").expect("write app source");
+}
+
+fn write_dependency_graph_package(
+    workspace: &std::path::Path,
+    name: &str,
+    dependency: Option<&str>,
+) {
+    let root = workspace.join(name);
+    fs::create_dir_all(root.join("src")).expect("create package source");
+    let dependency = dependency.map_or_else(String::new, |dependency| {
+        format!("\n[dependencies]\n{dependency}={{path='../{dependency}'}}\n")
     });
-
-    assert!(rejected.is_err(), "unregistered directory was admitted");
+    fs::write(
+        root.join("Cargo.toml"),
+        format!("[package]\nname='{name}'\nversion='0.1.0'\nedition='2024'\n{dependency}"),
+    )
+    .expect("write package manifest");
+    fs::write(root.join("src/lib.rs"), format!("//! {name} package.\n"))
+        .expect("write package source");
 }
 
 #[test]

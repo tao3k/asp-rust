@@ -1,10 +1,13 @@
 //! Workspace-level evidence graph receipts for multi-crate build gates.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::workspace_build_dag::{AspRustWorkspaceBuildDag, asp_rust_workspace_build_dag};
+
+use crate::AspRustReport;
 use crate::build_gate::{
     AspRustDownstreamPolicy, AspRustDownstreamPolicyReceipt, downstream_policy_receipt_from_plan,
     verification_task_kind_key,
@@ -12,7 +15,6 @@ use crate::build_gate::{
 use crate::verification::{
     RustVerificationPlan, RustVerificationTaskKind, plan_rust_project_verification_with_config,
 };
-use crate::{AspRustConfig, AspRustReport};
 
 /// Stable schema id for multi-crate workspace evidence graph receipts.
 pub const ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID: &str =
@@ -68,6 +70,8 @@ impl AspRustWorkspaceEvidenceGraphMemberInput {
 pub struct AspRustWorkspaceRunReport {
     /// Cargo workspace root whose manifest admitted every selected member.
     pub workspace_root: PathBuf,
+    /// Build DAG that admitted the package atoms.
+    pub build_dag: AspRustWorkspaceBuildDag,
     /// Independently evaluated package reports.
     pub members: Vec<AspRustWorkspaceMemberRunReport>,
 }
@@ -83,64 +87,46 @@ pub struct AspRustWorkspaceMemberRunReport {
     pub report: AspRustReport,
 }
 
-/// Assert explicitly selected workspace members as independent package atoms.
+/// Assert a Cargo dependency closure as independent package atoms.
 ///
-/// The Cargo manifest graph admits member roots before any package analysis.
-/// Each admitted member then runs through the ordinary downstream package API;
-/// no workspace-wide source traversal or shared member policy is introduced.
+/// Package selection and ordering come only from parsed Cargo manifests. The
+/// shared workspace policy is derived once per planned package; diamond
+/// dependencies are evaluated once, never once per incoming edge.
 ///
 /// # Panics
 ///
-/// Panics when a requested root is absent from the Cargo package graph, a root
-/// is selected twice, or one member policy fails.
+/// Panics when Cargo graph construction fails or one planned package fails.
 #[track_caller]
-pub fn assert_rust_workspace_harness_downstream_policies(
+pub fn assert_asp_rust_workspace_build_dag_policy(
     workspace_root: &Path,
-    workspace_config: &AspRustConfig,
-    members: impl IntoIterator<Item = AspRustWorkspaceEvidenceGraphMemberInput>,
+    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+    selected_packages: impl IntoIterator<Item = impl Into<String>>,
 ) -> AspRustWorkspaceRunReport {
-    let admitted_roots = crate::discovery::discover_cargo_package_roots(
-        workspace_root,
-        &workspace_config.ignored_dir_names,
-        &workspace_config.include_hidden_dir_names,
-    )
-    .into_iter()
-    .map(|root| crate::path::normalize_lexical_path(&root))
-    .collect::<BTreeSet<_>>();
-    let mut selected_roots = BTreeSet::new();
+    let build_dag =
+        asp_rust_workspace_build_dag(workspace_root, workspace_policy.config(), selected_packages)
+            .unwrap_or_else(|error| panic!("ASP Rust workspace dependency graph: {error}"));
     let mut reports = Vec::new();
-    for member in members {
-        let project_root = crate::path::normalize_lexical_path(member.project_root());
-        assert!(
-            admitted_roots.contains(&project_root),
-            "workspace member `{}` is not admitted by Cargo graph rooted at {}: {}",
-            member.crate_label(),
-            workspace_root.display(),
-            project_root.display()
-        );
-        assert!(
-            selected_roots.insert(project_root.clone()),
-            "workspace package selected more than once: {}",
-            project_root.display()
-        );
+    for package in &build_dag.packages {
+        let policy = workspace_policy.member_crate(&package.package_name);
         let report =
-            crate::build_gate::assert_asp_rust_downstream_policy(&project_root, member.policy());
+            crate::build_gate::assert_asp_rust_downstream_policy(&package.package_root, &policy);
         assert!(
             report
                 .root_paths
                 .iter()
-                .all(|path| path.starts_with(&project_root)),
+                .all(|path| path.starts_with(&package.package_root)),
             "workspace member gate escaped package atom {}",
-            project_root.display()
+            package.package_root.display()
         );
         reports.push(AspRustWorkspaceMemberRunReport {
-            crate_label: member.crate_label().to_string(),
-            project_root,
+            crate_label: package.package_name.clone(),
+            project_root: package.package_root.clone(),
             report,
         });
     }
     AspRustWorkspaceRunReport {
         workspace_root: crate::path::normalize_lexical_path(workspace_root),
+        build_dag,
         members: reports,
     }
 }

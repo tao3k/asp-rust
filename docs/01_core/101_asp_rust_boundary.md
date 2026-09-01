@@ -156,9 +156,22 @@ suppressed by a project-owned allowlist.
 advisory. The `AGENT-*` policy pack is intentionally `Info`-only so agents see
 LLM-friendly repair hints without turning every style concern into a gate.
 
-## Non-Goals
+## Workspace Dependency Graph
 
-The first standalone version does not move the full scenario framework,
-performance gate kernel, or workshop-specific contract runner from
-`xiuxian-testing`. Those can become separate packages later if the boundary
-needs them.
+Workspace policy is derived from Cargo manifests, not a hand-maintained member
+list and not `cargo metadata` subprocess output. The parser resolves local
+normal, development, build, target-specific, and inherited workspace path
+dependencies. The Build DAG derivation then expands selected roots to a dependency-
+first closure, rejects cycles or unadmitted local edges, and assigns each unique
+package one execution index.
+
+Build DAG derivation and execution remain separate typed facts. The stable V1 DAG
+explains what will run; the package content-and-policy cache decides whether that
+package needs a fresh parser/policy pass. A diamond dependency therefore appears
+once in the DAG and is evaluated once. Source or policy identity drift invalidates its
+cache key without turning an arbitrary client package into a workspace-wide
+authority.
+
+The native Scenario Benchmark Framework is part of this boundary. Build-system
+scenarios use real Cargo workspaces under `inputs/` and call the production graph
+derivation API, so the graph contract cannot drift into documentation-only examples.

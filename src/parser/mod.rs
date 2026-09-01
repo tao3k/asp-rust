@@ -4,6 +4,10 @@
 mod cargo_cfg;
 mod cargo_dependency_facts;
 mod cargo_manifest;
+mod cargo_package_graph;
+pub(crate) use cargo_package_graph::{
+    CargoPackageGraphFacts, parse_required_cargo_package_graph_facts,
+};
 mod cargo_test_targets;
 mod location;
 mod module_tree;
