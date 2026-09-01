@@ -89,21 +89,35 @@ fn cargo_manifest_parser_lives_under_parser_module() {
     let dependency_facts_source =
         fs::read_to_string(root.join("src/parser/cargo_dependency_facts.rs"))
             .expect("read cargo dependency facts parser");
+    let package_graph_source = fs::read_to_string(root.join("src/parser/cargo_package_graph.rs"))
+        .expect("read Cargo package graph parser");
+    let cfg_facts_source = fs::read_to_string(root.join("src/parser/cargo_cfg.rs"))
+        .expect("read cargo cfg facts parser");
     assert!(parser_source.contains("use cargo_toml::"));
     assert!(parser_source.contains("Manifest::from_path"));
     assert!(dependency_facts_source.contains("parse_cargo_dependency_facts"));
     assert!(dependency_facts_source.contains("Manifest::from_path"));
+    assert!(package_graph_source.contains("parse_required_cargo_package_graph_facts"));
+    assert!(package_graph_source.contains("Manifest::from_path"));
     assert!(!parser_source.contains("Command::new"));
     assert!(!parser_source.contains("cargo metadata"));
     assert!(!dependency_facts_source.contains("Command::new"));
     assert!(!dependency_facts_source.contains("cargo metadata"));
+    assert!(!package_graph_source.contains("Command::new"));
+    assert!(!package_graph_source.contains("cargo metadata"));
+    assert!(!cfg_facts_source.contains("Command::new"));
+    assert!(!cfg_facts_source.contains("cargo metadata"));
+    assert!(!cfg_facts_source.contains("Manifest::from_path"));
 
     let mut offenders = Vec::new();
     for path in rust_files_under(&root.join("src")) {
         let relative = relative_path(&root, &path);
         if matches!(
             relative.as_str(),
-            "src/parser/cargo_manifest.rs" | "src/parser/cargo_dependency_facts.rs"
+            "src/parser/cargo_manifest.rs"
+                | "src/parser/cargo_dependency_facts.rs"
+                | "src/parser/cargo_package_graph.rs"
+                | "src/parser/cargo_cfg.rs"
         ) {
             continue;
         }

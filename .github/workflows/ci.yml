@@ -56,18 +56,18 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}/.sccache/
-          key: rust-harness-sccache-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.toml', '.github/workflows/ci.yml') }}-${{ github.run_id }}
+          key: asp-rust-sccache-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.toml', '.github/workflows/ci.yml') }}-${{ github.run_id }}
           restore-keys: |
-            rust-harness-sccache-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.toml', '.github/workflows/ci.yml') }}-
-            rust-harness-sccache-${{ runner.os }}-${{ hashFiles('Cargo.toml', '.github/workflows/ci.yml') }}-
-            rust-harness-sccache-${{ runner.os }}-
+            asp-rust-sccache-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.toml', '.github/workflows/ci.yml') }}-
+            asp-rust-sccache-${{ runner.os }}-${{ hashFiles('Cargo.toml', '.github/workflows/ci.yml') }}-
+            asp-rust-sccache-${{ runner.os }}-
 
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             . -> target
-          shared-key: rust-harness-ci-${{ runner.os }}
+          shared-key: asp-rust-ci-${{ runner.os }}
           cache-on-failure: true
 
       - name: Fetch cargo dependencies
@@ -78,30 +78,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Run tests
-        shell: bash
-        run: |
-          skips=(
-            --skip cli_rust_flow_drill_reduces_search_rounds_with_seeds_and_recipe_plan
-            --skip cli_search_fzf_accepts_workspace_relative_scope_paths
-            --skip cli_search_fzf_points_code_shaped_queries_to_explicit_query_api
-            --skip cli_search_fzf_renders_fuzzy_frontier
-            --skip cli_search_guide_renders_typed_reasoning_profiles
-            --skip cli_search_owner_items_graph_prioritizes_symbol_code_frontier
-            --skip cli_search_query_routes_code_shaped_use_through_native_syntax_facts
-            --skip cli_search_views_render_rfc_line_protocol
-            --skip public_large_codex_web_search_flow_connects_prime_to_workspace_symbol_axes
-            --skip public_large_tokio_bytes_flow_connects_prime_to_dependency_api_and_docs_axes
-            --skip search_lab_multi_pipe_dependency_flow_compresses_to_final_packet
-          )
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            skips+=(
-              --skip calls_catalog_packet_projects_native_call_captures
-              --skip cli_ast_patch_scenarios_match_expected_trees_and_receipts
-              --skip cli_query_hook_source_option_reads_worktree_index_and_head
-              --skip inline_function_name_capture_uses_name_node_and_line_range
-            )
-          fi
-          cargo test --workspace --all-targets --all-features -- "${skips[@]}"
+        run: cargo test --workspace --all-targets --all-features
 
       - name: Run query search microbench
         if: ${{ matrix.os == 'ubuntu-latest' }}
@@ -111,9 +88,9 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Run harness self-check
+      - name: Verify provider server process surface
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: cargo run --features cli --bin rs-harness -- .
+        run: cargo test --no-default-features --features provider-server provider_process_surface_admits_only_catalog_declared_serve
 
       - name: Save sccache cache (fallback)
         if: ${{ always() && !cancelled() && env.SCCACHE_GHA_ENABLED != 'true' }}
@@ -121,7 +98,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}/.sccache/
-          key: rust-harness-sccache-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.toml', '.github/workflows/ci.yml') }}-${{ github.run_id }}
+          key: asp-rust-sccache-${{ runner.os }}-${{ github.job }}-${{ hashFiles('Cargo.toml', '.github/workflows/ci.yml') }}-${{ github.run_id }}
 
       - name: sccache summary
         if: ${{ always() }}

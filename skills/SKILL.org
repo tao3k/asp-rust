@@ -1,26 +1,26 @@
-#+TITLE: rs-harness Skill
+#+TITLE: ASP Rust Skill
 
 #+DESCRIPTION: Agent-first Rust search guide for reasoning-tree prime, owner-aware search, Cargo facts, dependency API docs, structural recipes, and changed-file checks.
 #+STATUS: optimized draft
 
 * Purpose
 
-Use =rs-harness= before broad Rust code reading. The CLI returns deterministic
+Use =asp rust= before broad Rust code reading. The CLI returns deterministic
 facts; the agent chooses the flow, subagents, and next searches.
 
 Default output is compact agent text. Use =--json= only for structured tools.
 There is no =--compact= flag. Installed wrappers may expose the protocol as
-=rs-harness=.
+=asp rust=.
 
 * Profile selection
 
-Use =rs-harness= only for Rust project files:
+Use =asp rust= only for Rust project files:
 
 - =*.rs=
 - =Cargo.toml=, =Cargo.lock=, =build.rs=
 - Rust tool and lint config files
 
-Use =ts-harness= only for TypeScript/JavaScript project files:
+Use =asp-typescript= only for TypeScript/JavaScript project files:
 
 - =*.ts=, =*.tsx=, =*.js=, =*.jsx=, =*.mts=, =*.cts=, =*.mjs=, =*.cjs=
 - =package.json=
@@ -38,18 +38,18 @@ move intent planning into hooks.
 Hooks may nudge or block these gaps:
 
 1. complex task without first deep prime
-2. broad raw =rg= / =fd= not piped into =rs-harness search ingest=
-3. raw =ast-grep= instead of =rs-harness search pattern <recipe>=
+2. broad raw =rg= / =fd= not piped into =asp rust search ingest=
+3. raw =ast-grep= instead of =asp rust search pattern <recipe>=
 4. subagent result without =evidence=, =missing=, =next=, and =risk=
-5. edited Rust/TypeScript/package/config files without =rs-harness check --changed=
+5. edited Rust/TypeScript/package/config files without a dependency-owned policy receipt
 6. final response after edits without =[search-synthesis]=
 
 Hook feedback must stay compact and actionable. Examples:
 
 #+begin_src text
-Run deep prime first: `rs-harness search prime`.
-Raw rg must pipe to ingest: `rg -n "<query>" src tests | rs-harness search ingest`.
-Raw TS/JS rg must pipe to ingest: `rg -n "<query>" --glob "*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}" src tests apps packages | ts-harness search ingest`.
+Run deep prime first: `asp rust search prime`.
+Raw rg must pipe to ingest: `rg -n "<query>" src tests | asp rust search ingest`.
+Raw TS/JS rg must pipe to ingest: `rg -n "<query>" --glob "*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}" src tests apps packages | asp-typescript search ingest`.
 Subagent must return `[search-subagent] role=... evidence=... missing=... next=... risk=...`.
 #+end_src
 
@@ -57,10 +57,10 @@ When a hook blocks a direct Rust source read, follow the guide it emits instead
 of chaining file-local commands. Run one search command at a time: prime for
 orientation, batch multiple paths through =search ingest=, then use =search
 owner <path> items= or =search tests <path>= only for the selected seed. Use the
-installed =rs-harness= binary, not a local debug build path.
+installed =asp rust= binary, not a local debug build path.
 
 Installed Codex hook assets use project-local =.codex/config.toml= that calls
-=rs-harness agent hook --client codex <event>= directly. The default state file
+=asp rust agent hook --client codex <event>= directly. The default state file
 is =.codex/harness-state/session.json= and the default policy file is
 =.codex/harness-policy.json=. Codex clients can wire their =SessionStart=,
 =UserPromptSubmit=, =PreToolUse=, =PermissionRequest=, =PostToolUse=,
@@ -70,12 +70,12 @@ Codex Desktop's =exec_command= tool name.
 
 * Non-negotiable rules
 
-1. First complex search: =rs-harness search prime=.
+1. First complex search: =asp rust search prime=.
 2. First round is deep prime map only; do not use multi-pipe first.
 3. If prime shows =mode=workspace-index=, choose a package before deeper search.
 4. If prime shows =source_large=true=, do not open the file; use =search owner <file> items=.
-5. Do not paste raw =rg= / =fd= output; pipe it into =rs-harness search ingest=.
-6. Do not write raw =ast-grep= patterns; use =rs-harness search pattern <recipe>=.
+5. Do not paste raw =rg= / =fd= output; pipe it into =asp rust search ingest=.
+6. Do not write raw =ast-grep= patterns; use =asp rust search pattern <recipe>=.
 7. The CLI never infers intent and never plans subagents.
 
 * Compact packet grammar
@@ -127,8 +127,8 @@ that owner plus test roots.
 Run one command to build the search map:
 
 #+begin_src sh
-rs-harness search prime
-rs-harness search prime --package <pkg>
+asp rust search prime
+asp rust search prime --package <pkg>
 #+end_src
 
 Read these fields: =mode=, =package=, =feature=, =cfg=, =owner=,
@@ -178,24 +178,24 @@ usage, or dependency docs.
 Parent after prime:
 
 #+begin_src sh
-rs-harness search dependency <dep>
+asp rust search dependency <dep>
 #+end_src
 
 Focused multi-pipe when the evidence surfaces are predictable:
 
 #+begin_src sh
-rs-harness search dependency <dep> items docs-use tests --package <pkg>
-rs-harness search dependency <dep> public-api docs-use tests --package <pkg>
+asp rust search dependency <dep> items docs-use tests --package <pkg>
+asp rust search dependency <dep> public-api docs-use tests --package <pkg>
 #+end_src
 
 Separate read-only subagents:
 
 #+begin_src sh
 # Dependency version facts and local API usage
-rs-harness search deps <dep>
+asp rust search deps <dep>
 
 # Current or external dependency API intent
-rs-harness search deps <dep[/subpath][@version][::item]>
+asp rust search deps <dep[/subpath][@version][::item]>
 
 For current workspace versions, =/subpath= and =::item= narrow owner hits to
 dependency owners that mention that path or item. For external versions, owner
@@ -204,9 +204,9 @@ workspace declaration. Treat =versionScope=external= as an external research
 branch; do not cite current owner usage as evidence for the requested version.
 
 # API docs and local usage
-rs-harness search docs <dep>::<item>
-rs-harness search docs <dep@version>::<item>
-rs-harness search docs-use <dep>::<item>
+asp rust search docs <dep>::<item>
+asp rust search docs <dep@version>::<item>
+asp rust search docs-use <dep>::<item>
 
 If docs/API output reports =source=registry-source= with a missing note, the
 external docs provider is not available yet. Use the result as a provenance
@@ -214,10 +214,10 @@ boundary, then keep local evidence in =search deps= / =search callsite= /
 =search tests=.
 
 # Public API leakage
-rs-harness search pattern public-external-type --dependency <dep>
+asp rust search pattern public-external-type --dependency <dep>
 
 # Tests
-rs-harness search tests <owner-or-path>
+asp rust search tests <owner-or-path>
 #+end_src
 
 Parent synthesis fields: dependency, version, features, api_shape,
@@ -231,16 +231,16 @@ unstable gates, or docs.rs cfg.
 Parent after prime:
 
 #+begin_src sh
-rs-harness search features <feature>
-rs-harness search cfg <cfg>
+asp rust search features <feature>
+asp rust search cfg <cfg>
 #+end_src
 
 Focused multi-pipe:
 
 #+begin_src sh
-rs-harness search features <feature> cfg owners tests --package <pkg>
-rs-harness search cfg <cfg> owners tests --package <pkg>
-rg -n "<feature-or-cfg-keyword>" <src> <tests> | rs-harness search ingest items tests
+asp rust search features <feature> cfg owners tests --package <pkg>
+asp rust search cfg <cfg> owners tests --package <pkg>
+rg -n "<feature-or-cfg-keyword>" <src> <tests> | asp rust search ingest items tests
 #+end_src
 
 Parent synthesis fields: feature, cfg, target_dependencies, source_owners,
@@ -254,16 +254,16 @@ exports, or reexports.
 Parent after prime:
 
 #+begin_src sh
-rs-harness search symbol <symbol>
-rs-harness search callsite <symbol>
+asp rust search symbol <symbol>
+asp rust search callsite <symbol>
 #+end_src
 
 Focused commands:
 
 #+begin_src sh
-rs-harness search owner <owner-or-path> items
-rs-harness search tests <owner-or-path>
-rs-harness search pattern public-api-shape --owner <owner>
+asp rust search owner <owner-or-path> items
+asp rust search tests <owner-or-path>
+asp rust search pattern public-api-shape --owner <owner>
 #+end_src
 
 For source-owner queries, =search tests= emits owner-to-test =-test->= edges
@@ -276,15 +276,15 @@ Parent synthesis fields: public_surface, callsites, breaking_risk, tests, next.
 Use when prime points at an owner, or =source_large=true=.
 
 #+begin_src sh
-rs-harness search owner <path-or-owner>
-rs-harness search owner <file> items
-rs-harness search owner <file> items docs-use tests
+asp rust search owner <path-or-owner>
+asp rust search owner <file> items
+asp rust search owner <file> items docs-use tests
 #+end_src
 
 If additional lexical candidates are needed:
 
 #+begin_src sh
-rg -n "<query>" <owner-root> <tests> | rs-harness search ingest items tests
+rg -n "<query>" <owner-root> <tests> | asp rust search ingest items tests
 #+end_src
 
 Parent synthesis fields: owner, items, calls, docs, tests, missing, next.
@@ -295,10 +295,10 @@ Use for file moves, module renames, facade splits, =mod.rs= changes, or import
 rewrites.
 
 #+begin_src sh
-rs-harness search owner <path-or-owner>
-rs-harness search import <old-module-root>
-rs-harness search import <new-module-root>
-rs-harness search tests <owner-or-path>
+asp rust search owner <path-or-owner>
+asp rust search import <old-module-root>
+asp rust search import <new-module-root>
+asp rust search tests <owner-or-path>
 #+end_src
 
 Parent synthesis fields: old_owner, new_owner, import_edges, facade_impact,
@@ -306,22 +306,21 @@ test_mounts, next.
 
 * Flow: compact finding repair
 
-Use when the task starts from =rs-harness check= or a compact diagnostic.
+Use when a dependency-owned build policy receipt reports a compact diagnostic.
 
 #+begin_src sh
-rs-harness check --changed
-rs-harness search owner <finding-path>
+asp rust search owner <finding-path>
 #+end_src
 
 Then choose the narrow follow-up:
 
 #+begin_src sh
-rs-harness search import <import-root>
-rs-harness search dependency <dep>
-rs-harness search symbol <symbol>
-rs-harness search callsite <symbol>
-rs-harness search tests <owner-or-path>
-rs-harness search pattern public-error-boundary
+asp rust search import <import-root>
+asp rust search dependency <dep>
+asp rust search symbol <symbol>
+asp rust search callsite <symbol>
+asp rust search tests <owner-or-path>
+asp rust search pattern public-error-boundary
 #+end_src
 
 Parent synthesis fields: finding, owner, minimal_edit, tests, risk.
@@ -331,22 +330,22 @@ Parent synthesis fields: finding, owner, minimal_edit, tests, risk.
 Use when the user gives a concept but no file, owner, symbol, or dependency.
 
 #+begin_src sh
-rs-harness search prime
-rs-harness search symbol <concept>
+asp rust search prime
+asp rust search symbol <concept>
 #+end_src
 
 If symbol search is sparse, expand candidates but pipe them back to ingest:
 
 #+begin_src sh
-rg -n "<concept>" src tests | rs-harness search ingest
-fd -e rs "<concept>" src tests | rs-harness search ingest
+rg -n "<concept>" src tests | asp rust search ingest
+fd -e rs "<concept>" src tests | asp rust search ingest
 #+end_src
 
 After the top owner is clear:
 
 #+begin_src sh
-rs-harness search owner <top-owner-or-path>
-rs-harness search tests <top-owner-or-path>
+asp rust search owner <top-owner-or-path>
+asp rust search tests <top-owner-or-path>
 #+end_src
 
 * Flow: Rust external candidate streams
@@ -355,9 +354,9 @@ Use this only after built-in search is too sparse or the task needs lexical/file
 expansion.
 
 #+begin_src sh
-rg -n "<query>" --glob "*.rs" src tests benches examples | rs-harness search ingest
-fd -e rs "<name>" src tests benches examples | rs-harness search ingest
-git diff --name-only | rs-harness search ingest
+rg -n "<query>" --glob "*.rs" src tests benches examples | asp rust search ingest
+fd -e rs "<name>" src tests benches examples | asp rust search ingest
+git diff --name-only | asp rust search ingest
 #+end_src
 
 =ingest= auto-detects stdin format and groups candidates by owner/item/test.
@@ -369,8 +368,8 @@ Use the TS/JS harness only for TS/JS source, package, and build/test config
 surfaces.
 
 #+begin_src sh
-rg -n "<query>" --glob "*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}" src tests apps packages | ts-harness search ingest
-fd -e ts -e tsx -e js -e jsx "<name>" src tests apps packages | ts-harness search ingest
+rg -n "<query>" --glob "*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}" src tests apps packages | asp-typescript search ingest
+fd -e ts -e tsx -e js -e jsx "<name>" src tests apps packages | asp-typescript search ingest
 #+end_src
 
 * Flow: structural pattern
@@ -378,9 +377,9 @@ fd -e ts -e tsx -e js -e jsx "<name>" src tests apps packages | ts-harness searc
 Use recipes for code shape. Do not write raw =ast-grep= DSL.
 
 #+begin_src sh
-rs-harness search patterns
-rs-harness search pattern <recipe>
-rs-harness search pattern <recipe> --owner <owner>
+asp rust search patterns
+asp rust search pattern <recipe>
+asp rust search pattern <recipe> --owner <owner>
 #+end_src
 
 Useful recipe families: public external type, public anyhow result, public
@@ -388,17 +387,11 @@ error boundary, clone in loop, unsafe boundary, Tokio spawn, builder API.
 
 * After edits
 
-Always run:
+If =Cargo.toml= changed, inspect dependency topology before the normal Cargo
+verification lane:
 
 #+begin_src sh
-rs-harness check --changed
-#+end_src
-
-If =Cargo.toml= changed:
-
-#+begin_src sh
-rs-harness search deps
-rs-harness check --changed
+asp rust search deps
 #+end_src
 
 Before closeout, choose the proper lane:
@@ -408,30 +401,33 @@ cargo check --all-targets
 cargo test
 #+end_src
 
+The build dependency API is the policy authority. Do not add a provider-local
+policy command that scans the workspace a second time.
+
 * Config rule
 
 Never disable a rule globally to pass tests. Config changes need evidence and
 rationale.
 
 #+begin_src sh
-rs-harness config-advice
-rs-harness validate-config
+asp rust config-advice
+asp rust validate-config
 #+end_src
 
 Config decisions must be owner-local or have org-level rationale.
 
 * Existing compact-check fallback
 
-If the installed =rs-harness= does not expose search subcommands yet:
+If the installed =asp rust= does not expose search subcommands yet:
 
 #+begin_src sh
-rs-harness --agent-snapshot .
-rs-harness .
-rs-harness --json .
+asp rust --agent-snapshot .
+asp rust .
+asp rust --json .
 #+end_src
 
 Read =Modules=, =OwnerBranches=, =OwnerDependencies=, =FindingGroups= from the
-snapshot. Use =rg= / =fd= manually only when no =rs-harness search= primitive is
+snapshot. Use =rg= / =fd= manually only when no =asp rust search= primitive is
 available.
 
 * Lane reference
@@ -457,8 +453,8 @@ cargo test --lib some_filter
 These commands do not exist:
 
 #+begin_src sh
-rs-harness graph subagent-plan --intent "..."
-rs-harness graph next --from synthesis
-rs-harness explore nl "..."
-rs-harness search ast --intent "..."
+asp rust graph subagent-plan --intent "..."
+asp rust graph next --from synthesis
+asp rust explore nl "..."
+asp rust search ast --intent "..."
 #+end_src

@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
-use crate::RustHarnessConfig;
-use crate::RustProjectHarnessScope;
-use crate::discovery::{discover_rust_files, rust_project_harness_scope};
+use crate::AspRustConfig;
+use crate::AspRustScope;
+use crate::discovery::{asp_rust_scope, discover_rust_files};
 use crate::parser::{ParsedRustModule, parse_rust_file};
 
 use super::RustSearchOptions;
@@ -22,7 +22,7 @@ use super::scope::{module_is_scope, owner_path_matches};
 
 pub(super) fn render_search_tests(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: Option<&str>,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -76,7 +76,7 @@ pub(super) fn render_search_tests(
 
 fn render_search_tests_query_set(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -85,7 +85,7 @@ fn render_search_tests_query_set(
         package_roots_for_request(project_root, config, options.package.as_deref())?;
     let mut rendered = String::new();
     for package_root in package_roots {
-        let scope = rust_project_harness_scope(
+        let scope = asp_rust_scope(
             &package_root,
             config.include_tests,
             &config.source_dir_names,
@@ -117,8 +117,8 @@ fn render_search_tests_query_set(
 
 fn query_set_owner_modules(
     package_root: &Path,
-    scope: &RustProjectHarnessScope,
-    config: &RustHarnessConfig,
+    scope: &AspRustScope,
+    config: &AspRustConfig,
     query_terms: &[&str],
 ) -> Vec<ParsedRustModule> {
     let query_paths = query_terms
@@ -146,7 +146,7 @@ fn query_set_owner_modules(
 
 fn render_exact_path_tests(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<Option<String>, String> {
@@ -162,7 +162,7 @@ fn render_exact_path_tests(
 
     let mut rendered = String::new();
     for (package_root, path) in matches {
-        let scope = rust_project_harness_scope(
+        let scope = asp_rust_scope(
             &package_root,
             config.include_tests,
             &config.source_dir_names,
@@ -195,10 +195,7 @@ fn render_exact_path_tests(
     Ok(Some(rendered))
 }
 
-fn parse_test_scope(
-    scope: &RustProjectHarnessScope,
-    config: &RustHarnessConfig,
-) -> Vec<ParsedRustModule> {
+fn parse_test_scope(scope: &AspRustScope, config: &AspRustConfig) -> Vec<ParsedRustModule> {
     discover_rust_files(
         &scope.test_paths,
         &config.ignored_dir_names,

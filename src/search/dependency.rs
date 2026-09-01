@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::Path;
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 use crate::parser::ParsedRustModule;
 
 use super::RustSearchOptions;
@@ -17,7 +17,7 @@ use super::owner::{public_api_lines_for_dependency, test_lines_for_owner_modules
 
 pub(super) fn render_search_dependency(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -56,7 +56,7 @@ pub(super) fn render_search_dependency(
 
 fn render_search_dependency_seed_view(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     query_terms: &[&str],
     options: &RustSearchOptions,
@@ -181,7 +181,7 @@ fn render_search_dependency_block(
 
 fn render_search_dependency_query_set(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     query_terms: &[&str],
     options: &RustSearchOptions,

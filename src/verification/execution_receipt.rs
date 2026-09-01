@@ -117,10 +117,10 @@ impl Default for RustVerificationExecutionProducer {
     fn default() -> Self {
         Self {
             language_id: RustVerificationExecutionLanguageId("rust".to_owned()),
-            provider_id: RustVerificationExecutionProviderId("rs-harness".to_owned()),
+            provider_id: RustVerificationExecutionProviderId("asp-rust".to_owned()),
             adapter_id: RustVerificationExecutionAdapterId("rust.unknown".to_owned()),
             namespace: RustVerificationExecutionNamespace(
-                "agent.semantic-protocols.languages.rust.rs-harness".to_owned(),
+                "agent.semantic-protocols.languages.rust.asp-rust".to_owned(),
             ),
         }
     }

@@ -2,6 +2,7 @@
 **/*.rs.bk
 *.pending-snap
 Cargo.lock
+!/Cargo.lock
 /.devenv
 /.codex/harness-state/
 /.data/

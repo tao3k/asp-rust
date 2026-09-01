@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustScenarioBenchmarkStatus, RustScenarioBenchmarkViolationKind,
     validate_rust_scenario_benchmark,
 };

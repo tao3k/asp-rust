@@ -1,7 +1,7 @@
 # Downstream Verification Gate
 
 This guide is the agent-facing contract for crates that consume
-`rust-lang-project-harness` as a library. It separates build-script semantic
+`asp-rust` as a library. It separates build-script semantic
 gates from command-line quick checks so downstream agents can generate an
 adapted policy without reading harness internals.
 
@@ -42,19 +42,19 @@ policy module and call the harness assertion API:
 #[path = "harness/mod.rs"]
 mod harness;
 
-use rust_lang_project_harness::assert_rust_project_harness_downstream_policy_from_env;
+use asp_rust::assert_asp_rust_downstream_policy_from_env;
 
 fn main() {
-    assert_rust_project_harness_downstream_policy_from_env(&harness::policy());
+    assert_asp_rust_downstream_policy_from_env(&harness::policy());
 }
 ```
 
 `harness/mod.rs` owns policy assembly. It should call into smaller modules and
-return a `RustProjectHarnessDownstreamPolicy`:
+return a `AspRustDownstreamPolicy`:
 
 ```rust
-use rust_lang_project_harness::{
-    RustHarnessConfig, RustProjectHarnessDownstreamPolicy, default_rust_harness_config,
+use asp_rust::{
+    AspRustConfig, AspRustDownstreamPolicy, default_asp_rust_config,
 };
 
 mod owners;
@@ -63,12 +63,12 @@ mod reports;
 mod rules;
 mod verification;
 
-pub fn policy() -> RustProjectHarnessDownstreamPolicy {
-    RustProjectHarnessDownstreamPolicy::new("my crate", config())
+pub fn policy() -> AspRustDownstreamPolicy {
+    AspRustDownstreamPolicy::new("my crate", config())
 }
 
-fn config() -> RustHarnessConfig {
-    let config = default_rust_harness_config()
+fn config() -> AspRustConfig {
+    let config = default_asp_rust_config()
         .with_cargo_check_advice_allow_explanation(
             "crate keeps advisory findings visible while blocking policy drift",
         );
@@ -100,8 +100,8 @@ severity overrides, disabled findings, source/test scope exceptions, and
 required explanations.
 
 `harness/dependencies.rs` owns dependency baseline policy. It should construct a
-`RustProjectHarnessDependencyBaseline` for exact `Cargo.lock` requirements such
-as `rust-lang-project-harness` version and git rev. Do not parse `Cargo.lock` in
+`AspRustDependencyBaseline` for exact `Cargo.lock` requirements such
+as `asp-rust` version and git rev. Do not parse `Cargo.lock` in
 downstream policy modules; the upstream harness API owns lockfile parsing and
 agent guidance.
 
@@ -130,6 +130,7 @@ Use this minimum layout for a Cargo workspace with several member crates:
 ```text
 my-workspace/
   Cargo.toml
+  build.rs
   harness/
     mod.rs
     members.rs
@@ -142,24 +143,21 @@ my-workspace/
   crates/
     api/
       Cargo.toml
-      build.rs
       src/
     db/
       Cargo.toml
-      build.rs
       src/
     transport/
       Cargo.toml
-      build.rs
       src/
 ```
 
 `harness/mod.rs` should expose a workspace policy and a member policy helper:
 
 ```rust
-use rust_lang_project_harness::{
-    RustProjectHarnessDependencyBaseline, RustProjectHarnessDownstreamPolicy,
-    RustProjectHarnessWorkspacePolicy, default_rust_harness_config,
+use asp_rust::{
+    AspRustDependencyBaseline, AspRustDownstreamPolicy,
+    AspRustWorkspacePolicy, default_asp_rust_config,
 };
 
 pub enum WorkspaceMember {
@@ -168,13 +166,13 @@ pub enum WorkspaceMember {
     Transport,
 }
 
-pub fn workspace_policy() -> RustProjectHarnessWorkspacePolicy {
-    RustProjectHarnessWorkspacePolicy::new(
+pub fn workspace_policy() -> AspRustWorkspacePolicy {
+    AspRustWorkspacePolicy::new(
         "my-workspace",
         reports::configure(
             receipts::configure(
                 verification::configure(
-                    owners::configure_common(rules::configure(default_rust_harness_config())),
+                    owners::configure_common(rules::configure(default_asp_rust_config())),
                 ),
             ),
         ),
@@ -183,18 +181,18 @@ pub fn workspace_policy() -> RustProjectHarnessWorkspacePolicy {
 }
 
 mod dependencies {
-    use super::RustProjectHarnessDependencyBaseline;
+    use super::AspRustDependencyBaseline;
 
-    pub fn baseline() -> RustProjectHarnessDependencyBaseline {
-        RustProjectHarnessDependencyBaseline::new().require_git_package(
-            "rust-lang-project-harness",
+    pub fn baseline() -> AspRustDependencyBaseline {
+        AspRustDependencyBaseline::new().require_git_package(
+            "asp-rust",
             "0.1.2",
             "rev=<approved-rev>",
         )
     }
 }
 
-pub fn member_policy(member: WorkspaceMember) -> RustProjectHarnessDownstreamPolicy {
+pub fn member_policy(member: WorkspaceMember) -> AspRustDownstreamPolicy {
     match member {
         WorkspaceMember::Api => workspace_policy().member_crate_with_config("api", owners::api),
         WorkspaceMember::Db => workspace_policy().member_crate_with_config("db", owners::db),
@@ -205,42 +203,50 @@ pub fn member_policy(member: WorkspaceMember) -> RustProjectHarnessDownstreamPol
 }
 ```
 
-Each member crate keeps only a thin `build.rs`:
+The shared Build Support dependency keeps one thin `build.rs`. Cargo builds
+that dependency as one shared unit, and ASP Rust derives the complete owning
+workspace from Cargo manifest membership and path dependencies. It orders local
+dependencies before consumers and executes each unique package policy once:
 
 ```rust
-#[path = "../../harness/mod.rs"]
+#[path = "harness/mod.rs"]
 mod harness;
 
-use rust_lang_project_harness::assert_rust_project_harness_downstream_policy_from_env;
+use asp_rust::assert_asp_rust_workspace_policy_from_env;
 
 fn main() {
-    assert_rust_project_harness_downstream_policy_from_env(&harness::member_policy(
-        harness::WorkspaceMember::Api,
-    ));
+    assert_asp_rust_workspace_policy_from_env(&harness::workspace_policy());
 }
 ```
 
-`RustProjectHarnessWorkspacePolicy` is the API boundary for shared workspace
+For a virtual workspace, every governed member declares the same lightweight
+Build Support crate as a build-dependency. Cargo deduplicates that dependency
+unit; members do not keep policy-only build scripts and do not nominate a
+product root. Workspace members/excludes, external path-dependency leaves,
+duplicate package names, and local member cycles are resolved or rejected
+before any package policy runs. The emitted stable V1
+Build DAG records the deterministic dependency-first execution order.
+
+`AspRustWorkspacePolicy` is the API boundary for shared workspace
 policy. `member_crate` clones the common config into a crate policy.
 `member_crate_with_config` clones the common config and then applies a
 crate-local override, so a member can add an owner or waiver without mutating the
 workspace baseline.
 
-`RustProjectHarnessDependencyBaseline` should be attached once to the workspace
+`AspRustDependencyBaseline` should be attached once to the workspace
 policy when every member crate must resolve the same harness version or git rev.
-Derived member policies inherit that baseline, and their `build.rs` gate searches
-upward for the workspace `Cargo.lock`.
+Derived member policies inherit that baseline, and the shared Build Support
+gate searches upward for the workspace `Cargo.lock`.
 
-When a downstream agent adds the dependency and thin `build.rs`, `cargo test`
-automatically triggers the member build.rs gate before tests run. Failing gates
-print a stable `[rust-harness-agent-guidance]` block that tells the agent to keep
-`build.rs` thin, move common policy into the workspace `harness/` tree, derive
-members with `RustProjectHarnessWorkspacePolicy`, and add crate-local owners,
-receipts, waivers, or report obligations only in the member override.
-In short: cargo test automatically triggers the member build.rs gate.
+When governed packages declare the same Build Support build-dependency,
+`cargo test` automatically triggers that shared Cargo unit before tests run.
+Failing gates print a stable `[asp-rust-agent-guidance]` block that points back
+to the workspace policy.
+In short: Cargo triggers one shared Build Support gate; ASP Rust derives the
+package Build DAG, and the package cache prevents repeated policy scans.
 
 If a dependency baseline drifts, failing gates print a stable
-`[rust-harness-dependency-guidance]` block. The repair path is to update the
+`[asp-rust-dependency-guidance]` block. The repair path is to update the
 stale direct or transitive dependency edge, refresh `Cargo.lock` with Cargo,
 confirm `cargo tree -i` for the package, and rerun `cargo test`. Do not hand-edit
 lockfile entries or keep a downstream-specific `Cargo.lock` parser.
@@ -250,13 +256,13 @@ lockfile entries or keep a downstream-specific `Cargo.lock` parser.
 Library/build.rs semantic gate:
 
 - thin downstream policy object:
-  `RustProjectHarnessDownstreamPolicy`.
+  `AspRustDownstreamPolicy`.
 - thin downstream policy assertion:
-  `assert_rust_project_harness_downstream_policy_from_env`.
+  `assert_asp_rust_downstream_policy_from_env`.
 - cargo-check policy gate:
-  `assert_rust_project_harness_cargo_check_clean_from_env_with_config`.
+  `assert_asp_rust_cargo_check_clean_from_env_with_config`.
 - full verification gate:
-  `assert_rust_project_harness_verification_from_env_with_config`.
+  `assert_asp_rust_verification_from_env_with_config`.
 - owner classification helpers:
   `with_latency_sensitive_performance_owner` and
   `with_availability_stability_owner`.
@@ -264,34 +270,34 @@ Library/build.rs semantic gate:
   `with_criterion_performance_verification`.
 - persisted receipts, waivers, and report artifact policy that determine whether
   a crate has complete verification evidence.
-- dependency baseline gate: `RustProjectHarnessDependencyBaseline` with
-  `assert_rust_project_harness_dependency_baseline`, normally attached through
-  `RustProjectHarnessDownstreamPolicy` or `RustProjectHarnessWorkspacePolicy`.
+- dependency baseline gate: `AspRustDependencyBaseline` with
+  `assert_asp_rust_dependency_baseline`, normally attached through
+  `AspRustDownstreamPolicy` or `AspRustWorkspacePolicy`.
 
-CLI quick check and observation surface:
+Agent observation surface:
 
-- `rs-harness check` for fast local policy feedback.
-- `rs-harness search` and `rs-harness query` for agent discovery.
-- `rs-harness agent doctor` for provider and registry health.
-- `rs-harness evidence`, `receipt`, `review`, `proof`, `behavior`, and
+- `asp rust search` and `asp rust query` for agent discovery.
+- `asp rust agent doctor` for provider and registry health.
+- `asp rust evidence`, `receipt`, `review`, `proof`, `behavior`, and
   `determinism` for bounded diagnostics or artifact generation.
 
-Do not expose full verification as a standalone downstream CLI command. Full
-verification is a crate semantic contract and belongs in the library API that
-`build.rs` executes.
+Do not expose policy or full verification as a standalone downstream CLI
+command. Both are workspace semantic contracts owned by the ASP Rust dependency
+API. The shared build script only publishes the Cargo-derived Build DAG and
+policy-catalog identity.
 
 ## Agent Inference
 
 When adapting a downstream crate, an agent should:
 
 1. Inspect Cargo package boundaries and source owners.
-2. Create `build.rs` as a thin entrypoint and put policy assembly under
-   `harness/mod.rs`.
+2. Declare the workspace Build Support crate as the common build-dependency and
+   keep policy assembly in that package.
 3. Split policy into `owners.rs`, `verification.rs`, `receipts.rs`,
    `reports.rs`, and `rules.rs` once more than one responsibility is configured.
 4. Put shared dependency baselines in `dependencies.rs` or the workspace
    `harness/mod.rs`, attach them through `with_dependency_baseline`, and let
-   member crates inherit them from `RustProjectHarnessWorkspacePolicy`.
+   Build DAG derives member policies from `AspRustWorkspacePolicy`.
 5. Mark public dispatch paths, cache hot paths, parser hot paths, or provider
    transport paths as performance owners.
 6. Mark timeout, retry, persistence, state growth, deterministic replay, or

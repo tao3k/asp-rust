@@ -27,8 +27,8 @@ The surface is library-first:
 ```rust
 use std::path::Path;
 
-use rust_lang_project_harness::{
-    RustOwnerResponsibility, RustVerificationProfileHint, default_rust_harness_config,
+use asp_rust::{
+    RustOwnerResponsibility, RustVerificationProfileHint, default_asp_rust_config,
     build_rust_verification_analysis_profile_with_config,
     build_rust_verification_performance_index, build_rust_verification_report_bundle,
     build_rust_verification_report_bundle_with_options,
@@ -49,7 +49,7 @@ use rust_lang_project_harness::{
     RustVerificationReportWriteConfig, write_rust_verification_reports_with_options,
 };
 
-let config = default_rust_harness_config().with_verification_profile_hint(
+let config = default_asp_rust_config().with_verification_profile_hint(
     RustVerificationProfileHint::new(
         "src/api.rs",
         [
@@ -279,7 +279,7 @@ large report by accident.
 
 Verification config stays library-first. It does not introduce CLI flags or
 TOML precedence. Embedding projects can adjust the verification contract through
-`RustHarnessConfig` or `RustVerificationPolicy`.
+`AspRustConfig` or `RustVerificationPolicy`.
 
 There are seven configurable layers:
 
@@ -308,7 +308,7 @@ There are seven configurable layers:
 ```rust
 use std::path::Path;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     build_rust_verification_profile_index, render_rust_verification_profile_index,
 };
 
@@ -342,7 +342,7 @@ security, network, or performance-sensitive. Projects declare those semantics
 through `RustVerificationDependencySignal`, and the profile index only applies
 them after a `use` root has matched a Cargo dependency fact. `active_profile_hints()`
 gives the Agent code-level config material; after those hints are supplied
-through `RustHarnessConfig`, the compact profile advice becomes empty.
+through `AspRustConfig`, the compact profile advice becomes empty.
 
 Cargo parsing exists here to help Agents manage modern Rust projects, not to
 turn the harness into a Cargo replacement. The parser records the dependency
@@ -371,14 +371,14 @@ profile. Source paths identify owners; they do not by themselves imply security,
 performance, persistence, or availability responsibility.
 
 ```rust
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationApiPathBaseline, RustVerificationDependencySignal,
     RustVerificationPhase, RustVerificationProfileHint, RustVerificationRequirement,
     RustVerificationSkillBinding, RustVerificationSkillDescriptor,
-    RustVerificationTaskContract, RustVerificationTaskKind, default_rust_harness_config,
+    RustVerificationTaskContract, RustVerificationTaskKind, default_asp_rust_config,
 };
 
-let config = default_rust_harness_config()
+let config = default_asp_rust_config()
     .with_verification_dependency_signal(RustVerificationDependencySignal::new(
         "arrow-flight",
         [
@@ -521,7 +521,7 @@ changes and old receipts no longer clear the task.
 Use a receipt when the external skill ran:
 
 ```rust
-use rust_lang_project_harness::{RustVerificationReceipt, RustVerificationTaskKind};
+use asp_rust::{RustVerificationReceipt, RustVerificationTaskKind};
 
 let receipt = RustVerificationReceipt::passed(
     task.fingerprint.clone(),
@@ -566,7 +566,7 @@ the Agent-facing reminder to create that artifact comes from the harness plan.
 Use a waiver when the task is intentionally out of scope for the current work:
 
 ```rust
-use rust_lang_project_harness::RustVerificationWaiver;
+use asp_rust::RustVerificationWaiver;
 
 let waiver = RustVerificationWaiver::new(
     task.fingerprint.clone(),

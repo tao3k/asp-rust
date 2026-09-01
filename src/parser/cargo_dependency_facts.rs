@@ -27,7 +27,13 @@ pub(crate) fn parse_cargo_dependency_facts(project_root: &Path) -> Vec<CargoDepe
     let Some(manifest) = read_manifest(project_root) else {
         return Vec::new();
     };
-    let mut dependencies = manifest_dependency_facts(&manifest);
+    cargo_dependency_facts_from_manifest(&manifest)
+}
+
+pub(super) fn cargo_dependency_facts_from_manifest(
+    manifest: &Manifest,
+) -> Vec<CargoDependencyFacts> {
+    let mut dependencies = manifest_dependency_facts(manifest);
     dependencies.sort();
     dependencies.dedup();
     dependencies

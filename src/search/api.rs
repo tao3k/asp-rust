@@ -2,10 +2,10 @@
 
 use std::path::Path;
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 
 use super::{
-    cargo, compact, compare, dependency, format, guide, namespace, owner, owner_view, prime, query,
+    cargo, compare, density, dependency, format, guide, namespace, owner, owner_view, prime, query,
 };
 
 /// Options shared by RFC search renderers.
@@ -31,10 +31,6 @@ pub struct RustSearchOptions {
     pub query_set: Vec<String>,
     /// Optional parser-native item query inside an owner/module result.
     pub item_query: Option<String>,
-    /// Suppress compact code for item queries and render only parser item names.
-    pub item_names_only: bool,
-    /// Render only compact parser-owned code for item queries.
-    pub item_code: bool,
     /// Include parser projection metadata for schema packet rendering.
     pub item_projection_metadata: bool,
 }
@@ -45,7 +41,7 @@ pub struct RustSearchViewRequest<'a> {
     /// Project root to inspect.
     pub project_root: &'a Path,
     /// Harness configuration used for discovery and parser policy.
-    pub config: &'a RustHarnessConfig,
+    pub config: &'a AspRustConfig,
     /// Search source view such as `prime`, `dependency`, or `deps`.
     pub view: &'a str,
     /// Optional query consumed by views such as `symbol` or `deps`.
@@ -55,7 +51,7 @@ pub struct RustSearchViewRequest<'a> {
 }
 
 /// Renders the Rust search view through an explicit request object.
-pub fn render_rust_project_harness_search_view_with_config(
+pub fn render_asp_rust_search_view_with_config(
     request: &RustSearchViewRequest<'_>,
 ) -> Result<String, String> {
     let rendered = render_search_view_packet(request)?;
@@ -191,7 +187,7 @@ fn render_search_view_output(
     if options.output_view.as_deref() == Some("seeds") {
         Ok(rendered)
     } else {
-        Ok(compact::compact_search_packet(&rendered))
+        Ok(density::render_terse_search_packet(&rendered))
     }
 }
 
@@ -227,8 +223,6 @@ fn clone_reasoning_options(options: &RustSearchOptions) -> RustSearchOptions {
         seeds: options.seeds,
         query_set: options.query_set.clone(),
         item_query: options.item_query.clone(),
-        item_names_only: options.item_names_only,
-        item_code: options.item_code,
         item_projection_metadata: options.item_projection_metadata,
     }
 }
@@ -243,7 +237,7 @@ fn push_reasoning_body(rendered: &mut String, body: &str) {
     }
 }
 
-fn compact_field_value(value: &str) -> String {
+fn encode_line_protocol_field(value: &str) -> String {
     let mut escaped = String::new();
     for character in value.chars() {
         match character {
@@ -265,9 +259,9 @@ fn reasoning_block(
     let extra_fields = extra_fields
         .iter()
         .filter(|(_, value)| !value.trim().is_empty())
-        .map(|(name, value)| format!(" {name}={}", compact_field_value(value)))
+        .map(|(name, value)| format!(" {name}={}", encode_line_protocol_field(value)))
         .collect::<String>();
-    let selector = compact_field_value(selector);
+    let selector = encode_line_protocol_field(selector);
     let mut rendered = format!(
         "[search-reasoning] q={profile} selector={selector} alg={algorithm}{extra_fields}\n",
     );
@@ -312,7 +306,7 @@ fn reasoning_block(
 
 fn render_reasoning_profile(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     profile: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {

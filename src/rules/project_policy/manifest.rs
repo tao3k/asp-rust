@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::parser::{CargoManifestFacts, file_location};
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use super::RUST_PROJ_R023;
 
@@ -13,8 +13,8 @@ const CURRENT_RUST_EDITION: &str = "2024";
 pub(super) fn manifest_findings(
     project_root: &Path,
     cargo_manifest: &CargoManifestFacts,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if !cargo_manifest.has_package {
         return Vec::new();
     }
@@ -27,7 +27,7 @@ pub(super) fn manifest_findings(
 
     let rule = &rules[RUST_PROJ_R023];
     let manifest_path = project_root.join("Cargo.toml");
-    vec![RustHarnessFinding::from_rule(
+    vec![AspRustFinding::from_rule(
         rule,
         format!(
             "Cargo.toml declares Rust edition {edition}; current agent-authored packages should use edition {CURRENT_RUST_EDITION}."

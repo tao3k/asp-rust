@@ -7,11 +7,11 @@ use std::path::{Path, PathBuf};
 /// Use this when a downstream workspace must guarantee that a package resolves
 /// to one exact version and one git source/rev across all member crates.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct RustProjectHarnessDependencyBaseline {
-    packages: Vec<RustProjectHarnessDependencyBaselinePackage>,
+pub struct AspRustDependencyBaseline {
+    packages: Vec<AspRustDependencyBaselinePackage>,
 }
 
-impl RustProjectHarnessDependencyBaseline {
+impl AspRustDependencyBaseline {
     /// Create an empty dependency baseline.
     #[must_use]
     pub fn new() -> Self {
@@ -27,31 +27,30 @@ impl RustProjectHarnessDependencyBaseline {
         version: impl Into<String>,
         source_contains: impl Into<String>,
     ) -> Self {
-        self.packages
-            .push(RustProjectHarnessDependencyBaselinePackage {
-                name: name.into(),
-                version: version.into(),
-                source_contains: source_contains.into(),
-            });
+        self.packages.push(AspRustDependencyBaselinePackage {
+            name: name.into(),
+            version: version.into(),
+            source_contains: source_contains.into(),
+        });
         self
     }
 
     /// Required packages in insertion order.
     #[must_use]
-    pub fn packages(&self) -> &[RustProjectHarnessDependencyBaselinePackage] {
+    pub fn packages(&self) -> &[AspRustDependencyBaselinePackage] {
         &self.packages
     }
 }
 
 /// One exact Cargo.lock package requirement.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RustProjectHarnessDependencyBaselinePackage {
+pub struct AspRustDependencyBaselinePackage {
     name: String,
     version: String,
     source_contains: String,
 }
 
-impl RustProjectHarnessDependencyBaselinePackage {
+impl AspRustDependencyBaselinePackage {
     /// Package name.
     #[must_use]
     pub fn name(&self) -> &str {
@@ -82,9 +81,9 @@ impl RustProjectHarnessDependencyBaselinePackage {
 /// required package resolves to a missing, duplicate, wrong-version, or
 /// wrong-source entry.
 #[track_caller]
-pub fn assert_rust_project_harness_dependency_baseline(
+pub fn assert_asp_rust_dependency_baseline(
     project_root: &Path,
-    dependency_baseline: &RustProjectHarnessDependencyBaseline,
+    dependency_baseline: &AspRustDependencyBaseline,
     gate_label: &str,
 ) {
     if dependency_baseline.packages().is_empty() {
@@ -113,7 +112,7 @@ pub fn assert_rust_project_harness_dependency_baseline(
 
 fn assert_dependency_baseline_package(
     lockfile: &cargo_lock::Lockfile,
-    required_package: &RustProjectHarnessDependencyBaselinePackage,
+    required_package: &AspRustDependencyBaselinePackage,
     gate_label: &str,
     lockfile_path: &Path,
 ) {
@@ -156,7 +155,7 @@ fn assert_dependency_baseline_package(
 }
 
 fn render_required_dependency_baseline_package(
-    package: &RustProjectHarnessDependencyBaselinePackage,
+    package: &AspRustDependencyBaselinePackage,
 ) -> String {
     format!(
         "{} {} source contains {}",
@@ -189,13 +188,13 @@ fn render_dependency_baseline_package(package: &cargo_lock::Package) -> String {
 fn dependency_baseline_agent_guidance(gate_label: &str) -> String {
     format!(
         "\
-[rust-harness-dependency-guidance]
+[asp-rust-dependency-guidance]
 gate: {gate_label}
 trigger: Cargo.lock dependency baseline drift.
 repair:
 - update the workspace dependency declaration that still pins the old version or git rev.
 - if a transitive crate pins the old rev, upgrade that crate first instead of overriding the lockfile by hand.
-- keep the baseline in shared workspace policy and derive member gates from RustProjectHarnessWorkspacePolicy.
+- keep the baseline in shared workspace policy and derive member gates from AspRustWorkspacePolicy.
 - rerun cargo update for the affected package, then cargo tree -i <package> --workspace.
 - rerun cargo test so build.rs verifies the repaired lockfile.
 "

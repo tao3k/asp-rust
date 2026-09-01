@@ -1,8 +1,8 @@
 use std::fs;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationProfileHint,
-    build_rust_verification_profile_index_with_config, default_rust_harness_config,
+    build_rust_verification_profile_index_with_config, default_asp_rust_config,
     render_rust_verification_profile_index,
 };
 use tempfile::TempDir;
@@ -17,16 +17,15 @@ fn configured_profile_hint_clears_profile_index_reminder() {
     let root = temp.path();
     write_api_fixture(root);
 
-    let config = default_rust_harness_config().with_verification_profile_hint(
-        RustVerificationProfileHint::new(
+    let config =
+        default_asp_rust_config().with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [
                 RustOwnerResponsibility::PublicApi,
                 RustOwnerResponsibility::ExternalDependency,
                 RustOwnerResponsibility::AvailabilityCritical,
             ],
-        ),
-    );
+        ));
     let index =
         build_rust_verification_profile_index_with_config(root, &config).expect("profile index");
 

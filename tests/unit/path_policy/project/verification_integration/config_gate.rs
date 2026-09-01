@@ -1,9 +1,8 @@
 use std::fs;
 
-use rust_lang_project_harness::{
-    RustOwnerResponsibility, RustVerificationProfileHint, default_rust_harness_config,
-    render_rust_project_harness, run_rust_project_harness_for_scope,
-    run_rust_project_harness_with_config_for_scope,
+use asp_rust::{
+    RustOwnerResponsibility, RustVerificationProfileHint, default_asp_rust_config, render_asp_rust,
+    run_asp_rust_for_scope, run_asp_rust_with_config_for_scope,
 };
 use tempfile::TempDir;
 
@@ -17,15 +16,12 @@ fn cargo_test_gate_requires_explicit_verification_config() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!();\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!();\n",
     )
     .expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-PROJECT-016");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -46,7 +42,7 @@ fn cargo_test_gate_requires_explicit_verification_config() {
     focused_report
         .findings
         .retain(|finding| finding.rule_id == "RUST-AGENT-PROJECT-016");
-    let rendered = normalize_temp_root(&render_rust_project_harness(&focused_report), root);
+    let rendered = normalize_temp_root(&render_asp_rust(&focused_report), root);
     insta::assert_snapshot!("cargo_test_gate_requires_verification_config", rendered);
 }
 
@@ -58,14 +54,14 @@ fn configured_cargo_test_gate_clears_verification_config_warning() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!(config = {\n    rust_lang_project_harness::default_rust_harness_config()\n});\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!(config = {\n    asp_rust::default_asp_rust_config()\n});\n",
     )
     .expect("write lib");
 
-    let report = run_rust_project_harness_with_config_for_scope(
+    let report = run_asp_rust_with_config_for_scope(
         root,
         &configured_no_external_tasks_config(),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
+        asp_rust::AspRustRunScope::Package,
     )
     .expect("run project harness");
 
@@ -84,15 +80,12 @@ fn positional_config_gate_still_requires_named_verification_config() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!(rust_lang_project_harness::default_rust_harness_config());\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!(asp_rust::default_asp_rust_config());\n",
     )
     .expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-PROJECT-016");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -106,15 +99,12 @@ fn advice_allow_gate_still_requires_explicit_verification_config() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!(advice = allow);\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!(advice = allow);\n",
     )
     .expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-PROJECT-016");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -130,14 +120,14 @@ fn advice_allow_with_config_still_requires_allow_explanation() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!(advice = allow, config = {\n    rust_lang_project_harness::default_rust_harness_config()\n});\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!(advice = allow, config = {\n    asp_rust::default_asp_rust_config()\n});\n",
     )
     .expect("write lib");
 
-    let report = run_rust_project_harness_with_config_for_scope(
+    let report = run_asp_rust_with_config_for_scope(
         root,
         &configured_no_external_tasks_config(),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
+        asp_rust::AspRustRunScope::Package,
     )
     .expect("run project harness");
 
@@ -160,7 +150,7 @@ fn advice_allow_with_config_still_requires_allow_explanation() {
     focused_report
         .findings
         .retain(|finding| finding.rule_id == "RUST-AGENT-PROJECT-015");
-    let rendered = normalize_temp_root(&render_rust_project_harness(&focused_report), root);
+    let rendered = normalize_temp_root(&render_asp_rust(&focused_report), root);
     insta::assert_snapshot!("advice_allow_requires_explanation", rendered);
 }
 
@@ -172,16 +162,16 @@ fn advice_allow_with_explanation_clears_allow_warning() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!(advice = allow, config = {\n    rust_lang_project_harness::default_rust_harness_config()\n});\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!(advice = allow, config = {\n    asp_rust::default_asp_rust_config()\n});\n",
     )
     .expect("write lib");
 
-    let report = run_rust_project_harness_with_config_for_scope(
+    let report = run_asp_rust_with_config_for_scope(
         root,
         &configured_no_external_tasks_config().with_cargo_test_advice_allow_explanation(
             "migration fixture allows advisory output during transition",
         ),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
+        asp_rust::AspRustRunScope::Package,
     )
     .expect("run project harness");
 
@@ -197,8 +187,8 @@ fn advice_allow_with_explanation_clears_allow_warning() {
     );
 }
 
-fn configured_no_external_tasks_config() -> rust_lang_project_harness::RustHarnessConfig {
-    default_rust_harness_config().with_verification_profile_hint(
+fn configured_no_external_tasks_config() -> asp_rust::AspRustConfig {
+    default_asp_rust_config().with_verification_profile_hint(
         RustVerificationProfileHint::new("src/lib.rs", [RustOwnerResponsibility::PublicApi])
             .without_verification_tasks()
             .with_rationale(

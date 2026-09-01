@@ -1,6 +1,6 @@
 # Agent-First Downstream Scenario Benchmark Gate
 
-The first consumer of the Rust harness is an agent that edits code and then
+The first consumer of the ASP Rust is an agent that edits code and then
 runs tests. The scenario benchmark interface must therefore make the correct
 repair path cheaper than bypassing the gate.
 
@@ -10,7 +10,7 @@ crate installs one test:
 ```rust
 #[test]
 fn rule_fixtures_have_scenario_benchmarks() {
-    rust_lang_project_harness::assert_rule_fixture_scenario_benchmarks(env!("CARGO_MANIFEST_DIR"));
+    asp_rust::assert_rule_fixture_scenario_benchmarks(env!("CARGO_MANIFEST_DIR"));
 }
 ```
 
@@ -68,7 +68,7 @@ fixture is larger. The gate still checks the numeric budget.
 
 ## First Downstream Experiment
 
-After the Rust harness GitHub CI is green, `languages/orgize` becomes the first
+After the ASP Rust GitHub CI is green, `languages/orgize` becomes the first
 downstream experiment. The experiment should add the unit-test API above, run it
 against Orgize's rule or scenario fixtures, and only then extend discovery rules
 for fixture layouts that Orgize actually uses.

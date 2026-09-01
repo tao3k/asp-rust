@@ -7,7 +7,7 @@ use std::process::Command;
 
 use serde_json::{Value, json};
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 
 use super::RustSearchOptions;
 
@@ -15,7 +15,7 @@ const COMPARE_SCHEMA_ID: &str = "agent.semantic-protocols.semantic-compare-packe
 
 pub(super) fn render_search_compare(
     project_root: &Path,
-    _config: &RustHarnessConfig,
+    _config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -29,7 +29,7 @@ pub(super) fn render_search_compare(
 /// Render a schema-owned compare packet for Rust evidence search namespaces.
 pub fn render_search_compare_json(
     project_root: &Path,
-    _config: &RustHarnessConfig,
+    _config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -53,7 +53,7 @@ fn unsupported_compare_packet(query: &str) -> Value {
         "protocolId": "agent.semantic-protocols.semantic-language",
         "protocolVersion": "1",
         "languageId": "rust",
-        "providerId": "rs-harness",
+            "providerId": "asp-rust",
         "namespace": "compare",
         "authority": "unsupported-rust-compare-axis",
         "evidenceGrade": "unknown",
@@ -83,7 +83,7 @@ fn toolchain_compare_packet(evidence: &ToolchainCompareEvidence) -> Value {
         "protocolId": "agent.semantic-protocols.semantic-language",
         "protocolVersion": "1",
         "languageId": "rust",
-        "providerId": "rs-harness",
+            "providerId": "asp-rust",
         "namespace": "compare",
         "authority": "active-toolchain-vs-requested",
         "evidenceGrade": evidence_grade,

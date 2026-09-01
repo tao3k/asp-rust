@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{render_rust_project_harness, run_rust_project_harness_for_scope};
+use asp_rust::{render_asp_rust, run_asp_rust_for_scope};
 use tempfile::TempDir;
 
 use crate::path_policy::support::has_rule;
@@ -12,7 +12,7 @@ fn retired_root_cargo_test_gate_reports_migration_warning() {
     let root = temp.path();
     fs::write(
         root.join("Cargo.toml"),
-        "[package]\nname = \"retired-root-cargo-test-gate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nrust-lang-project-harness = { path = \".\" }\n",
+        "[package]\nname = \"retired-root-cargo-test-gate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nasp-rust = { path = \".\" }\n",
     )
     .expect("write manifest");
     fs::create_dir(root.join("src")).expect("create src");
@@ -20,22 +20,19 @@ fn retired_root_cargo_test_gate_reports_migration_warning() {
     fs::create_dir(root.join("tests")).expect("create tests");
     fs::write(
         root.join("tests/unit_test.rs"),
-        "rust_lang_project_harness::rust_project_harness_gate!();\n",
+        "asp_rust::asp_rust_gate!();\n",
     )
     .expect("write root test target");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let mut focused_report = report.clone();
     focused_report
         .findings
         .retain(|finding| finding.rule_id == "RUST-AGENT-PROJECT-006");
     assert_eq!(focused_report.findings.len(), 1, "{:?}", report.findings);
-    let rendered = normalize_temp_root(&render_rust_project_harness(&focused_report), root);
+    let rendered = normalize_temp_root(&render_asp_rust(&focused_report), root);
     insta::assert_snapshot!(
         "retired_root_cargo_test_gate_reports_migration_warning",
         rendered
@@ -48,21 +45,18 @@ fn retired_source_cargo_test_gate_reports_migration_warning() {
     let root = temp.path();
     fs::write(
         root.join("Cargo.toml"),
-        "[package]\nname = \"embedded-lib-gate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nrust-lang-project-harness = { path = \".\" }\n",
+        "[package]\nname = \"embedded-lib-gate\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nasp-rust = { path = \".\" }\n",
     )
     .expect("write manifest");
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!();\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!();\n",
     )
     .expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         has_rule(&report, "RUST-AGENT-PROJECT-012"),
@@ -79,7 +73,7 @@ fn retired_source_cargo_test_gate_reports_migration_warning() {
     focused_report
         .findings
         .retain(|finding| finding.rule_id == "RUST-AGENT-PROJECT-009");
-    let rendered = normalize_temp_root(&render_rust_project_harness(&focused_report), root);
+    let rendered = normalize_temp_root(&render_asp_rust(&focused_report), root);
     insta::assert_snapshot!(
         "retired_source_cargo_test_gate_reports_migration_warning",
         rendered

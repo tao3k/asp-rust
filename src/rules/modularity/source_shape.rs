@@ -8,7 +8,7 @@ use crate::parser::{
     file_location, path_line_location, source_line,
 };
 use crate::rules::display_path;
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use super::{
     MAX_SOURCE_EFFECTIVE_LINES, MAX_SOURCE_LINES, MIN_SOURCE_IMPLEMENTATION_ITEMS,
@@ -17,8 +17,8 @@ use super::{
 
 pub(super) fn source_file_bloat_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let source_lines = module.source_metrics.source_lines;
     let effective_lines = module.source_metrics.effective_code_lines;
     let has_absolute_line_pressure = source_lines >= MAX_SOURCE_LINES;
@@ -42,7 +42,7 @@ pub(super) fn source_file_bloat_findings(
         return Vec::new();
     }
     let rule = &rules[RUST_MOD_R002];
-    vec![RustHarnessFinding::from_rule(
+    vec![AspRustFinding::from_rule(
         rule,
         format!(
             "{} carries {source_lines} source lines, {effective_lines} effective code lines, {public_items} public items, {implementation_items} top-level implementation items, and {}.",
@@ -61,8 +61,8 @@ pub(super) fn source_file_bloat_findings(
 
 pub(super) fn sibling_file_dir_owner_collision_findings(
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rust_sources = rust_source_paths(modules);
     let rust_source_ancestor_dirs = rust_source_ancestor_dirs(&rust_sources);
     let mut reported = BTreeSet::new();
@@ -85,7 +85,7 @@ pub(super) fn sibling_file_dir_owner_collision_findings(
         }
 
         let rule = &rules[RUST_MOD_R011];
-        findings.push(RustHarnessFinding::from_rule(
+        findings.push(AspRustFinding::from_rule(
             rule,
             format!(
                 "{} and {}/ share the same owner name at one filesystem level.",
@@ -142,8 +142,8 @@ fn is_under_tests_dir(path: &Path) -> bool {
 pub(super) fn deep_relative_import_findings(
     module_facts: &RustReasoningModuleFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_MOD_R003];
     module_facts
         .import_summary
@@ -160,7 +160,7 @@ pub(super) fn deep_relative_import_findings(
                 .unwrap_or_else(|| {
                     "; parser could not derive a safe crate-relative replacement.".to_string()
                 });
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} uses deep relative import `{}`{}",
@@ -182,8 +182,8 @@ pub(super) fn deep_relative_import_findings(
 pub(super) fn glob_import_findings(
     module_facts: &RustReasoningModuleFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_MOD_R010];
     module
         .syntax_facts
@@ -191,7 +191,7 @@ pub(super) fn glob_import_findings(
         .iter()
         .filter_map(|use_syntax| {
             if use_syntax.contains_glob_import {
-                Some(RustHarnessFinding::from_rule(
+                Some(AspRustFinding::from_rule(
                     rule,
                     glob_import_summary(module_facts, module, use_syntax),
                     path_line_location(&module.report.path, use_syntax.line),

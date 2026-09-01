@@ -3,7 +3,7 @@ use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 use crate::parser::{
     CargoDependencyFacts, parse_cargo_cfg_facts, parse_cargo_dependency_facts, parse_cargo_manifest,
 };
@@ -24,7 +24,7 @@ use super::version::version_requirement_matches_request;
 
 pub(super) fn render_search_workspace(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let roots = package_roots_for_request(project_root, config, options.package.as_deref())?;
@@ -48,7 +48,7 @@ pub(super) fn render_search_workspace(
 
 pub(super) fn render_search_targets(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let roots = package_roots_for_request(project_root, config, options.package.as_deref())?;
@@ -94,7 +94,7 @@ pub(super) fn render_search_targets(
 
 pub(super) fn render_search_deps(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: Option<&str>,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -106,7 +106,7 @@ pub(super) fn render_search_deps(
 
 fn render_search_deps_list(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let contexts = dependency_search_contexts(project_root, config, options)?;
@@ -127,7 +127,7 @@ fn render_search_deps_list(
 
 fn render_search_dep(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -262,7 +262,7 @@ struct DependencySearchContext {
 
 fn dependency_search_contexts(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<Vec<DependencySearchContext>, String> {
     package_roots_for_request(project_root, config, options.package.as_deref()).map(|roots| {
@@ -293,7 +293,7 @@ fn dependency_search_requires_full_context(
 
 fn render_search_dep_fast(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
     parsed_query: &DependencySearchQuery,
@@ -633,7 +633,7 @@ fn dependency_index_hits(
 
 pub(super) fn render_search_features(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: Option<&str>,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -645,7 +645,7 @@ pub(super) fn render_search_features(
 
 fn render_search_features_list(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let roots = package_roots_for_request(project_root, config, options.package.as_deref())?;
@@ -680,7 +680,7 @@ fn render_search_features_list(
 
 fn render_search_feature(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -803,7 +803,7 @@ fn render_search_feature(
 
 pub(super) fn render_search_cfg(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {

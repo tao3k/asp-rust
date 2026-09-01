@@ -1,4 +1,4 @@
-//! Built-in Rust harness rule packs.
+//! Built-in ASP Rust rule packs.
 
 pub(crate) mod agent_policy;
 mod catalog;

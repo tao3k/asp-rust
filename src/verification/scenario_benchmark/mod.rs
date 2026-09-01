@@ -1,4 +1,4 @@
-//! Scenario benchmark contracts for Rust harness fixtures.
+//! Scenario benchmark contracts for ASP Rust fixtures.
 
 mod contract;
 mod contract_gate;
@@ -7,7 +7,8 @@ mod discovery;
 mod types;
 
 pub use contract::{
-    RustScenarioBenchmarkContract, RustScenarioBenchmarkDuration, RustScenarioBenchmarkMemoryBytes,
+    RustScenarioBenchmarkContract, RustScenarioBenchmarkDuration, RustScenarioBenchmarkMeasurement,
+    RustScenarioBenchmarkMemoryBytes, RustScenarioBenchmarkMetric, RustScenarioBenchmarkMetricKind,
     RustScenarioBenchmarkPhase,
 };
 pub use core::{

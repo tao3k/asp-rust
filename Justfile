@@ -1,6 +1,6 @@
 set shell := ["bash", "-cu"]
 
-bin := "rs-harness"
+bin := "asp-rust"
 features := "cli"
 
 default:
@@ -8,6 +8,10 @@ default:
 
 build-cli:
     cargo build --features {{features}} --bin {{bin}}
+
+# ASP owns artifact publication; this package owns its development build.
+install:
+    cargo build --offline --release --features {{features}} --bin {{bin}}
 
 install-bin-macos prefix="/opt/homebrew":
     CARGO_INSTALL_ROOT="{{prefix}}" cargo install --path . --features {{features}} --bin {{bin}} --force

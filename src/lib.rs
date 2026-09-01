@@ -1,35 +1,47 @@
 #![deny(dead_code)]
+//! ASP Rust language policy, evidence, and provider runtime.
+#![recursion_limit = "256"]
 
-//! Project-level Rust language harness for policy gates and agent advice.
 //!
 //! The crate provides library APIs for scanning Rust projects, returning
 //! deterministic findings, rendering compact diagnostics, and mounting a
 //! reusable Cargo test gate.
 
 mod agent_snapshot;
+mod asp_rust_rules;
 mod build_gate;
-#[cfg(feature = "cli")]
-mod cli;
+pub mod content_identity;
 mod discovery;
 mod downstream_gate_guide;
-mod harness_rules;
+#[cfg(feature = "provider-server")]
+mod exact_source_parse_artifact;
+#[cfg(feature = "provider-server")]
+mod exact_source_projection;
 mod invariant_catalog;
 mod macros;
 mod model;
+pub mod nested_item_facts;
 mod parser;
 mod path;
+#[cfg(feature = "provider-server")]
+mod project_resolution;
+#[cfg(feature = "provider-server")]
+mod provider_server;
+pub mod provider_workspace_search_identity;
 mod render;
 mod rules;
 mod runner;
 #[cfg(feature = "search")]
 mod search;
-mod self_policy;
+pub mod structural_selector;
 mod verification;
+#[path = "workspace_dependency_graph.rs"]
+mod workspace_build_dag;
 mod workspace_evidence_graph;
 
-pub use harness_rules::{
-    RUST_HARNESS_RULES_MD, render_rust_harness_rules_markdown, rust_harness_rules_markdown,
-    write_rust_harness_rules_to_unit_tests,
+pub use asp_rust_rules::{
+    ASP_RUST_RULES_MD, asp_rust_rules_markdown, render_asp_rust_rules_markdown,
+    write_asp_rust_rules_to_unit_tests,
 };
 pub use verification::{
     RUST_BEHAVIOR_SNAPSHOT_PROTOCOL_ID, RUST_BEHAVIOR_SNAPSHOT_PROTOCOL_VERSION,
@@ -169,67 +181,59 @@ mod parser_native_syntax_api_shape_tests;
 mod parser_native_syntax_data_shape_tests;
 
 pub use agent_snapshot::{
-    render_rust_project_harness_agent_snapshot,
-    render_rust_project_harness_agent_snapshot_with_config,
+    render_asp_rust_agent_snapshot, render_asp_rust_agent_snapshot_with_config,
 };
 pub use build_gate::{
-    RUST_PROJECT_HARNESS_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID,
-    RUST_PROJECT_HARNESS_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION,
-    RustProjectHarnessDependencyBaseline, RustProjectHarnessDependencyBaselinePackage,
-    RustProjectHarnessDependencyBaselinePackageReceipt, RustProjectHarnessDownstreamPolicy,
-    RustProjectHarnessDownstreamPolicyReceipt, RustProjectHarnessReportObligationReceipt,
-    RustProjectHarnessWorkspacePolicy, assert_rust_project_harness_dependency_baseline,
-    assert_rust_project_harness_downstream_policy,
-    assert_rust_project_harness_downstream_policy_from_env,
-    assert_rust_project_harness_verification_from_env_with_config,
-    assert_rust_project_harness_verification_with_config,
-    render_rust_project_harness_downstream_policy_receipt_json,
-    rust_project_harness_downstream_policy_receipt,
+    ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID,
+    ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION, AspRustBuildGateAuthority,
+    AspRustDependencyBaseline, AspRustDependencyBaselinePackage,
+    AspRustDependencyBaselinePackageReceipt, AspRustDownstreamPolicy,
+    AspRustDownstreamPolicyReceipt, AspRustReportObligationReceipt, AspRustWorkspacePolicy,
+    asp_rust_downstream_policy_receipt, assert_asp_rust_dependency_baseline,
+    assert_asp_rust_downstream_policy, assert_asp_rust_downstream_policy_from_env,
+    assert_asp_rust_downstream_policy_with_authority,
+    assert_asp_rust_verification_from_env_with_config, assert_asp_rust_verification_with_config,
+    render_asp_rust_downstream_policy_receipt_json,
 };
-#[cfg(feature = "cli")]
-pub use cli::run_cli_from_env;
-pub use discovery::{DEFAULT_IGNORED_DIR_NAMES, discover_rust_files, rust_project_harness_scope};
+pub use discovery::{DEFAULT_IGNORED_DIR_NAMES, asp_rust_scope, discover_rust_files};
 pub use downstream_gate_guide::{
     RUST_DOWNSTREAM_VERIFICATION_GATE_GUIDE_MD, rust_downstream_verification_gate_guide_markdown,
 };
 pub use model::{
-    RulePackDescriptor, RustDiagnosticSeverity, RustHarnessConfig, RustHarnessFinding,
-    RustHarnessReport, RustHarnessRule, RustInvariantCandidate, RustInvariantCandidateStatus,
+    AspRustConfig, AspRustFinding, AspRustReport, AspRustRule, AspRustScope, RulePackDescriptor,
+    RustDiagnosticSeverity, RustInvariantCandidate, RustInvariantCandidateStatus,
     RustInvariantEvidence, RustInvariantEvidenceKind, RustInvariantId, RustInvariantKind,
     RustInvariantReceiptKind, RustInvariantRulePackId, RustInvariantSourceRuleId, RustModuleReport,
-    RustProjectHarnessScope, RustRulePack, SourceLocation,
+    RustRulePack, SourceLocation,
 };
+#[cfg(feature = "provider-server")]
+pub use provider_server::run_provider_server_from_env;
 pub use render::{
-    render_rust_project_harness, render_rust_project_harness_advice,
-    render_rust_project_harness_failure_frontier, render_rust_project_harness_json,
-    render_rust_project_harness_with_options,
+    render_asp_rust, render_asp_rust_advice, render_asp_rust_failure_frontier,
+    render_asp_rust_json, render_asp_rust_with_options,
 };
 pub use rules::{
     rust_agent_policy_rules, rust_modularity_rules, rust_project_policy_rules,
     rust_rule_pack_descriptors, rust_syntax_rules,
 };
 pub use runner::{
-    RustHarnessRunScope, assert_rust_lang_harness_clean,
-    assert_rust_project_harness_cargo_test_clean,
-    assert_rust_project_harness_cargo_test_clean_with_config, assert_rust_project_harness_clean,
-    assert_rust_project_harness_clean_with_config, default_rust_harness_config,
-    run_rust_lang_harness, run_rust_lang_harness_with_config, run_rust_project_harness_for_scope,
-    run_rust_project_harness_with_config_for_scope, rust_harness_config_for_project,
+    AspRustRunScope, asp_rust_config_for_project, assert_asp_rust_cargo_test_clean,
+    assert_asp_rust_cargo_test_clean_with_config, assert_asp_rust_clean,
+    assert_asp_rust_clean_with_config, assert_rust_lang_harness_clean,
+    assert_rust_workspace_harness_clean_with_config, default_asp_rust_config,
+    run_asp_rust_for_scope, run_asp_rust_with_config_for_scope, run_rust_lang_harness,
+    run_rust_lang_harness_with_config,
 };
 #[cfg(feature = "search")]
 pub use search::{
-    RustSearchOptions, RustSearchViewRequest,
-    render_rust_project_harness_search_compare_json_with_config,
-    render_rust_project_harness_search_ingest_with_config,
-    render_rust_project_harness_search_prime, render_rust_project_harness_search_prime_with_config,
-    render_rust_project_harness_search_view_with_config,
+    RustSearchOptions, RustSearchViewRequest, render_asp_rust_search_compare_json_with_config,
+    render_asp_rust_search_ingest_with_config, render_asp_rust_search_prime,
+    render_asp_rust_search_prime_with_config, render_asp_rust_search_view_with_config,
 };
-#[cfg(all(feature = "cli", feature = "search"))]
+#[cfg(feature = "search")]
 pub use search::{
-    render_rust_project_harness_dependency_topology_json,
-    render_rust_project_harness_dependency_topology_metadata_json,
-    render_rust_project_harness_search_semantic_facts_json,
-    render_rust_project_harness_workspace_scope_json,
+    render_asp_rust_dependency_topology_json, render_asp_rust_dependency_topology_metadata_json,
+    render_asp_rust_search_semantic_facts_json,
 };
 pub use verification::{
     RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_ID, RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_VERSION,
@@ -301,27 +305,31 @@ pub use verification::{
 };
 pub use verification::{
     RustScenarioBenchmarkContract, RustScenarioBenchmarkDuration, RustScenarioBenchmarkError,
-    RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkMemoryBytes,
+    RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkMeasurement,
+    RustScenarioBenchmarkMemoryBytes, RustScenarioBenchmarkMetric, RustScenarioBenchmarkMetricKind,
     RustScenarioBenchmarkPhase, RustScenarioBenchmarkReceipt, RustScenarioBenchmarkRequirement,
     RustScenarioBenchmarkStatus, RustScenarioBenchmarkSuiteReceipt, RustScenarioBenchmarkViolation,
     RustScenarioBenchmarkViolationKind, RustScenarioMetadata,
     assert_rule_fixture_scenario_benchmarks, discover_required_rust_scenario_benchmarks,
     validate_required_rust_scenario_benchmarks, validate_rust_scenario_benchmark,
 };
+pub use workspace_build_dag::{
+    ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID, ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_VERSION,
+    AspRustWorkspaceBuildDag, AspRustWorkspaceBuildDagDerivation, AspRustWorkspaceBuildDagMetrics,
+    AspRustWorkspaceBuildDagPackage, asp_rust_workspace_build_dag,
+    asp_rust_workspace_build_dag_from_env, asp_rust_workspace_build_dag_from_env_with_metrics,
+    asp_rust_workspace_build_dag_with_metrics,
+};
 pub use workspace_evidence_graph::{
-    RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID,
-    RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_VERSION,
-    RustProjectHarnessVerificationTaskKindCountReceipt,
-    RustProjectHarnessWorkspaceEvidenceGraphEdgeKind,
-    RustProjectHarnessWorkspaceEvidenceGraphEdgeReceipt,
-    RustProjectHarnessWorkspaceEvidenceGraphMemberInput,
-    RustProjectHarnessWorkspaceEvidenceGraphMemberReceipt,
-    RustProjectHarnessWorkspaceEvidenceGraphNodeKind,
-    RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt,
-    RustProjectHarnessWorkspaceEvidenceGraphReceipt,
-    RustProjectHarnessWorkspaceEvidenceGraphSummaryReceipt,
-    RustProjectHarnessWorkspaceTrustLoopStepReceipt,
-    RustProjectHarnessWorkspaceTrustLoopStepStatus,
-    render_rust_project_harness_workspace_evidence_graph_receipt_json,
-    rust_project_harness_workspace_evidence_graph_receipt,
+    ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID,
+    ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_VERSION,
+    AspRustVerificationTaskKindCountReceipt, AspRustWorkspaceEvidenceGraphEdgeKind,
+    AspRustWorkspaceEvidenceGraphEdgeReceipt, AspRustWorkspaceEvidenceGraphMemberInput,
+    AspRustWorkspaceEvidenceGraphMemberReceipt, AspRustWorkspaceEvidenceGraphNodeKind,
+    AspRustWorkspaceEvidenceGraphNodeReceipt, AspRustWorkspaceEvidenceGraphReceipt,
+    AspRustWorkspaceEvidenceGraphSummaryReceipt, AspRustWorkspaceMemberRunReport,
+    AspRustWorkspaceRunReport, AspRustWorkspaceTrustLoopStepReceipt,
+    AspRustWorkspaceTrustLoopStepStatus, asp_rust_workspace_evidence_graph_receipt,
+    assert_asp_rust_workspace_policy, assert_asp_rust_workspace_policy_from_env,
+    assert_asp_rust_workspace_policy_with, render_asp_rust_workspace_evidence_graph_receipt_json,
 };

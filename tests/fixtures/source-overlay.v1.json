@@ -1,5 +1,5 @@
 {
-  "schemaId": "asp.source-overlay.v1",
+  "schemaId": "asp.exact-source-snapshot-envelope.v1",
   "sourceKind": "editor-buffer",
   "changes": [
     {

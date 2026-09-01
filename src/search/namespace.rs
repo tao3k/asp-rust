@@ -13,11 +13,11 @@ use super::format::{
 use super::hits::{dependency_usage, matching_dependencies};
 use super::limits::SEARCH_HIT_LIMIT;
 use super::scope::module_is_scope;
-use crate::RustHarnessConfig;
+use crate::AspRustConfig;
 
 pub(super) fn render_search_code(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -60,7 +60,7 @@ pub(super) fn render_search_code(
 
 pub(super) fn render_search_env(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: Option<&str>,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -75,7 +75,7 @@ pub(super) fn render_search_env(
 
 pub(super) fn render_search_extension(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     query: &str,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
@@ -140,7 +140,7 @@ pub(super) fn render_search_extension(
 
 fn render_search_env_toolchain(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let contexts = search_contexts(project_root, config, options)?;
@@ -211,7 +211,7 @@ fn render_search_env_toolchain(
 
 fn render_search_env_cfg(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     options: &RustSearchOptions,
 ) -> Result<String, String> {
     let contexts = search_contexts(project_root, config, options)?;

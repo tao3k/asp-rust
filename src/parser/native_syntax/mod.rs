@@ -13,7 +13,7 @@ mod module_facts;
 mod native_abi_boundary;
 mod path_facts;
 pub(crate) mod process_boundary;
-#[cfg(any(feature = "search", feature = "cli"))]
+#[cfg(feature = "search")]
 pub(crate) mod projection_code;
 mod public_api_callable;
 mod select_cancellation_safety;

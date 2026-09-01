@@ -1,6 +1,6 @@
 # Overview
 
-`rust-lang-project-harness` exists to reduce agent search cost in long-lived
+`asp-rust` exists to reduce agent search cost in long-lived
 Rust projects. It parses a project through native Rust syntax and Cargo
 manifest facts, derives package/module/owner/dependency structure, and renders
 small repair contracts that an agent can act on without inspecting every file.
@@ -25,7 +25,7 @@ The expected loop is:
 1. a downstream crate mounts the build-time harness gate;
 2. `cargo check` runs parser-native project policy before runtime tests;
 3. compact findings report structural drift or missing configuration;
-4. the agent edits code or `RustHarnessConfig` until the finding disappears, or
+4. the agent edits code or `AspRustConfig` until the finding disappears, or
    records an explicit project-local rationale.
 
 ## Policy Surfaces
@@ -46,6 +46,6 @@ path, but they are not the preferred downstream entrypoint.
 
 - Build gate, cargo-test compatibility, and configuration: [Runner Modes](03_features/202_runner_modes.md)
 - Default rule packs and diagnostic rendering: [Rule Catalog](03_features/201_rule_catalog.md)
-- CLI, search, agent hooks, and semantic registry output: [CLI](03_features/203_cli.md)
+- Runtime-owned search/query and the language package boundary: [Provider Server](03_features/203_provider_server.md)
 - Verification planning, receipts, waivers, and report artifacts: [Verification Policy](03_features/204_verification_policy.md)
-- Boundary rationale and self-apply contract: [Harness Boundary](01_core/101_harness_boundary.md)
+- Boundary rationale and self-apply contract: [ASP Rust Boundary](01_core/101_asp_rust_boundary.md)

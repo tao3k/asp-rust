@@ -1,4 +1,4 @@
-//! Runner API for embedding the Rust project harness in tests and tools.
+//! Runner API for embedding the ASP Rust in tests and tools.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -6,10 +6,10 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::discovery::{
-    discover_cargo_package_roots, discover_rust_files, rust_project_harness_scope,
+    asp_rust_scope, discover_cargo_package_roots, discover_rust_files, discover_rust_package_files,
 };
 use crate::invariant_catalog::invariant_candidates_from_findings;
-use crate::model::{RustHarnessConfig, RustHarnessReport, RustProjectHarnessScope};
+use crate::model::{AspRustConfig, AspRustReport, AspRustScope};
 use crate::parser::{ParsedRustModule, parse_rust_file};
 use crate::rules::{
     evaluate_default_rule_packs_with_config, evaluate_workspace_rule_packs_with_config,
@@ -17,7 +17,7 @@ use crate::rules::{
 
 /// Select whether one harness run evaluates only the anchored package or expands project topology.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RustHarnessRunScope {
+pub enum AspRustRunScope {
     Package,
     ProjectWorkspace,
 }
@@ -40,30 +40,30 @@ pub(crate) fn analyze_rust_project_call_count() -> usize {
 }
 
 /// One parser-owned package analysis shared by rule-pack and verification consumers.
-pub(crate) struct RustHarnessPackageAnalysis {
-    pub(crate) scope: RustProjectHarnessScope,
+pub(crate) struct AspRustPackageAnalysis {
+    pub(crate) scope: AspRustScope,
     pub(crate) parsed_modules: Vec<ParsedRustModule>,
 }
 
 /// A single filesystem discovery and parse pass for one requested harness scope.
-pub struct RustHarnessAnalysis {
+pub struct AspRustAnalysis {
     pub(crate) project_root: PathBuf,
-    pub(crate) project_scope: RustProjectHarnessScope,
-    pub(crate) package_analyses: Vec<RustHarnessPackageAnalysis>,
+    pub(crate) project_resolution: AspRustScope,
+    pub(crate) package_analyses: Vec<AspRustPackageAnalysis>,
     pub(crate) member_scoped: bool,
     pub(crate) parse_pass_count: usize,
 }
 
-/// Return the default Rust harness configuration.
+/// Return the default ASP Rust configuration.
 #[must_use]
-pub fn default_rust_harness_config() -> RustHarnessConfig {
-    RustHarnessConfig::default()
+pub fn default_asp_rust_config() -> AspRustConfig {
+    AspRustConfig::default()
 }
 
-/// Return the default Rust harness configuration merged with nearest `asp.toml`.
+/// Return the default ASP Rust configuration merged with nearest `asp.toml`.
 #[must_use]
-pub fn rust_harness_config_for_project(project_root: &Path) -> RustHarnessConfig {
-    apply_asp_project_config(project_root, RustHarnessConfig::default())
+pub fn asp_rust_config_for_project(project_root: &Path) -> AspRustConfig {
+    apply_asp_project_config(project_root, AspRustConfig::default())
 }
 
 /// Run the harness with an explicit package-versus-workspace scope.
@@ -71,13 +71,13 @@ pub fn rust_harness_config_for_project(project_root: &Path) -> RustHarnessConfig
 /// # Errors
 ///
 /// Returns an error when the project root does not exist.
-pub fn run_rust_project_harness_for_scope(
+pub fn run_asp_rust_for_scope(
     project_root: &Path,
-    scope: RustHarnessRunScope,
-) -> Result<RustHarnessReport, String> {
-    run_rust_project_harness_with_config_for_scope(
+    scope: AspRustRunScope,
+) -> Result<AspRustReport, String> {
+    run_asp_rust_with_config_for_scope(
         project_root,
-        &rust_harness_config_for_project(project_root),
+        &asp_rust_config_for_project(project_root),
         scope,
     )
 }
@@ -87,11 +87,11 @@ pub fn run_rust_project_harness_for_scope(
 /// # Errors
 ///
 /// Returns an error when the project root does not exist.
-pub fn run_rust_project_harness_with_config_for_scope(
+pub fn run_asp_rust_with_config_for_scope(
     project_root: &Path,
-    config: &RustHarnessConfig,
-    scope: RustHarnessRunScope,
-) -> Result<RustHarnessReport, String> {
+    config: &AspRustConfig,
+    scope: AspRustRunScope,
+) -> Result<AspRustReport, String> {
     Ok(analyze_rust_project_once(project_root, config, scope)?.to_report(config))
 }
 
@@ -102,9 +102,9 @@ pub fn run_rust_project_harness_with_config_for_scope(
 /// Returns an error when the project root does not exist.
 pub fn analyze_rust_project_once(
     project_root: &Path,
-    config: &RustHarnessConfig,
-    scope: RustHarnessRunScope,
-) -> Result<RustHarnessAnalysis, String> {
+    config: &AspRustConfig,
+    scope: AspRustRunScope,
+) -> Result<AspRustAnalysis, String> {
     #[cfg(test)]
     ANALYZE_RUST_PROJECT_CALL_COUNT.with(|count| count.set(count.get().saturating_add(1)));
     if !project_root.exists() {
@@ -113,7 +113,14 @@ pub fn analyze_rust_project_once(
             project_root.display()
         ));
     }
-    if scope == RustHarnessRunScope::Package {
+    let manifest = crate::parser::parse_required_cargo_manifest(project_root)?;
+    if scope == AspRustRunScope::Package {
+        if !manifest.has_package {
+            return Err(format!(
+                "Cargo graph anchor is a virtual workspace, not a package: {}",
+                project_root.join("Cargo.toml").display()
+            ));
+        }
         return Ok(analyze_single_project(project_root, config));
     }
     let package_roots = discover_cargo_package_roots(
@@ -136,8 +143,8 @@ pub fn analyze_rust_project_once(
 /// # Errors
 ///
 /// Returns an error when any requested root does not exist.
-pub fn run_rust_lang_harness(paths: &[PathBuf]) -> Result<RustHarnessReport, String> {
-    run_rust_lang_harness_with_config(paths, &RustHarnessConfig::default())
+pub fn run_rust_lang_harness(paths: &[PathBuf]) -> Result<AspRustReport, String> {
+    run_rust_lang_harness_with_config(paths, &AspRustConfig::default())
 }
 
 /// Run the harness over explicit files or directories with explicit config.
@@ -147,8 +154,8 @@ pub fn run_rust_lang_harness(paths: &[PathBuf]) -> Result<RustHarnessReport, Str
 /// Returns an error when any requested root does not exist.
 pub fn run_rust_lang_harness_with_config(
     paths: &[PathBuf],
-    config: &RustHarnessConfig,
-) -> Result<RustHarnessReport, String> {
+    config: &AspRustConfig,
+) -> Result<AspRustReport, String> {
     for path in paths {
         if !path.exists() {
             return Err(format!("harness path does not exist: {}", path.display()));
@@ -157,16 +164,15 @@ pub fn run_rust_lang_harness_with_config(
     Ok(run_paths(paths, config))
 }
 
-/// Assert a conventional Rust project harness run is clean.
+/// Assert a conventional ASP Rust run is clean.
 ///
 /// # Panics
 ///
 /// Panics when the run fails or when configured-blocking findings exist.
 #[track_caller]
-pub fn assert_rust_project_harness_clean(project_root: &Path) -> RustHarnessReport {
-    let report =
-        run_rust_project_harness_for_scope(project_root, RustHarnessRunScope::ProjectWorkspace)
-            .unwrap_or_else(|error| panic!("{error}"));
+pub fn assert_asp_rust_clean(project_root: &Path) -> AspRustReport {
+    let report = run_asp_rust_for_scope(project_root, AspRustRunScope::Package)
+        .unwrap_or_else(|error| panic!("{error}"));
     report.assert_clean();
     report
 }
@@ -175,7 +181,7 @@ pub fn assert_rust_project_harness_clean(project_root: &Path) -> RustHarnessRepo
 ///
 /// This assertion treats configured-blocking findings and non-blocking agent
 /// advice as actionable test feedback. It is intended for cargo-test gate
-/// macros, while `assert_rust_project_harness_clean()` keeps the library runner
+/// macros, while `assert_asp_rust_clean()` keeps the library runner
 /// semantics of only blocking on configured severities.
 ///
 /// # Panics
@@ -183,31 +189,26 @@ pub fn assert_rust_project_harness_clean(project_root: &Path) -> RustHarnessRepo
 /// Panics when the run fails, when configured-blocking findings exist, or when
 /// advisory findings exist.
 #[track_caller]
-pub fn assert_rust_project_harness_cargo_test_clean(project_root: &Path) -> RustHarnessReport {
-    let report =
-        run_rust_project_harness_for_scope(project_root, RustHarnessRunScope::ProjectWorkspace)
-            .unwrap_or_else(|error| panic!("{error}"));
+pub fn assert_asp_rust_cargo_test_clean(project_root: &Path) -> AspRustReport {
+    let report = run_asp_rust_for_scope(project_root, AspRustRunScope::Package)
+        .unwrap_or_else(|error| panic!("{error}"));
     report.assert_clean();
     report.assert_no_advisory_findings();
     report
 }
 
-/// Assert a configured Rust project harness run is clean.
+/// Assert a configured ASP Rust run is clean.
 ///
 /// # Panics
 ///
 /// Panics when the run fails or when configured-blocking findings exist.
 #[track_caller]
-pub fn assert_rust_project_harness_clean_with_config(
+pub fn assert_asp_rust_clean_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
-) -> RustHarnessReport {
-    let report = run_rust_project_harness_with_config_for_scope(
-        project_root,
-        config,
-        RustHarnessRunScope::ProjectWorkspace,
-    )
-    .unwrap_or_else(|error| panic!("{error}"));
+    config: &AspRustConfig,
+) -> AspRustReport {
+    let report = run_asp_rust_with_config_for_scope(project_root, config, AspRustRunScope::Package)
+        .unwrap_or_else(|error| panic!("{error}"));
     report.assert_clean();
     report
 }
@@ -219,38 +220,57 @@ pub fn assert_rust_project_harness_clean_with_config(
 /// Panics when the run fails, when configured-blocking findings exist, or when
 /// advisory findings exist.
 #[track_caller]
-pub fn assert_rust_project_harness_cargo_test_clean_with_config(
+pub fn assert_asp_rust_cargo_test_clean_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
-) -> RustHarnessReport {
-    let report = run_rust_project_harness_with_config_for_scope(
-        project_root,
-        config,
-        RustHarnessRunScope::ProjectWorkspace,
-    )
-    .unwrap_or_else(|error| panic!("{error}"));
+    config: &AspRustConfig,
+) -> AspRustReport {
+    let report = run_asp_rust_with_config_for_scope(project_root, config, AspRustRunScope::Package)
+        .unwrap_or_else(|error| panic!("{error}"));
     report.assert_clean();
     report.assert_no_advisory_findings();
     report
 }
 
-/// Assert an explicit-path Rust harness run is clean.
+/// Assert an explicitly workspace-scoped configured harness run is clean.
+///
+/// Downstream Cargo package gates must use the package-scoped `project`
+/// assertions. Workspace expansion is deliberately named and opt-in.
+///
+/// # Panics
+///
+/// Panics when discovery fails or configured-blocking findings exist.
+#[track_caller]
+pub fn assert_rust_workspace_harness_clean_with_config(
+    workspace_root: &Path,
+    config: &AspRustConfig,
+) -> AspRustReport {
+    let report = run_asp_rust_with_config_for_scope(
+        workspace_root,
+        config,
+        AspRustRunScope::ProjectWorkspace,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    report.assert_clean();
+    report
+}
+
+/// Assert an explicit-path ASP Rust run is clean.
 ///
 /// # Panics
 ///
 /// Panics when the run fails or when configured-blocking findings exist.
 #[track_caller]
-pub fn assert_rust_lang_harness_clean(paths: &[PathBuf]) -> RustHarnessReport {
+pub fn assert_rust_lang_harness_clean(paths: &[PathBuf]) -> AspRustReport {
     let report = run_rust_lang_harness(paths).unwrap_or_else(|error| panic!("{error}"));
     report.assert_clean();
     report
 }
 
-fn run_paths(paths: &[PathBuf], config: &RustHarnessConfig) -> RustHarnessReport {
+fn run_paths(paths: &[PathBuf], config: &AspRustConfig) -> AspRustReport {
     let parsed_modules = parse_paths(paths, config);
     let findings = evaluate_default_rule_packs_with_config(None, &parsed_modules, config);
     let invariant_candidates = invariant_candidates_from_findings(&findings);
-    RustHarnessReport {
+    AspRustReport {
         modules: parsed_modules
             .into_iter()
             .map(|module| module.report)
@@ -259,24 +279,24 @@ fn run_paths(paths: &[PathBuf], config: &RustHarnessConfig) -> RustHarnessReport
         invariant_candidates,
         root_paths: paths.to_vec(),
         blocking_severities: config.blocking_severities.clone(),
-        project_scope: None,
+        project_resolution: None,
         workspace_member_scopes: Vec::new(),
     }
 }
 
-fn analyze_single_project(project_root: &Path, config: &RustHarnessConfig) -> RustHarnessAnalysis {
-    let scope = rust_project_harness_scope(
+fn analyze_single_project(project_root: &Path, config: &AspRustConfig) -> AspRustAnalysis {
+    let scope = asp_rust_scope(
         project_root,
         config.include_tests,
         &config.source_dir_names,
         &config.test_dir_names,
     );
     let monitored_paths = scope.monitored_paths();
-    let parsed_modules = parse_paths(&monitored_paths, config);
-    RustHarnessAnalysis {
+    let parsed_modules = parse_package_paths(&monitored_paths, project_root, config);
+    AspRustAnalysis {
         project_root: project_root.to_path_buf(),
-        project_scope: scope.clone(),
-        package_analyses: vec![RustHarnessPackageAnalysis {
+        project_resolution: scope.clone(),
+        package_analyses: vec![AspRustPackageAnalysis {
             scope,
             parsed_modules,
         }],
@@ -288,28 +308,29 @@ fn analyze_single_project(project_root: &Path, config: &RustHarnessConfig) -> Ru
 fn analyze_member_scoped_project(
     project_root: &Path,
     package_roots: &[PathBuf],
-    config: &RustHarnessConfig,
-) -> RustHarnessAnalysis {
+    config: &AspRustConfig,
+) -> AspRustAnalysis {
     let package_analyses = package_roots
         .iter()
         .map(|package_root| {
-            let scope = rust_project_harness_scope(
+            let scope = asp_rust_scope(
                 package_root,
                 config.include_tests,
                 &config.source_dir_names,
                 &config.test_dir_names,
             );
-            let parsed_modules = parse_paths(&scope.monitored_paths(), config);
-            RustHarnessPackageAnalysis {
+            let parsed_modules =
+                parse_package_paths(&scope.monitored_paths(), package_root, config);
+            AspRustPackageAnalysis {
                 scope,
                 parsed_modules,
             }
         })
         .collect::<Vec<_>>();
     let parse_pass_count = package_analyses.len();
-    RustHarnessAnalysis {
+    AspRustAnalysis {
         project_root: project_root.to_path_buf(),
-        project_scope: rust_project_harness_scope(
+        project_resolution: asp_rust_scope(
             project_root,
             config.include_tests,
             &config.source_dir_names,
@@ -321,7 +342,7 @@ fn analyze_member_scoped_project(
     }
 }
 
-impl RustHarnessAnalysis {
+impl AspRustAnalysis {
     pub(crate) fn monitored_paths(&self) -> BTreeSet<PathBuf> {
         self.package_analyses
             .iter()
@@ -337,7 +358,7 @@ impl RustHarnessAnalysis {
 
     /// Project rule-pack findings from the already parsed analysis.
     #[must_use]
-    pub fn to_report(&self, config: &RustHarnessConfig) -> RustHarnessReport {
+    pub fn to_report(&self, config: &AspRustConfig) -> AspRustReport {
         debug_assert_eq!(self.parse_pass_count, self.package_analyses.len());
         let mut modules = Vec::new();
         let mut findings = Vec::new();
@@ -381,13 +402,13 @@ impl RustHarnessAnalysis {
         } else {
             Vec::new()
         };
-        RustHarnessReport {
+        AspRustReport {
             modules,
             findings,
             invariant_candidates,
             root_paths,
             blocking_severities: config.blocking_severities.clone(),
-            project_scope: Some(self.project_scope.clone()),
+            project_resolution: Some(self.project_resolution.clone()),
             workspace_member_scopes,
         }
     }
@@ -400,9 +421,25 @@ fn should_run_member_scopes(project_root: &Path, package_roots: &[PathBuf]) -> b
             .is_some_and(|root| root != project_root)
 }
 
-fn parse_paths(paths: &[PathBuf], config: &RustHarnessConfig) -> Vec<ParsedRustModule> {
+fn parse_paths(paths: &[PathBuf], config: &AspRustConfig) -> Vec<ParsedRustModule> {
     discover_rust_files(
         paths,
+        &config.ignored_dir_names,
+        &config.include_hidden_dir_names,
+    )
+    .into_iter()
+    .map(|path| parse_rust_file(&path))
+    .collect()
+}
+
+fn parse_package_paths(
+    paths: &[PathBuf],
+    package_root: &Path,
+    config: &AspRustConfig,
+) -> Vec<ParsedRustModule> {
+    discover_rust_package_files(
+        paths,
+        package_root,
         &config.ignored_dir_names,
         &config.include_hidden_dir_names,
     )
@@ -427,10 +464,7 @@ struct AspDiscoveryConfig {
     include_hidden_dir_names: BTreeSet<String>,
 }
 
-fn apply_asp_project_config(
-    project_root: &Path,
-    mut config: RustHarnessConfig,
-) -> RustHarnessConfig {
+fn apply_asp_project_config(project_root: &Path, mut config: AspRustConfig) -> AspRustConfig {
     let Some(config_path) = nearest_asp_toml(project_root) else {
         return config;
     };

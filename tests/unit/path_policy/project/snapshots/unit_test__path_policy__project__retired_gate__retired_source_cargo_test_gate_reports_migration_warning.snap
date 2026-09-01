@@ -5,7 +5,7 @@ expression: rendered
 ---
 [RUST-AGENT-PROJECT-009] Warning: Retired source cargo-test gate should migrate
 @ $TEMP/src/lib.rs:3:1
-fix: move parser-native harness policy to [build-dependencies] plus root build.rs using assert_rust_project_harness_downstream_policy_from_env(...), then remove this cargo-test source gate
-line: 3 | rust_lang_project_harness::rust_project_harness_cargo_test_gate!();
+fix: move parser-native harness policy to [build-dependencies] plus root build.rs using assert_asp_rust_downstream_policy_from_env(...), then remove this cargo-test source gate
+line: 3 | asp_rust::asp_rust_cargo_test_gate!();
 Help: src/lib.rs mounts a retired source cargo-test harness gate.
 Contract: Source cargo-test harness gates should move parser-native project policy to the cargo-check build gate and remove the source test gate once the build gate is active.

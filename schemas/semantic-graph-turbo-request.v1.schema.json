@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agent-semantic-protocols.local/schemas/semantic-graph-turbo-request.v1.schema.json",
   "title": "Semantic Graph Turbo Request",
-  "description": "Schema-owned algorithm request packet consumed by asp-graph-turbo before it emits a semantic-graph-turbo-result response.",
+  "description": "Schema-owned graph-turbo algorithm request packet consumed by the asp-python-graphs service before it emits a semantic-graph-turbo-result response.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,6 +12,8 @@
     "protocolVersion",
     "packetKind",
     "surface",
+    "sourceSnapshot",
+    "workspaceGeneration",
     "queryTerms",
     "profile",
     "algorithm",
@@ -97,22 +99,7 @@
       }
     },
     "profile": {
-      "enum": [
-        "owner-query",
-        "query-deps",
-        "owner-tests",
-        "prime",
-        "read-frontier",
-        "failure-frontier",
-        "field-impact",
-        "type-impact",
-        "collection-impact",
-        "failure-evidence",
-        "test-selection",
-        "affected",
-        "evidence-quality",
-        "rust-evidence-quality"
-      ]
+      "$ref": "semantic-graph-turbo-definitions.v1.schema.json#/$defs/profile"
     },
     "algorithm": {
       "const": "typed-ppr-diverse"
@@ -137,8 +124,15 @@
         "auto",
         "provider",
         "finder",
+        "search-overlay",
         "ingest"
       ]
+    },
+    "sourceSnapshot": {
+      "$ref": "https://agent-semantic-protocols.dev/schemas/source-snapshot-evidence.v1.schema.json#/$defs/sourceSnapshot"
+    },
+    "workspaceGeneration": {
+      "$ref": "#/$defs/workspaceGenerationEvidence"
     },
     "candidateSources": {
       "type": "array",
@@ -314,6 +308,34 @@
     }
   },
   "$defs": {
+    "workspaceGenerationEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rootDigest",
+        "rootDepth",
+        "leafCount",
+        "ownerCount"
+      ],
+      "properties": {
+        "rootDigest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rootDepth": {
+          "type": "integer",
+          "enum": [0, 1]
+        },
+        "leafCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ownerCount": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
     "graph": {
       "type": "object",
       "additionalProperties": false,
@@ -832,6 +854,7 @@
         "enum": [
           "item-skeleton",
           "query-code",
+          "lexical-search",
           "fd-query",
           "rg-query",
           "owner-items",
@@ -845,6 +868,7 @@
         "capabilityId": {
           "enum": [
             "query",
+            "lexical-search",
             "fd",
             "rg",
             "owner-items",
@@ -1107,6 +1131,8 @@
             "doc",
             "children",
             "content",
+            "source",
+            "callable-skeleton",
             "code"
           ]
         },

@@ -3,15 +3,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::RustProjectHarnessScope;
+use crate::AspRustScope;
 
 use super::module_tree::{
-    RustModuleChildEdge, RustModuleSourceShadow, external_child_module_edges, is_module_tree_root,
-    rust_module_tree_facts,
+    RustModuleChildEdge, RustModuleSourceShadow, external_child_module_edges,
+    external_child_module_edges_with_test_cfg, is_module_tree_root, rust_module_tree_facts,
 };
 use super::{
     ParsedRustModule, RustSourcePathFacts, RustUseDeepRelativeImportSyntax, RustUseImportRootKind,
-    RustUseImportSyntax, RustUseStatementSyntax, RustUseVisibilityKind, rust_source_path_facts,
+    RustUseImportSyntax, RustUseStatementSyntax, RustUseVisibilityKind, parse_cargo_manifest,
+    rust_source_path_facts,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -33,6 +34,7 @@ pub(crate) struct RustReasoningModuleFacts {
     pub(crate) import_summary: RustReasoningImportFacts,
     pub(crate) public_api_summary: RustReasoningPublicApiFacts,
     pub(crate) is_source_module: bool,
+    pub(crate) is_test_module: bool,
     pub(crate) is_module_tree_root: bool,
     pub(crate) declared_child_edges: Vec<RustModuleChildEdge>,
 }
@@ -139,7 +141,7 @@ impl RustReasoningDeepRelativeImportFacts {
 }
 
 pub(crate) fn rust_reasoning_tree_facts(
-    scope: &RustProjectHarnessScope,
+    scope: &AspRustScope,
     modules: &[ParsedRustModule],
 ) -> RustReasoningTreeFacts {
     let module_tree = rust_module_tree_facts(&scope.source_paths, modules);
@@ -148,6 +150,7 @@ pub(crate) fn rust_reasoning_tree_facts(
         .filter(|module| is_under_any_dir(&module.report.path, &scope.source_paths))
         .map(|module| module.report.path.clone())
         .collect::<BTreeSet<_>>();
+    let test_module_files = reachable_test_module_files(scope, modules);
     let preliminary_modules = modules
         .iter()
         .map(|module| {
@@ -164,6 +167,7 @@ pub(crate) fn rust_reasoning_tree_facts(
                 import_summary: RustReasoningImportFacts::default(),
                 public_api_summary: public_api_summary(module),
                 is_source_module,
+                is_test_module: test_module_files.contains(&module.report.path),
                 is_module_tree_root: is_source_module
                     && is_module_tree_root(&scope.source_paths, &module.report.path),
                 declared_child_edges: if is_source_module {
@@ -196,6 +200,46 @@ pub(crate) fn rust_reasoning_tree_facts(
         shadowed_module_sources: module_tree.shadowed_module_sources,
         unreachable_source_files: module_tree.unreachable_source_files,
     }
+}
+
+fn reachable_test_module_files(
+    scope: &AspRustScope,
+    modules: &[ParsedRustModule],
+) -> BTreeSet<PathBuf> {
+    let manifest = parse_cargo_manifest(&scope.project_root);
+    let candidate_files = modules
+        .iter()
+        .map(|module| module.report.path.clone())
+        .collect::<BTreeSet<_>>();
+    let modules_by_path = modules
+        .iter()
+        .map(|module| (module.report.path.clone(), module))
+        .collect::<BTreeMap<_, _>>();
+    let mut reachable = BTreeSet::new();
+    let mut stack = manifest
+        .source_target_files
+        .iter()
+        .chain(&manifest.test_target_files)
+        .filter(|path| candidate_files.contains(*path))
+        .cloned()
+        .collect::<Vec<_>>();
+    while let Some(path) = stack.pop() {
+        if !reachable.insert(path.clone()) {
+            continue;
+        }
+        let Some(module) = modules_by_path.get(&path) else {
+            continue;
+        };
+        for edge in external_child_module_edges_with_test_cfg(module, &candidate_files, true) {
+            if !reachable.contains(&edge.child_path) {
+                stack.push(edge.child_path);
+            }
+        }
+    }
+    reachable
+        .into_iter()
+        .filter(|path| is_under_any_dir(path, &scope.test_paths))
+        .collect()
 }
 
 fn owner_branch_facts(modules: &[RustReasoningModuleFacts]) -> Vec<RustReasoningOwnerBranchFacts> {

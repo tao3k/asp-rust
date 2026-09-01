@@ -1,15 +1,15 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{
-    RustHarnessConfig, RustOwnerResponsibility, RustVerificationDependencySignal,
-    default_rust_harness_config,
+use asp_rust::{
+    AspRustConfig, RustOwnerResponsibility, RustVerificationDependencySignal,
+    default_asp_rust_config,
 };
 
 use crate::verification::support::write_manifest;
 
-pub(super) fn project_dependency_signal_config() -> RustHarnessConfig {
-    default_rust_harness_config()
+pub(super) fn project_dependency_signal_config() -> AspRustConfig {
+    default_asp_rust_config()
         .with_verification_dependency_signal(RustVerificationDependencySignal::new(
             "axum",
             [

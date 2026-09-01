@@ -1,4 +1,4 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_ID, RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_VERSION,
     RustVerificationReportManifestCompatibility, RustVerificationReportManifestSchema,
     check_rust_verification_report_manifest_schema,

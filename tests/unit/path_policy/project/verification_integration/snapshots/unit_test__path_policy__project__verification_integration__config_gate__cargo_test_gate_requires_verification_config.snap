@@ -5,7 +5,7 @@ expression: rendered
 ---
 [RUST-AGENT-PROJECT-016] Warning: Retired cargo-test gate uses empty verification config
 @ $TEMP/src/lib.rs:3:1
-fix: use rust_project_harness_cargo_test_gate!(config = { ... }) and declare verification profile hints, explicit suppressions, or skill bindings
-line: 3 | rust_lang_project_harness::rust_project_harness_cargo_test_gate!();
+fix: use asp_rust_cargo_test_gate!(config = { ... }) and declare verification profile hints, explicit suppressions, or skill bindings
+line: 3 | asp_rust::asp_rust_cargo_test_gate!();
 Help: src/lib.rs mounts the cargo-test harness gate without explicit verification config.
 Contract: Source cargo-test gates that remain in use must declare verification profile hints, task suppressions, or skill bindings for the test layer.

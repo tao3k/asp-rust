@@ -1,10 +1,8 @@
 use std::fs;
 
-use rust_lang_project_harness::{
-    render_rust_project_harness_dependency_topology_json,
-    render_rust_project_harness_dependency_topology_metadata_json,
-    render_rust_project_harness_search_semantic_facts_json,
-    render_rust_project_harness_workspace_scope_json,
+use asp_rust::{
+    render_asp_rust_dependency_topology_json, render_asp_rust_dependency_topology_metadata_json,
+    render_asp_rust_search_semantic_facts_json,
 };
 use serde_json::Value as JsonValue;
 
@@ -23,7 +21,7 @@ fn semantic_facts_project_scan_finds_collection_fields_without_candidate_owner()
     .expect("write model");
     fs::write(tempdir.path().join("src/lexical.rs"), "fn vec_hit() {}\n").expect("write lexical");
 
-    let rendered = render_rust_project_harness_search_semantic_facts_json(
+    let rendered = render_asp_rust_search_semantic_facts_json(
         tempdir.path(),
         "Vec scalar collection fields",
         "src/lexical.rs:1:1:Vec\n",
@@ -35,7 +33,7 @@ fn semantic_facts_project_scan_finds_collection_fields_without_candidate_owner()
         Some("agent.semantic-protocols.semantic-fact-graph")
     );
     assert_eq!(packet["languageId"].as_str(), Some("rust"));
-    assert_eq!(packet["providerId"].as_str(), Some("rs-harness"));
+    assert_eq!(packet["providerId"].as_str(), Some("asp-rust"));
     assert_eq!(
         packet["query"].as_str(),
         Some("Vec scalar collection fields")
@@ -51,7 +49,7 @@ fn semantic_facts_project_scan_finds_collection_fields_without_candidate_owner()
             && node["symbol"].as_str() == Some("scalars")
             && node["fields"]["typeValue"].as_str() == Some("Vec < Scalar >")
             && node["fields"]["languageId"].as_str() == Some("rust")
-            && node["fields"]["providerId"].as_str() == Some("rs-harness")
+            && node["fields"]["providerId"].as_str() == Some("asp-rust")
             && node["fields"]["semanticFactKind"].as_str() == Some("field")
             && node["fields"]["provenance"].as_str() == Some("parser")
             && node["fields"]["confidence"].as_str() == Some("exact")
@@ -124,7 +122,7 @@ fn semantic_facts_emit_cargo_package_build_dependency_and_test_targets() {
     )
     .expect("write test");
 
-    let rendered = render_rust_project_harness_search_semantic_facts_json(
+    let rendered = render_asp_rust_search_semantic_facts_json(
         tempdir.path(),
         "Vec field cargo test tokio dependency",
         "src/lib.rs:2:1:entries\n",
@@ -212,8 +210,7 @@ fn dependency_topology_packet_projects_cargo_dependencies() {
     .expect("write manifest");
     fs::write(tempdir.path().join("src/lib.rs"), "pub fn api() {}\n").expect("write lib");
 
-    let rendered =
-        render_rust_project_harness_dependency_topology_json(tempdir.path()).expect("render facts");
+    let rendered = render_asp_rust_dependency_topology_json(tempdir.path()).expect("render facts");
     let packet: JsonValue = serde_json::from_str(&rendered).expect("json");
     assert_eq!(
         packet["schemaId"].as_str(),
@@ -292,10 +289,9 @@ fn dependency_topology_metadata_packet_is_a_compact_cache_key() {
     .expect("write manifest");
     fs::write(tempdir.path().join("src/lib.rs"), "pub fn api() {}\n").expect("write lib");
 
-    let full =
-        render_rust_project_harness_dependency_topology_json(tempdir.path()).expect("render full");
-    let rendered = render_rust_project_harness_dependency_topology_metadata_json(tempdir.path())
-        .expect("render metadata");
+    let full = render_asp_rust_dependency_topology_json(tempdir.path()).expect("render full");
+    let rendered =
+        render_asp_rust_dependency_topology_metadata_json(tempdir.path()).expect("render metadata");
     let packet: JsonValue = serde_json::from_str(&rendered).expect("json");
 
     assert_eq!(
@@ -381,8 +377,7 @@ fn dependency_topology_expands_cargo_workspace_members() {
     )
     .expect("write worker lib");
 
-    let rendered =
-        render_rust_project_harness_dependency_topology_json(tempdir.path()).expect("render facts");
+    let rendered = render_asp_rust_dependency_topology_json(tempdir.path()).expect("render facts");
     let packet: JsonValue = serde_json::from_str(&rendered).expect("json");
     assert_eq!(packet["packetKind"].as_str(), Some("dependency-topology"));
     assert!(
@@ -423,76 +418,6 @@ fn dependency_topology_expands_cargo_workspace_members() {
             "missing dependency {dependency}"
         );
     }
-}
-
-#[test]
-fn workspace_scope_admits_cargo_member_outside_discovery_root() {
-    let tempdir = tempfile::tempdir().expect("tempdir");
-    let workspace = tempdir.path().join("workspace");
-    let external = tempdir.path().join("external-member");
-    fs::create_dir_all(workspace.join("src")).expect("create workspace source");
-    fs::create_dir_all(external.join("src")).expect("create external source");
-    fs::write(
-        workspace.join("Cargo.toml"),
-        "[workspace]\nmembers = [\"../external-member\"]\nresolver = \"2\"\n",
-    )
-    .expect("write workspace manifest");
-    fs::write(
-        external.join("Cargo.toml"),
-        "[package]\nname = \"external-member\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-    )
-    .expect("write external manifest");
-    fs::write(external.join("src/lib.rs"), "pub fn external() {}\n")
-        .expect("write external source");
-
-    let rendered =
-        render_rust_project_harness_workspace_scope_json(&workspace).expect("render scope");
-    let packet: JsonValue = serde_json::from_str(&rendered).expect("json");
-    let workspace = fs::canonicalize(workspace).expect("canonical workspace");
-    let external = fs::canonicalize(external).expect("canonical external");
-    let workspace_text = workspace.to_string_lossy().replace('\\', "/");
-    let external_text = external.to_string_lossy().replace('\\', "/");
-
-    assert_eq!(
-        packet["schemaId"].as_str(),
-        Some("agent.semantic-protocols.semantic-workspace-scope")
-    );
-    assert_eq!(packet["schemaVersion"].as_str(), Some("1"));
-    assert_eq!(packet["languageId"].as_str(), Some("rust"));
-    assert_eq!(packet["providerId"].as_str(), Some("rs-harness"));
-    assert_eq!(packet["packageManager"].as_str(), Some("cargo"));
-    assert_eq!(packet["sourceExtensions"], serde_json::json!([".rs"]));
-    assert_eq!(
-        packet["discoveryRoot"].as_str(),
-        Some(workspace_text.as_str())
-    );
-    assert_sha256(&packet["fingerprint"]);
-    assert!(packet["admittedRoots"].as_array().is_some_and(|roots| {
-        roots
-            .iter()
-            .any(|root| root.as_str() == Some(external_text.as_str()))
-    }));
-    assert!(packet["packages"].as_array().is_some_and(|packages| {
-        packages.iter().any(|package| {
-            package["name"].as_str() == Some("external-member")
-                && package["root"].as_str() == Some(external_text.as_str())
-                && package["manifestPath"]
-                    .as_str()
-                    .is_some_and(|path| path == format!("{external_text}/Cargo.toml"))
-        })
-    }));
-    assert!(packet["anchors"].as_array().is_some_and(|anchors| {
-        anchors.iter().any(|anchor| {
-            anchor["kind"].as_str() == Some("cargo-manifest")
-                && anchor["path"]
-                    .as_str()
-                    .is_some_and(|path| path == format!("{external_text}/Cargo.toml"))
-        })
-    }));
-    assert!(
-        !external.starts_with(&workspace),
-        "fixture must prove package-manager membership rather than path-prefix admission"
-    );
 }
 
 fn assert_sha256(value: &JsonValue) {

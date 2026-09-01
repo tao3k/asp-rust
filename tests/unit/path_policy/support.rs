@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::RustHarnessReport;
+use asp_rust::AspRustReport;
 
 pub(super) fn write_manifest(root: &Path, name: &str) {
     fs::write(
@@ -22,9 +22,9 @@ pub(super) fn private_implementation_pile() -> String {
 }
 
 pub(super) fn findings_for_rule<'a>(
-    report: &'a RustHarnessReport,
+    report: &'a AspRustReport,
     rule_id: &str,
-) -> Vec<&'a rust_lang_project_harness::RustHarnessFinding> {
+) -> Vec<&'a asp_rust::AspRustFinding> {
     report
         .findings
         .iter()
@@ -32,7 +32,7 @@ pub(super) fn findings_for_rule<'a>(
         .collect()
 }
 
-pub(super) fn has_rule(report: &RustHarnessReport, rule_id: &str) -> bool {
+pub(super) fn has_rule(report: &AspRustReport, rule_id: &str) -> bool {
     report
         .findings
         .iter()

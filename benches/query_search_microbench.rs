@@ -2,9 +2,9 @@ use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use rust_lang_project_harness::{
-    RustHarnessConfig, RustSearchOptions, RustSearchViewRequest,
-    render_rust_project_harness_search_view_with_config,
+use asp_rust::{
+    AspRustConfig, RustSearchOptions, RustSearchViewRequest,
+    render_asp_rust_search_view_with_config,
 };
 use serde::Deserialize;
 use tempfile::TempDir;
@@ -26,14 +26,14 @@ fn microbench_query_owner_item_frontier_follows_git_owned_p95_budget() {
         "pub fn alpha() -> usize { 1 }\n\npub fn beta() -> usize { alpha() + 1 }\n",
     )
     .expect("write source");
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
     let options = RustSearchOptions {
         item_query: Some("alpha".to_string()),
         ..RustSearchOptions::default()
     };
 
     let stats = measure_microbench(&budget, || {
-        let stdout = render_rust_project_harness_search_view_with_config(&RustSearchViewRequest {
+        let stdout = render_asp_rust_search_view_with_config(&RustSearchViewRequest {
             project_root: root,
             config: &config,
             view: "owner",
@@ -60,14 +60,14 @@ fn microbench_search_prime_seed_follows_git_owned_p95_budget() {
         "pub fn alpha() -> usize { 1 }\n\npub fn beta() -> usize { alpha() + 1 }\n",
     )
     .expect("write source");
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
     let options = RustSearchOptions {
         output_view: Some("seeds".to_string()),
         ..RustSearchOptions::default()
     };
 
     let stats = measure_microbench(&budget, || {
-        let stdout = render_rust_project_harness_search_view_with_config(&RustSearchViewRequest {
+        let stdout = render_asp_rust_search_view_with_config(&RustSearchViewRequest {
             project_root: root,
             config: &config,
             view: "prime",
@@ -89,11 +89,11 @@ fn microbench_search_dependency_api_follows_git_owned_p95_budget() {
     let root = temp.path();
     write_dependency_manifest(root);
     write_dependency_sources(root, 64);
-    let config = RustHarnessConfig::default();
+    let config = AspRustConfig::default();
     let options = RustSearchOptions::default();
 
     let stats = measure_microbench(&budget, || {
-        let stdout = render_rust_project_harness_search_view_with_config(&RustSearchViewRequest {
+        let stdout = render_asp_rust_search_view_with_config(&RustSearchViewRequest {
             project_root: root,
             config: &config,
             view: "deps",

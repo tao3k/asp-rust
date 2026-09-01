@@ -5,36 +5,39 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::workspace_build_dag::{AspRustWorkspaceBuildDag, asp_rust_workspace_build_dag};
+
+use crate::AspRustReport;
 use crate::build_gate::{
-    RustProjectHarnessDownstreamPolicy, RustProjectHarnessDownstreamPolicyReceipt,
-    downstream_policy_receipt_from_plan, verification_task_kind_key,
+    AspRustDownstreamPolicy, AspRustDownstreamPolicyReceipt, downstream_policy_receipt_from_plan,
+    verification_task_kind_key,
 };
 use crate::verification::{
     RustVerificationPlan, RustVerificationTaskKind, plan_rust_project_verification_with_config,
 };
 
 /// Stable schema id for multi-crate workspace evidence graph receipts.
-pub const RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID: &str =
-    "rust-lang-project-harness.workspace-evidence-graph-receipt";
+pub const ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID: &str =
+    "asp-rust.workspace-evidence-graph-receipt";
 
 /// Current workspace evidence graph receipt schema version.
-pub const RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_VERSION: &str = "1";
+pub const ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_VERSION: &str = "1";
 
 /// Input for one member crate in a workspace evidence graph receipt.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RustProjectHarnessWorkspaceEvidenceGraphMemberInput {
+pub struct AspRustWorkspaceEvidenceGraphMemberInput {
     crate_label: String,
     project_root: PathBuf,
-    policy: RustProjectHarnessDownstreamPolicy,
+    policy: AspRustDownstreamPolicy,
 }
 
-impl RustProjectHarnessWorkspaceEvidenceGraphMemberInput {
+impl AspRustWorkspaceEvidenceGraphMemberInput {
     /// Create one member crate input for a workspace evidence graph receipt.
     #[must_use]
     pub fn new(
         crate_label: impl Into<String>,
         project_root: impl Into<PathBuf>,
-        policy: RustProjectHarnessDownstreamPolicy,
+        policy: AspRustDownstreamPolicy,
     ) -> Self {
         Self {
             crate_label: crate_label.into(),
@@ -57,14 +60,110 @@ impl RustProjectHarnessWorkspaceEvidenceGraphMemberInput {
 
     /// Downstream policy asserted by the member crate build gate.
     #[must_use]
-    pub fn policy(&self) -> &RustProjectHarnessDownstreamPolicy {
+    pub fn policy(&self) -> &AspRustDownstreamPolicy {
         &self.policy
     }
 }
 
+/// Result of explicitly composing package-atomic downstream gates for a workspace.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AspRustWorkspaceRunReport {
+    /// Cargo workspace root whose manifest admitted every member.
+    pub workspace_root: PathBuf,
+    /// Build DAG that admitted the package atoms.
+    pub build_dag: AspRustWorkspaceBuildDag,
+    /// Independently evaluated package reports.
+    pub members: Vec<AspRustWorkspaceMemberRunReport>,
+}
+
+/// One package atom in an explicit workspace run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AspRustWorkspaceMemberRunReport {
+    /// Caller-owned member label.
+    pub crate_label: String,
+    /// Cargo package root admitted for this atom.
+    pub project_root: PathBuf,
+    /// Package-scoped harness report.
+    pub report: AspRustReport,
+}
+
+/// Assert one Cargo workspace instance as independent package atoms.
+///
+/// Package membership and ordering come only from parsed Cargo manifests. The
+/// shared workspace policy is derived once per Build DAG package; diamond
+/// dependencies are evaluated once, never once per incoming edge.
+///
+/// # Panics
+///
+/// Panics when Cargo graph construction fails or one Build DAG package fails.
+#[track_caller]
+pub fn assert_asp_rust_workspace_policy(
+    workspace_root: &Path,
+    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+) -> AspRustWorkspaceRunReport {
+    assert_asp_rust_workspace_policy_with(workspace_root, workspace_policy, |_, config| config)
+}
+
+/// Assert one Cargo workspace while applying one package-local config projection.
+///
+/// Cargo workspace discovery, membership, dependency ordering, and cache
+/// ownership stay inside ASP Rust. Downstream Build Support supplies only the
+/// declarative package override.
+#[track_caller]
+pub fn assert_asp_rust_workspace_policy_with<F>(
+    workspace_root: &Path,
+    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+    mut configure_member: F,
+) -> AspRustWorkspaceRunReport
+where
+    F: FnMut(&str, crate::AspRustConfig) -> crate::AspRustConfig,
+{
+    let build_dag = asp_rust_workspace_build_dag(workspace_root, workspace_policy.config())
+        .unwrap_or_else(|error| panic!("ASP Rust workspace dependency graph: {error}"));
+    let mut reports = Vec::new();
+    for package in &build_dag.packages {
+        let policy = workspace_policy.member_crate_with_config(&package.package_name, |config| {
+            configure_member(&package.package_name, config)
+        });
+        let report =
+            crate::build_gate::assert_asp_rust_downstream_policy(&package.package_root, &policy);
+        assert!(
+            report
+                .root_paths
+                .iter()
+                .all(|path| path.starts_with(&package.package_root)),
+            "workspace member gate escaped package atom {}",
+            package.package_root.display()
+        );
+        reports.push(AspRustWorkspaceMemberRunReport {
+            crate_label: package.package_name.clone(),
+            project_root: package.package_root.clone(),
+            report,
+        });
+    }
+    AspRustWorkspaceRunReport {
+        workspace_root: crate::path::normalize_lexical_path(workspace_root),
+        build_dag,
+        members: reports,
+    }
+}
+
+/// Assert the single Cargo workspace instance owning `CARGO_MANIFEST_DIR`.
+#[track_caller]
+pub fn assert_asp_rust_workspace_policy_from_env(
+    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+) -> AspRustWorkspaceRunReport {
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| panic!("CARGO_MANIFEST_DIR is required for ASP Rust workspace policy"));
+    let workspace_root = crate::parser::find_required_cargo_workspace_root(&manifest_dir)
+        .unwrap_or_else(|error| panic!("resolve ASP Rust workspace instance: {error}"));
+    assert_asp_rust_workspace_policy(&workspace_root, workspace_policy)
+}
+
 /// Agent-facing multi-crate evidence graph receipt.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustProjectHarnessWorkspaceEvidenceGraphReceipt {
+pub struct AspRustWorkspaceEvidenceGraphReceipt {
     /// Stable receipt schema id.
     pub schema_id: String,
     /// Stable receipt schema version.
@@ -74,20 +173,20 @@ pub struct RustProjectHarnessWorkspaceEvidenceGraphReceipt {
     /// Workspace root used by the downstream project.
     pub workspace_root: String,
     /// Aggregated graph summary.
-    pub summary: RustProjectHarnessWorkspaceEvidenceGraphSummaryReceipt,
+    pub summary: AspRustWorkspaceEvidenceGraphSummaryReceipt,
     /// Member policy receipts included in this graph.
-    pub members: Vec<RustProjectHarnessWorkspaceEvidenceGraphMemberReceipt>,
+    pub members: Vec<AspRustWorkspaceEvidenceGraphMemberReceipt>,
     /// Evidence graph nodes for workspace, members, dependencies, reports, and task kinds.
-    pub nodes: Vec<RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt>,
+    pub nodes: Vec<AspRustWorkspaceEvidenceGraphNodeReceipt>,
     /// Directed evidence graph edges connecting policy obligations.
-    pub edges: Vec<RustProjectHarnessWorkspaceEvidenceGraphEdgeReceipt>,
+    pub edges: Vec<AspRustWorkspaceEvidenceGraphEdgeReceipt>,
     /// Trust loop steps an agent should close before treating the workspace as reliable.
-    pub trust_loop_steps: Vec<RustProjectHarnessWorkspaceTrustLoopStepReceipt>,
+    pub trust_loop_steps: Vec<AspRustWorkspaceTrustLoopStepReceipt>,
 }
 
 /// Aggregated evidence graph summary for a multi-crate workspace.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustProjectHarnessWorkspaceEvidenceGraphSummaryReceipt {
+pub struct AspRustWorkspaceEvidenceGraphSummaryReceipt {
     /// Number of member crate policies projected into this graph.
     pub member_crate_count: usize,
     /// Number of dependency baseline package requirements across member gates.
@@ -106,20 +205,20 @@ pub struct RustProjectHarnessWorkspaceEvidenceGraphSummaryReceipt {
 
 /// Evidence graph projection for one member crate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustProjectHarnessWorkspaceEvidenceGraphMemberReceipt {
+pub struct AspRustWorkspaceEvidenceGraphMemberReceipt {
     /// Member label supplied by the workspace policy owner.
     pub crate_label: String,
     /// Member crate root used for verification planning.
     pub project_root: String,
     /// Downstream policy receipt for this member.
-    pub policy_receipt: RustProjectHarnessDownstreamPolicyReceipt,
+    pub policy_receipt: AspRustDownstreamPolicyReceipt,
     /// Active task counts by verification kind.
-    pub active_task_kind_counts: Vec<RustProjectHarnessVerificationTaskKindCountReceipt>,
+    pub active_task_kind_counts: Vec<AspRustVerificationTaskKindCountReceipt>,
 }
 
 /// Count of active verification tasks for one task kind.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustProjectHarnessVerificationTaskKindCountReceipt {
+pub struct AspRustVerificationTaskKindCountReceipt {
     /// Stable verification task kind.
     pub kind: RustVerificationTaskKind,
     /// Active task count.
@@ -129,7 +228,7 @@ pub struct RustProjectHarnessVerificationTaskKindCountReceipt {
 /// Node kind in the workspace evidence graph receipt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RustProjectHarnessWorkspaceEvidenceGraphNodeKind {
+pub enum AspRustWorkspaceEvidenceGraphNodeKind {
     /// Workspace policy root.
     Workspace,
     /// Member crate build-gate policy.
@@ -144,11 +243,11 @@ pub enum RustProjectHarnessWorkspaceEvidenceGraphNodeKind {
 
 /// One node in the workspace evidence graph receipt.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt {
+pub struct AspRustWorkspaceEvidenceGraphNodeReceipt {
     /// Stable node id within the receipt.
     pub id: String,
     /// Typed node kind.
-    pub kind: RustProjectHarnessWorkspaceEvidenceGraphNodeKind,
+    pub kind: AspRustWorkspaceEvidenceGraphNodeKind,
     /// Human-readable node label.
     pub label: String,
 }
@@ -156,7 +255,7 @@ pub struct RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt {
 /// Edge kind in the workspace evidence graph receipt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RustProjectHarnessWorkspaceEvidenceGraphEdgeKind {
+pub enum AspRustWorkspaceEvidenceGraphEdgeKind {
     /// Workspace contains a member crate gate.
     Contains,
     /// Member requires active verification coverage.
@@ -171,19 +270,19 @@ pub enum RustProjectHarnessWorkspaceEvidenceGraphEdgeKind {
 
 /// One directed edge in the workspace evidence graph receipt.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustProjectHarnessWorkspaceEvidenceGraphEdgeReceipt {
+pub struct AspRustWorkspaceEvidenceGraphEdgeReceipt {
     /// Source node id.
     pub source: String,
     /// Target node id.
     pub target: String,
     /// Typed edge kind.
-    pub kind: RustProjectHarnessWorkspaceEvidenceGraphEdgeKind,
+    pub kind: AspRustWorkspaceEvidenceGraphEdgeKind,
 }
 
 /// Trust loop status in the workspace evidence graph receipt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RustProjectHarnessWorkspaceTrustLoopStepStatus {
+pub enum AspRustWorkspaceTrustLoopStepStatus {
     /// Policy or evidence is configured.
     Configured,
     /// No member crate inputs were supplied.
@@ -206,11 +305,11 @@ pub enum RustProjectHarnessWorkspaceTrustLoopStepStatus {
 
 /// One trust-loop step projected from the workspace evidence graph.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustProjectHarnessWorkspaceTrustLoopStepReceipt {
+pub struct AspRustWorkspaceTrustLoopStepReceipt {
     /// Stable step key.
     pub key: String,
     /// Typed step status for agent triage.
-    pub status: RustProjectHarnessWorkspaceTrustLoopStepStatus,
+    pub status: AspRustWorkspaceTrustLoopStepStatus,
     /// Evidence node ids that justify the step status.
     pub evidence_node_ids: Vec<String>,
     /// Agent action for closing or preserving this step.
@@ -222,11 +321,11 @@ pub struct RustProjectHarnessWorkspaceTrustLoopStepReceipt {
 /// The graph is intentionally projected at the build-gate boundary: downstream
 /// workspaces can persist it from `build.rs` or CI without reimplementing the
 /// parser-owned verification planner.
-pub fn rust_project_harness_workspace_evidence_graph_receipt(
+pub fn asp_rust_workspace_evidence_graph_receipt(
     workspace_root: &Path,
     workspace_label: impl Into<String>,
-    members: impl IntoIterator<Item = RustProjectHarnessWorkspaceEvidenceGraphMemberInput>,
-) -> Result<RustProjectHarnessWorkspaceEvidenceGraphReceipt, String> {
+    members: impl IntoIterator<Item = AspRustWorkspaceEvidenceGraphMemberInput>,
+) -> Result<AspRustWorkspaceEvidenceGraphReceipt, String> {
     let workspace_label = workspace_label.into();
     let member_receipts = members
         .into_iter()
@@ -236,10 +335,9 @@ pub fn rust_project_harness_workspace_evidence_graph_receipt(
     let (nodes, edges) = build_workspace_evidence_graph_edges(&workspace_label, &member_receipts);
     let trust_loop_steps = build_workspace_trust_loop_steps(&summary, &nodes);
 
-    Ok(RustProjectHarnessWorkspaceEvidenceGraphReceipt {
-        schema_id: RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID.to_string(),
-        schema_version: RUST_PROJECT_HARNESS_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_VERSION
-            .to_string(),
+    Ok(AspRustWorkspaceEvidenceGraphReceipt {
+        schema_id: ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID.to_string(),
+        schema_version: ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_VERSION.to_string(),
         workspace_label,
         workspace_root: workspace_root.display().to_string(),
         summary,
@@ -255,27 +353,27 @@ pub fn rust_project_harness_workspace_evidence_graph_receipt(
 /// # Errors
 ///
 /// Returns a serialization error if the receipt cannot be encoded as JSON.
-pub fn render_rust_project_harness_workspace_evidence_graph_receipt_json(
-    receipt: &RustProjectHarnessWorkspaceEvidenceGraphReceipt,
+pub fn render_asp_rust_workspace_evidence_graph_receipt_json(
+    receipt: &AspRustWorkspaceEvidenceGraphReceipt,
 ) -> Result<String, serde_json::Error> {
     serde_json::to_string(receipt)
 }
 
 fn active_task_kind_counts(
     plan: &RustVerificationPlan,
-) -> Vec<RustProjectHarnessVerificationTaskKindCountReceipt> {
+) -> Vec<AspRustVerificationTaskKindCountReceipt> {
     let mut counts = BTreeMap::<RustVerificationTaskKind, usize>::new();
     for task in plan.active_tasks() {
         *counts.entry(task.kind).or_default() += 1;
     }
     counts
         .into_iter()
-        .map(|(kind, count)| RustProjectHarnessVerificationTaskKindCountReceipt { kind, count })
+        .map(|(kind, count)| AspRustVerificationTaskKindCountReceipt { kind, count })
         .collect()
 }
 
 fn task_kind_count(
-    counts: &[RustProjectHarnessVerificationTaskKindCountReceipt],
+    counts: &[AspRustVerificationTaskKindCountReceipt],
     kind: RustVerificationTaskKind,
 ) -> usize {
     counts
@@ -286,13 +384,13 @@ fn task_kind_count(
 }
 
 fn workspace_evidence_graph_member_receipt(
-    member: RustProjectHarnessWorkspaceEvidenceGraphMemberInput,
-) -> Result<RustProjectHarnessWorkspaceEvidenceGraphMemberReceipt, String> {
+    member: AspRustWorkspaceEvidenceGraphMemberInput,
+) -> Result<AspRustWorkspaceEvidenceGraphMemberReceipt, String> {
     let plan =
         plan_rust_project_verification_with_config(member.project_root(), member.policy().config())
             .map_err(|error| format!("{} verification plan: {error}", member.crate_label()))?;
     let policy_receipt = downstream_policy_receipt_from_plan(member.policy(), &plan);
-    Ok(RustProjectHarnessWorkspaceEvidenceGraphMemberReceipt {
+    Ok(AspRustWorkspaceEvidenceGraphMemberReceipt {
         crate_label: member.crate_label,
         project_root: member.project_root.display().to_string(),
         policy_receipt,
@@ -301,9 +399,9 @@ fn workspace_evidence_graph_member_receipt(
 }
 
 fn summarize_workspace_evidence_graph(
-    members: &[RustProjectHarnessWorkspaceEvidenceGraphMemberReceipt],
-) -> RustProjectHarnessWorkspaceEvidenceGraphSummaryReceipt {
-    RustProjectHarnessWorkspaceEvidenceGraphSummaryReceipt {
+    members: &[AspRustWorkspaceEvidenceGraphMemberReceipt],
+) -> AspRustWorkspaceEvidenceGraphSummaryReceipt {
+    AspRustWorkspaceEvidenceGraphSummaryReceipt {
         member_crate_count: members.len(),
         dependency_baseline_package_count: members
             .iter()
@@ -339,15 +437,15 @@ fn summarize_workspace_evidence_graph(
 
 fn build_workspace_evidence_graph_edges(
     workspace_label: &str,
-    members: &[RustProjectHarnessWorkspaceEvidenceGraphMemberReceipt],
+    members: &[AspRustWorkspaceEvidenceGraphMemberReceipt],
 ) -> (
-    Vec<RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt>,
-    Vec<RustProjectHarnessWorkspaceEvidenceGraphEdgeReceipt>,
+    Vec<AspRustWorkspaceEvidenceGraphNodeReceipt>,
+    Vec<AspRustWorkspaceEvidenceGraphEdgeReceipt>,
 ) {
     let workspace_node_id = workspace_evidence_node_id("workspace", workspace_label);
     let mut nodes = vec![workspace_evidence_node(
         &workspace_node_id,
-        RustProjectHarnessWorkspaceEvidenceGraphNodeKind::Workspace,
+        AspRustWorkspaceEvidenceGraphNodeKind::Workspace,
         workspace_label,
     )];
     let mut edges = Vec::new();
@@ -357,13 +455,13 @@ fn build_workspace_evidence_graph_edges(
             workspace_evidence_node_id("member_crate", &member.policy_receipt.gate_label);
         nodes.push(workspace_evidence_node(
             &member_node_id,
-            RustProjectHarnessWorkspaceEvidenceGraphNodeKind::MemberCrate,
+            AspRustWorkspaceEvidenceGraphNodeKind::MemberCrate,
             &member.policy_receipt.gate_label,
         ));
         edges.push(workspace_evidence_edge(
             &workspace_node_id,
             &member_node_id,
-            RustProjectHarnessWorkspaceEvidenceGraphEdgeKind::Contains,
+            AspRustWorkspaceEvidenceGraphEdgeKind::Contains,
         ));
 
         for count in &member.active_task_kind_counts {
@@ -374,13 +472,13 @@ fn build_workspace_evidence_graph_edges(
             );
             nodes.push(workspace_evidence_node(
                 &task_node_id,
-                RustProjectHarnessWorkspaceEvidenceGraphNodeKind::VerificationTaskKind,
+                AspRustWorkspaceEvidenceGraphNodeKind::VerificationTaskKind,
                 &format!("{} active {task_kind} tasks", count.count),
             ));
             edges.push(workspace_evidence_edge(
                 &member_node_id,
                 &task_node_id,
-                RustProjectHarnessWorkspaceEvidenceGraphEdgeKind::RequiresVerification,
+                AspRustWorkspaceEvidenceGraphEdgeKind::RequiresVerification,
             ));
         }
 
@@ -397,7 +495,7 @@ fn build_workspace_evidence_graph_edges(
             );
             nodes.push(workspace_evidence_node(
                 &package_node_id,
-                RustProjectHarnessWorkspaceEvidenceGraphNodeKind::DependencyBaselinePackage,
+                AspRustWorkspaceEvidenceGraphNodeKind::DependencyBaselinePackage,
                 &format!(
                     "{} {} {}",
                     package.name, package.version, package.source_contains
@@ -406,7 +504,7 @@ fn build_workspace_evidence_graph_edges(
             edges.push(workspace_evidence_edge(
                 &member_node_id,
                 &package_node_id,
-                RustProjectHarnessWorkspaceEvidenceGraphEdgeKind::RequiresDependencyBaseline,
+                AspRustWorkspaceEvidenceGraphEdgeKind::RequiresDependencyBaseline,
             ));
         }
 
@@ -417,13 +515,13 @@ fn build_workspace_evidence_graph_edges(
             );
             nodes.push(workspace_evidence_node(
                 &report_node_id,
-                RustProjectHarnessWorkspaceEvidenceGraphNodeKind::ReportObligation,
+                AspRustWorkspaceEvidenceGraphNodeKind::ReportObligation,
                 &obligation.key,
             ));
             edges.push(workspace_evidence_edge(
                 &member_node_id,
                 &report_node_id,
-                RustProjectHarnessWorkspaceEvidenceGraphEdgeKind::RequiresReport,
+                AspRustWorkspaceEvidenceGraphEdgeKind::RequiresReport,
             ));
             for kind in &obligation.task_kinds {
                 let task_node_id = workspace_evidence_node_id(
@@ -433,7 +531,7 @@ fn build_workspace_evidence_graph_edges(
                 edges.push(workspace_evidence_edge(
                     &report_node_id,
                     &task_node_id,
-                    RustProjectHarnessWorkspaceEvidenceGraphEdgeKind::Covers,
+                    AspRustWorkspaceEvidenceGraphEdgeKind::Covers,
                 ));
             }
         }
@@ -443,44 +541,44 @@ fn build_workspace_evidence_graph_edges(
 }
 
 fn build_workspace_trust_loop_steps(
-    summary: &RustProjectHarnessWorkspaceEvidenceGraphSummaryReceipt,
-    nodes: &[RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt],
-) -> Vec<RustProjectHarnessWorkspaceTrustLoopStepReceipt> {
+    summary: &AspRustWorkspaceEvidenceGraphSummaryReceipt,
+    nodes: &[AspRustWorkspaceEvidenceGraphNodeReceipt],
+) -> Vec<AspRustWorkspaceTrustLoopStepReceipt> {
     vec![
         workspace_trust_loop_step(
             "workspace_policy",
             if summary.member_crate_count > 0 {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::Configured
+                AspRustWorkspaceTrustLoopStepStatus::Configured
             } else {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::MissingMembers
+                AspRustWorkspaceTrustLoopStepStatus::MissingMembers
             },
             nodes,
             &[
-                RustProjectHarnessWorkspaceEvidenceGraphNodeKind::Workspace,
-                RustProjectHarnessWorkspaceEvidenceGraphNodeKind::MemberCrate,
+                AspRustWorkspaceEvidenceGraphNodeKind::Workspace,
+                AspRustWorkspaceEvidenceGraphNodeKind::MemberCrate,
             ],
             "derive every member build.rs gate from the shared workspace policy",
         ),
         workspace_trust_loop_step(
             "dependency_baseline",
             if summary.dependency_baseline_package_count > 0 {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::Required
+                AspRustWorkspaceTrustLoopStepStatus::Required
             } else {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::NotConfigured
+                AspRustWorkspaceTrustLoopStepStatus::NotConfigured
             },
             nodes,
-            &[RustProjectHarnessWorkspaceEvidenceGraphNodeKind::DependencyBaselinePackage],
+            &[AspRustWorkspaceEvidenceGraphNodeKind::DependencyBaselinePackage],
             "pin critical git/version dependencies and keep Cargo.lock drift visible",
         ),
         workspace_trust_loop_step(
             "verification_plan",
             if summary.active_verification_task_count > 0 {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::Active
+                AspRustWorkspaceTrustLoopStepStatus::Active
             } else {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::MissingActiveTasks
+                AspRustWorkspaceTrustLoopStepStatus::MissingActiveTasks
             },
             nodes,
-            &[RustProjectHarnessWorkspaceEvidenceGraphNodeKind::VerificationTaskKind],
+            &[AspRustWorkspaceEvidenceGraphNodeKind::VerificationTaskKind],
             "keep parser-owned verification tasks active for each member crate",
         ),
         workspace_trust_loop_step(
@@ -489,34 +587,34 @@ fn build_workspace_trust_loop_steps(
                 && summary.stability_task_count > 0
                 && summary.report_obligation_count > 0
             {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::Required
+                AspRustWorkspaceTrustLoopStepStatus::Required
             } else {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::Incomplete
+                AspRustWorkspaceTrustLoopStepStatus::Incomplete
             },
             nodes,
-            &[RustProjectHarnessWorkspaceEvidenceGraphNodeKind::ReportObligation],
+            &[AspRustWorkspaceEvidenceGraphNodeKind::ReportObligation],
             "persist performance and stability report artifacts for regression comparison",
         ),
         workspace_trust_loop_step(
             "security_review",
             if summary.security_task_count > 0 {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::Active
+                AspRustWorkspaceTrustLoopStepStatus::Active
             } else {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::NotConfigured
+                AspRustWorkspaceTrustLoopStepStatus::NotConfigured
             },
             nodes,
-            &[RustProjectHarnessWorkspaceEvidenceGraphNodeKind::VerificationTaskKind],
+            &[AspRustWorkspaceEvidenceGraphNodeKind::VerificationTaskKind],
             "add security verification owners for security-critical APIs and dependency boundaries",
         ),
         workspace_trust_loop_step(
             "build_gate",
             if summary.member_crate_count > 0 {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::Enforced
+                AspRustWorkspaceTrustLoopStepStatus::Enforced
             } else {
-                RustProjectHarnessWorkspaceTrustLoopStepStatus::NotEnforced
+                AspRustWorkspaceTrustLoopStepStatus::NotEnforced
             },
             nodes,
-            &[RustProjectHarnessWorkspaceEvidenceGraphNodeKind::MemberCrate],
+            &[AspRustWorkspaceEvidenceGraphNodeKind::MemberCrate],
             "run member cargo test/check so each build.rs gate closes the loop before merge",
         ),
     ]
@@ -524,12 +622,12 @@ fn build_workspace_trust_loop_steps(
 
 fn workspace_trust_loop_step(
     key: &str,
-    status: RustProjectHarnessWorkspaceTrustLoopStepStatus,
-    nodes: &[RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt],
-    evidence_kinds: &[RustProjectHarnessWorkspaceEvidenceGraphNodeKind],
+    status: AspRustWorkspaceTrustLoopStepStatus,
+    nodes: &[AspRustWorkspaceEvidenceGraphNodeReceipt],
+    evidence_kinds: &[AspRustWorkspaceEvidenceGraphNodeKind],
     agent_action: &str,
-) -> RustProjectHarnessWorkspaceTrustLoopStepReceipt {
-    RustProjectHarnessWorkspaceTrustLoopStepReceipt {
+) -> AspRustWorkspaceTrustLoopStepReceipt {
+    AspRustWorkspaceTrustLoopStepReceipt {
         key: key.to_string(),
         status,
         evidence_node_ids: nodes
@@ -543,10 +641,10 @@ fn workspace_trust_loop_step(
 
 fn workspace_evidence_node(
     id: &str,
-    kind: RustProjectHarnessWorkspaceEvidenceGraphNodeKind,
+    kind: AspRustWorkspaceEvidenceGraphNodeKind,
     label: &str,
-) -> RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt {
-    RustProjectHarnessWorkspaceEvidenceGraphNodeReceipt {
+) -> AspRustWorkspaceEvidenceGraphNodeReceipt {
+    AspRustWorkspaceEvidenceGraphNodeReceipt {
         id: id.to_string(),
         kind,
         label: label.to_string(),
@@ -556,9 +654,9 @@ fn workspace_evidence_node(
 fn workspace_evidence_edge(
     source: &str,
     target: &str,
-    kind: RustProjectHarnessWorkspaceEvidenceGraphEdgeKind,
-) -> RustProjectHarnessWorkspaceEvidenceGraphEdgeReceipt {
-    RustProjectHarnessWorkspaceEvidenceGraphEdgeReceipt {
+    kind: AspRustWorkspaceEvidenceGraphEdgeKind,
+) -> AspRustWorkspaceEvidenceGraphEdgeReceipt {
+    AspRustWorkspaceEvidenceGraphEdgeReceipt {
         source: source.to_string(),
         target: target.to_string(),
         kind,

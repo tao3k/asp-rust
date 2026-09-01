@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::parser::{ParsedRustModule, RustReasoningTreeFacts, file_location};
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use super::support::display_project_path;
 use super::{
@@ -23,8 +23,8 @@ pub(super) fn test_bloat_findings(
     project_root: &Path,
     modules: &[ParsedRustModule],
     reasoning_tree: &RustReasoningTreeFacts,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
     collect_leaf_bloat_findings(
         project_root,
@@ -74,8 +74,8 @@ fn collect_leaf_bloat_findings(
     limits: LeafBloatLimits,
     modules: &[ParsedRustModule],
     reasoning_tree: &RustReasoningTreeFacts,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-    findings: &mut Vec<RustHarnessFinding>,
+    rules: &BTreeMap<&'static str, AspRustRule>,
+    findings: &mut Vec<AspRustFinding>,
 ) {
     for module in modules {
         let Some(module_facts) = reasoning_tree.module(&module.report.path) else {
@@ -96,7 +96,7 @@ fn collect_leaf_bloat_findings(
             continue;
         }
         let rule = &rules[RUST_PROJ_R005];
-        findings.push(RustHarnessFinding::from_rule(
+        findings.push(AspRustFinding::from_rule(
             rule,
             format!(
                 "{} carries {effective_lines} effective lines across {test_functions} test functions.",
@@ -114,8 +114,8 @@ fn collect_support_bloat_findings(
     suite_name: &str,
     modules: &[ParsedRustModule],
     reasoning_tree: &RustReasoningTreeFacts,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-    findings: &mut Vec<RustHarnessFinding>,
+    rules: &BTreeMap<&'static str, AspRustRule>,
+    findings: &mut Vec<AspRustFinding>,
 ) {
     for module in modules {
         let Some(module_facts) = reasoning_tree.module(&module.report.path) else {
@@ -133,7 +133,7 @@ fn collect_support_bloat_findings(
             continue;
         }
         let rule = &rules[RUST_PROJ_R024];
-        findings.push(RustHarnessFinding::from_rule(
+        findings.push(AspRustFinding::from_rule(
             rule,
             format!(
                 "{} carries {effective_lines} effective lines in a test support module.",

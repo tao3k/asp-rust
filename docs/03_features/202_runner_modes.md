@@ -4,9 +4,9 @@ The harness exposes two runner modes with different policy scope.
 
 ## Project Runner
 
-Use `run_rust_project_harness()` or `assert_rust_project_harness_clean()` when a
+Use `run_asp_rust()` or `assert_asp_rust_clean()` when a
 caller has a project root. The project runner discovers conventional source and
-test roots, builds a `RustProjectHarnessScope`, and runs all default rule packs.
+test roots, builds a `AspRustScope`, and runs all default rule packs.
 With the default config, every Rust file under `src/`, `tests/`, `examples/`,
 and `benches/` is in the harness, and root `build.rs` is included when it
 exists, so this is the crate package-level gate:
@@ -34,19 +34,19 @@ from a thin root `build.rs`:
 
 ```toml
 [build-dependencies]
-rust-lang-project-harness = { git = "https://github.com/tao3k/rust-lang-project-harness", branch = "main" }
+asp-rust = { git = "https://github.com/tao3k/asp-rust", branch = "main" }
 ```
 
 ```rust
 fn main() {
-    let config = rust_lang_project_harness::default_rust_harness_config()
+    let config = asp_rust::default_asp_rust_config()
         .with_verification_profile_hint(
-            rust_lang_project_harness::RustVerificationProfileHint::new(
+            asp_rust::RustVerificationProfileHint::new(
                 "src/lib.rs",
-                [rust_lang_project_harness::RustOwnerResponsibility::PublicApi],
+                [asp_rust::RustOwnerResponsibility::PublicApi],
             ),
         );
-    rust_lang_project_harness::assert_rust_project_harness_cargo_check_clean_from_env_with_config(
+    asp_rust::assert_asp_rust_cargo_check_clean_from_env_with_config(
         &config,
     );
 }
@@ -79,11 +79,11 @@ expose advisory findings:
 
 ```rust
 fn main() {
-    let config = rust_lang_project_harness::default_rust_harness_config()
+    let config = asp_rust::default_asp_rust_config()
         .with_cargo_check_advice_allow_explanation(
             "retired crate allows advisory findings during staged migration",
         );
-    rust_lang_project_harness::assert_rust_project_harness_cargo_check_clean_from_env_with_config(
+    asp_rust::assert_asp_rust_cargo_check_clean_from_env_with_config(
         &config,
     );
 }
@@ -110,14 +110,14 @@ findings:
 
 ```rust
 #[cfg(test)]
-rust_lang_project_harness::rust_project_harness_cargo_test_gate!(
+asp_rust::asp_rust_cargo_test_gate!(
     advice = allow,
     config = {
-        rust_lang_project_harness::default_rust_harness_config()
+        asp_rust::default_asp_rust_config()
             .with_verification_profile_hint(
-                rust_lang_project_harness::RustVerificationProfileHint::new(
+                asp_rust::RustVerificationProfileHint::new(
                     "src/lib.rs",
-                    [rust_lang_project_harness::RustOwnerResponsibility::PublicApi],
+                    [asp_rust::RustOwnerResponsibility::PublicApi],
                 ),
             )
     }
@@ -132,7 +132,7 @@ until they are removed or replaced by local policy.
 
 ## Configuration
 
-`RustHarnessConfig.source_dir_names` and `test_dir_names` are project-root
+`AspRustConfig.source_dir_names` and `test_dir_names` are project-root
 relative paths. Source-scoped rule packs use the resolved `source_paths` as
 their ownership boundary, so custom source roots receive the same source-test,
 modularity, and agent advice checks as `src`.
@@ -169,7 +169,7 @@ removes configured test roots from recursive parsing. It does not disable
 filesystem-level project policy such as root test-layout and test-target gate
 structure checks. Use the explicit-path runner for syntax-only probes.
 
-Policy findings are configurable through `RustHarnessConfig` after rule
+Policy findings are configurable through `AspRustConfig` after rule
 evaluation and before the report is returned. `disabled_rules` removes matching
 rule ids from the final finding list, while `rule_severity_overrides` changes a
 matching finding's severity for that run. The `with_disabled_rule`,
@@ -183,7 +183,7 @@ into advisory output or suppress rules they have intentionally replaced with
 local policy.
 
 Cargo-test `advice = allow` is not a generic pass switch. If a source gate uses
-`rust_project_harness_cargo_test_gate!(advice = allow, config = { ... })`, the
+`asp_rust_cargo_test_gate!(advice = allow, config = { ... })`, the
 same config should call `with_cargo_test_advice_allow_explanation(...)`.
 Without that compact explanation, `RUST-AGENT-PROJECT-015` keeps the finding visible so
 an Agent has to state why advisory policy may pass in the test layer instead of
