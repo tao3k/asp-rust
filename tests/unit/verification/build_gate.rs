@@ -6,10 +6,11 @@ use asp_rust::{
     AspRustWorkspaceEvidenceGraphMemberInput, AspRustWorkspaceEvidenceGraphNodeKind,
     AspRustWorkspacePolicy, AspRustWorkspaceTrustLoopStepStatus,
     asp_rust_downstream_policy_receipt, asp_rust_workspace_build_dag,
-    asp_rust_workspace_evidence_graph_receipt, assert_asp_rust_dependency_baseline,
-    assert_asp_rust_downstream_policy, assert_asp_rust_verification_with_config,
-    assert_asp_rust_workspace_policy, assert_asp_rust_workspace_policy_with,
-    default_asp_rust_config, render_asp_rust_downstream_policy_receipt_json,
+    asp_rust_workspace_build_dag_with_metrics, asp_rust_workspace_evidence_graph_receipt,
+    assert_asp_rust_dependency_baseline, assert_asp_rust_downstream_policy,
+    assert_asp_rust_verification_with_config, assert_asp_rust_workspace_policy,
+    assert_asp_rust_workspace_policy_with, default_asp_rust_config,
+    render_asp_rust_downstream_policy_receipt_json,
     render_asp_rust_workspace_evidence_graph_receipt_json,
     rust_downstream_verification_gate_guide_markdown,
 };
@@ -574,9 +575,15 @@ fn build_dag_deduplicates_diamond_and_orders_dependencies_first() {
     write_dependency_graph_workspace(workspace, false);
     let config = default_asp_rust_config()
         .with_cargo_check_advice_allow_explanation(WORKSPACE_POLICY_ADVICE_ALLOW);
-    let build_dag = asp_rust_workspace_build_dag(workspace, &config).expect("workspace Build DAG");
+    let derivation =
+        asp_rust_workspace_build_dag_with_metrics(workspace, &config).expect("workspace Build DAG");
+    let build_dag = &derivation.build_dag;
 
     assert_eq!(build_dag.schema_id, ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID);
+    assert_eq!(derivation.metrics.discovered_package_root_count, 4);
+    assert_eq!(derivation.metrics.admitted_package_count, 4);
+    assert_eq!(derivation.metrics.parsed_manifest_count, 5);
+    assert_eq!(derivation.metrics.local_dependency_edge_count, 4);
     assert_eq!(
         build_dag
             .packages

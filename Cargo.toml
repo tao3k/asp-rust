@@ -39,6 +39,7 @@ syn = { version = "3.0.4", features = ["extra-traits", "full", "parsing", "visit
 toml = "1.1"
 
 [dev-dependencies]
+asp-rust-build-support = { path = "build-support" }
 insta = "1"
 tempfile = "3"
 

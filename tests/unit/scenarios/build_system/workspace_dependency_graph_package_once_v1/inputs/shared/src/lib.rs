@@ -1,3 +1,5 @@
-pub fn package_name() -> &'static str {
-    "shared"
-}
+//! Shared dependency fixture façade.
+
+mod identity;
+
+pub use identity::package_name;

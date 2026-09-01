@@ -1,11 +1,18 @@
 use std::fs;
+use std::hint::black_box;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use asp_rust::{
-    RustScenarioBenchmarkContract, RustScenarioBenchmarkPhase, RustScenarioBenchmarkStatus,
-    RustScenarioBenchmarkViolationKind, asp_rust_workspace_build_dag,
+    AspRustWorkspacePolicy, RustScenarioBenchmarkContract, RustScenarioBenchmarkPhase,
+    RustScenarioBenchmarkStatus, RustScenarioBenchmarkViolationKind,
+    asp_rust_workspace_build_dag_with_metrics, assert_asp_rust_workspace_policy_with,
     assert_rule_fixture_scenario_benchmarks, validate_required_rust_scenario_benchmarks,
     validate_rust_scenario_benchmark,
+};
+use asp_rust_build_support::{
+    AspRustScenarioObservation, asp_rust_scenario, measure_asp_rust_scenario,
+    render_asp_rust_scenario_benchmark_toml,
 };
 use tempfile::TempDir;
 
@@ -67,10 +74,13 @@ fn scenario_benchmark_workspace_dependency_graph_package_once_v1_snapshot() {
     let receipt = validate_rust_scenario_benchmark(&scenario_root)
         .expect("validate workspace dependency-graph package-once scenario benchmark");
     let workspace_root = scenario_root.join(&receipt.scenario.inputs);
-    let build_dag =
-        asp_rust_workspace_build_dag(&workspace_root, &asp_rust::default_asp_rust_config())
-            .expect("derive the Cargo workspace dependency graph");
-    let package_names = build_dag
+    let derivation = asp_rust_workspace_build_dag_with_metrics(
+        &workspace_root,
+        &asp_rust::default_asp_rust_config(),
+    )
+    .expect("derive the Cargo workspace dependency graph");
+    let package_names = derivation
+        .build_dag
         .packages
         .iter()
         .map(|package| package.package_name.as_str())
@@ -79,6 +89,10 @@ fn scenario_benchmark_workspace_dependency_graph_package_once_v1_snapshot() {
     assert_eq!(receipt.status, RustScenarioBenchmarkStatus::Pass);
     assert!(receipt.violations.is_empty(), "{:?}", receipt.violations);
     assert_eq!(package_names, ["shared", "left", "right", "app"]);
+    assert_eq!(derivation.metrics.admitted_package_count, 4);
+    assert_eq!(derivation.metrics.parsed_manifest_count, 5);
+    assert_eq!(derivation.metrics.local_dependency_edge_count, 4);
+    assert_eq!(derivation.metrics.discovered_package_root_count, 4);
     assert_eq!(
         package_names
             .iter()
@@ -91,6 +105,119 @@ fn scenario_benchmark_workspace_dependency_graph_package_once_v1_snapshot() {
         receipt.benchmark.observed_total <= receipt.benchmark.max_total,
         "{receipt:?}"
     );
+}
+
+#[test]
+fn workspace_build_dag_benchmark_is_generated_from_real_samples() {
+    let scenario_root = fixture_root("build_system/workspace_dependency_graph_package_once_v1");
+    let workspace_root = scenario_root.join("inputs");
+    let scenario = asp_rust_scenario! {
+        name: "workspace-build-dag-package-once",
+        package: "asp-rust",
+        description: "Cargo manifests and package policies execute once per workspace atom",
+        fixture_root: "tests/unit/scenarios/build_system/workspace_dependency_graph_package_once_v1",
+        tags: ["build-system", "workspace-dag"],
+        commands: [
+            { label: "focused", argv: ["cargo", "test", "workspace_build_dag_benchmark_is_generated_from_real_samples"] }
+        ],
+        benchmark: {
+            harness: "libtest",
+            test: "workspace_build_dag_benchmark_is_generated_from_real_samples",
+            snapshot: "scenario_benchmark_workspace_dependency_graph_package_once_v1",
+            target_total: "5ms",
+            max_total: "25ms",
+            regression_budget: "5ms",
+            memory_budget_bytes: 4_194_304,
+            target_rationale: "Manifest-owned Build DAG derivation parses every unique workspace manifest once.",
+            warmup_iterations: 2,
+            measure_iterations: 9,
+            metrics: [
+                { name: "discovered_package_root_count", unit: "count", kind: Stable, },
+                { name: "admitted_package_count", unit: "count", kind: Stable, },
+                { name: "parsed_manifest_count", unit: "count", kind: Stable, },
+                { name: "policy_execution_count", unit: "count", kind: Stable, },
+                { name: "unique_local_dependency_edge_count", unit: "count", kind: Stable, }
+            ]
+        }
+    };
+
+    let measurement = measure_asp_rust_scenario(&scenario, || {
+        let phase_started_at = Instant::now();
+        let derivation = asp_rust_workspace_build_dag_with_metrics(
+            &workspace_root,
+            &asp_rust::default_asp_rust_config(),
+        )
+        .expect("derive measured Build DAG");
+        black_box(&derivation.build_dag);
+        let build_dag_elapsed = phase_started_at.elapsed();
+        let policy_started_at = Instant::now();
+        let mut policy_execution_count = 0_u64;
+        let workspace_policy = AspRustWorkspacePolicy::new(
+            "workspace-build-dag-package-once",
+            asp_rust::default_asp_rust_config(),
+        );
+        let report = assert_asp_rust_workspace_policy_with(
+            &workspace_root,
+            &workspace_policy,
+            |_package_name, config| {
+                policy_execution_count += 1;
+                config
+            },
+        );
+        black_box(report);
+        AspRustScenarioObservation::default()
+            .with_timing("build_dag_derivation", build_dag_elapsed)
+            .with_timing("policy_execution", policy_started_at.elapsed())
+            .with_metric(
+                "discovered_package_root_count",
+                derivation.metrics.discovered_package_root_count as u64,
+            )
+            .with_metric(
+                "parsed_manifest_count",
+                derivation.metrics.parsed_manifest_count as u64,
+            )
+            .with_metric(
+                "admitted_package_count",
+                derivation.metrics.admitted_package_count as u64,
+            )
+            .with_metric("policy_execution_count", policy_execution_count)
+            .with_metric(
+                "unique_local_dependency_edge_count",
+                derivation.metrics.local_dependency_edge_count as u64,
+            )
+    })
+    .expect("measure Build DAG Scenario");
+    let rendered = render_asp_rust_scenario_benchmark_toml(&scenario, &measurement)
+        .expect("render measured Build DAG benchmark");
+    let generated = toml::from_str::<RustScenarioBenchmarkContract>(&rendered)
+        .expect("decode generated benchmark contract");
+
+    assert_eq!(
+        generated.observed_total,
+        generated
+            .measurement
+            .as_ref()
+            .expect("generated measurement provenance")
+            .total_p95
+    );
+    assert!(generated.observed_total.as_duration().as_nanos() > 0);
+    assert_eq!(
+        generated.metrics["discovered_package_root_count"].observed,
+        4
+    );
+    assert_eq!(generated.metrics["admitted_package_count"].observed, 4);
+    assert_eq!(generated.metrics["parsed_manifest_count"].observed, 5);
+    assert_eq!(
+        generated.metrics["parsed_manifest_count"].observed,
+        generated.metrics["admitted_package_count"].observed + 1,
+        "one workspace manifest plus one parse per admitted package"
+    );
+    assert_eq!(
+        generated.metrics["policy_execution_count"].observed,
+        generated.metrics["admitted_package_count"].observed,
+        "each admitted Build DAG node must execute policy exactly once"
+    );
+    eprintln!("generated workspace Build DAG benchmark:\n{rendered}");
 }
 
 #[test]
@@ -631,6 +758,93 @@ parse = "120ms"
 }
 
 #[test]
+fn scenario_benchmark_accepts_zero_count_with_real_timing_provenance() {
+    let temp = TempDir::new().expect("temp dir");
+    write_scenario(temp.path());
+    write_benchmark(
+        temp.path(),
+        r#"
+harness = "libtest"
+test = "scenario_benchmark_accepts_zero_count_with_real_timing_provenance"
+snapshot = "scenario_benchmark_accepts_zero_count_with_real_timing_provenance"
+target_total = "25ms"
+max_total = "100ms"
+observed_total = "31us"
+regression_budget = "20ms"
+memory_budget_bytes = 1024
+observed_memory_bytes = 0
+target_rationale = "Counts and durations have separate typed evidence."
+
+[measurement]
+clock = "std::time::Instant"
+statistic = "p95"
+warmup_iterations = 2
+measure_iterations = 9
+total_p50 = "27us"
+total_p95 = "31us"
+total_max = "38us"
+
+[observed_timings]
+build_dag_derivation = "29us"
+
+[metrics.provider_process_count]
+unit = "count"
+kind = "exact"
+target = 0
+observed = 0
+"#,
+    );
+
+    let receipt = validate_rust_scenario_benchmark(temp.path()).expect("validate scenario");
+    assert_eq!(receipt.status, RustScenarioBenchmarkStatus::Pass);
+    assert!(receipt.violations.is_empty(), "{:?}", receipt.violations);
+}
+
+#[test]
+fn scenario_benchmark_rejects_zero_clock_sample_instead_of_inventing_time() {
+    let temp = TempDir::new().expect("temp dir");
+    write_scenario(temp.path());
+    write_benchmark(
+        temp.path(),
+        r#"
+harness = "libtest"
+test = "scenario_benchmark_rejects_zero_clock_sample_instead_of_inventing_time"
+snapshot = "scenario_benchmark_rejects_zero_clock_sample_instead_of_inventing_time"
+target_total = "25ms"
+max_total = "100ms"
+observed_total = "0us"
+regression_budget = "20ms"
+memory_budget_bytes = 1024
+observed_memory_bytes = 0
+target_rationale = "A zero clock sample is an invalid measurement, not a duration budget pass."
+
+[measurement]
+clock = "std::time::Instant"
+statistic = "p95"
+warmup_iterations = 2
+measure_iterations = 9
+total_p50 = "0us"
+total_p95 = "0us"
+total_max = "0us"
+
+[observed_timings]
+build_dag_derivation = "0us"
+"#,
+    );
+
+    let receipt = validate_rust_scenario_benchmark(temp.path()).expect("validate scenario");
+    assert_eq!(receipt.status, RustScenarioBenchmarkStatus::Invalid);
+    assert!(receipt.violations.iter().any(|violation| {
+        violation.field == "benchmark.measurement.total_p95"
+            && violation.message.contains("resolution")
+    }));
+    assert!(receipt.violations.iter().any(|violation| {
+        violation.field == "benchmark.observed_timings.build_dag_derivation"
+            && violation.message.contains("remeasure")
+    }));
+}
+
+#[test]
 fn scenario_benchmark_comparison_allows_expected_to_be_slower_than_input() {
     let temp = TempDir::new().expect("temp dir");
     write_scenario(temp.path());
@@ -742,8 +956,8 @@ fn scenario_benchmark_suite_reports_missing_required_benchmark() {
     let message = panic_message(panic);
     assert!(message.contains("scenario benchmark hard gate failed"));
     assert!(message.contains("preferred fix: add benchmark.toml"));
-    assert!(message.contains("target_total = \"25ms\""));
-    assert!(message.contains("memory_budget_bytes = 8388608"));
+    assert!(message.contains("measure_asp_rust_scenario"));
+    assert!(message.contains("Do not declare observed_total"));
     assert!(!message.contains("advisory mode ="));
     assert!(!message.contains("expires ="));
 }
@@ -769,10 +983,9 @@ fn scenario_benchmark_hard_gate_panics_with_repair_template() {
     assert!(message.contains("scenario benchmark hard gate failed"));
     assert!(message.contains("tests/unit/scenarios/missing_benchmark/benchmark.toml"));
     assert!(message.contains("preferred fix: add benchmark.toml"));
-    assert!(message.contains("harness = \"libtest\""));
-    assert!(message.contains("test = \"<focused-libtest-case>\""));
-    assert!(message.contains("snapshot = \"<insta-snapshot-name>\""));
-    assert!(message.contains("[input_expected_comparison]"));
+    assert!(message.contains("asp_rust_scenario!"));
+    assert!(message.contains("render_asp_rust_scenario_benchmark_toml"));
+    assert!(message.contains("zero clock sample"));
     assert!(!message.contains("advisory mode ="));
     assert!(!message.contains("expires ="));
 }

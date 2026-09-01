@@ -215,7 +215,8 @@ pub use review_packet::{
 };
 pub use scenario_benchmark::{
     RustScenarioBenchmarkContract, RustScenarioBenchmarkDuration, RustScenarioBenchmarkError,
-    RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkMemoryBytes,
+    RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkMeasurement,
+    RustScenarioBenchmarkMemoryBytes, RustScenarioBenchmarkMetric, RustScenarioBenchmarkMetricKind,
     RustScenarioBenchmarkPhase, RustScenarioBenchmarkReceipt, RustScenarioBenchmarkRequirement,
     RustScenarioBenchmarkStatus, RustScenarioBenchmarkSuiteReceipt, RustScenarioBenchmarkViolation,
     RustScenarioBenchmarkViolationKind, RustScenarioMetadata,

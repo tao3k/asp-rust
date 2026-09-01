@@ -15,7 +15,13 @@ pub const ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_VERSION: &str = "1";
 
 type PackageFactsByRoot = BTreeMap<PathBuf, crate::parser::CargoPackageGraphFacts>;
 type PackageRootsByName = BTreeMap<String, PathBuf>;
-type WorkspacePackageCatalog = (PackageFactsByRoot, PackageRootsByName);
+
+struct WorkspacePackageCatalog {
+    facts_by_root: PackageFactsByRoot,
+    root_by_name: PackageRootsByName,
+    discovered_package_root_count: usize,
+    parsed_manifest_count: usize,
+}
 
 /// Deterministic dependency-first package execution DAG.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,25 +51,65 @@ pub struct AspRustWorkspaceBuildDagPackage {
     pub execution_index: usize,
 }
 
+/// Observable parser work performed while deriving one workspace Build DAG.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AspRustWorkspaceBuildDagMetrics {
+    /// Cargo package roots discovered before workspace membership filtering.
+    pub discovered_package_root_count: usize,
+    /// Workspace package manifests admitted and parsed exactly once.
+    pub admitted_package_count: usize,
+    /// Total manifest parses: one workspace manifest plus every admitted package manifest.
+    pub parsed_manifest_count: usize,
+    /// Unique local dependency edges retained in the Build DAG.
+    pub local_dependency_edge_count: usize,
+}
+
+/// One Build DAG together with the parser-work facts used by scenarios and benchmarks.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AspRustWorkspaceBuildDagDerivation {
+    /// Deterministic dependency-first Build DAG.
+    pub build_dag: AspRustWorkspaceBuildDag,
+    /// Exact parser-work counters for this derivation.
+    pub metrics: AspRustWorkspaceBuildDagMetrics,
+}
+
 /// Derive the deterministic dependency-first Build DAG for one Cargo workspace instance.
 pub fn asp_rust_workspace_build_dag(
     workspace_root: &Path,
     workspace_config: &AspRustConfig,
 ) -> Result<AspRustWorkspaceBuildDag, String> {
+    asp_rust_workspace_build_dag_with_metrics(workspace_root, workspace_config)
+        .map(|derivation| derivation.build_dag)
+}
+
+/// Derive a workspace Build DAG and expose exact parser-work counters.
+pub fn asp_rust_workspace_build_dag_with_metrics(
+    workspace_root: &Path,
+    workspace_config: &AspRustConfig,
+) -> Result<AspRustWorkspaceBuildDagDerivation, String> {
     let workspace_root = crate::path::normalize_lexical_path(workspace_root);
-    let (facts_by_root, root_by_name) =
-        discover_dependency_graph_packages(&workspace_root, workspace_config)?;
-    let dependencies_by_name = dependency_names_by_package(&facts_by_root, &root_by_name)?;
-    let workspace_packages = root_by_name.keys().cloned().collect::<Vec<_>>();
+    let catalog = discover_dependency_graph_packages(&workspace_root, workspace_config)?;
+    let dependencies_by_name =
+        dependency_names_by_package(&catalog.facts_by_root, &catalog.root_by_name)?;
+    let workspace_packages = catalog.root_by_name.keys().cloned().collect::<Vec<_>>();
     let order = dependency_first_package_order(&workspace_packages, &dependencies_by_name)?;
     let packages =
-        materialize_dependency_graph_packages(order, &root_by_name, &dependencies_by_name);
+        materialize_dependency_graph_packages(order, &catalog.root_by_name, &dependencies_by_name);
+    let metrics = AspRustWorkspaceBuildDagMetrics {
+        discovered_package_root_count: catalog.discovered_package_root_count,
+        admitted_package_count: packages.len(),
+        parsed_manifest_count: catalog.parsed_manifest_count,
+        local_dependency_edge_count: dependencies_by_name.values().map(Vec::len).sum(),
+    };
 
-    Ok(AspRustWorkspaceBuildDag {
-        schema_id: ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID.to_string(),
-        schema_version: ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_VERSION.to_string(),
-        workspace_root,
-        packages,
+    Ok(AspRustWorkspaceBuildDagDerivation {
+        build_dag: AspRustWorkspaceBuildDag {
+            schema_id: ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID.to_string(),
+            schema_version: ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_VERSION.to_string(),
+            workspace_root,
+            packages,
+        },
+        metrics,
     })
 }
 
@@ -71,13 +117,21 @@ pub fn asp_rust_workspace_build_dag(
 pub fn asp_rust_workspace_build_dag_from_env(
     workspace_config: &AspRustConfig,
 ) -> Result<AspRustWorkspaceBuildDag, String> {
+    asp_rust_workspace_build_dag_from_env_with_metrics(workspace_config)
+        .map(|derivation| derivation.build_dag)
+}
+
+/// Derive the Build DAG and parser-work metrics for the workspace owning `CARGO_MANIFEST_DIR`.
+pub fn asp_rust_workspace_build_dag_from_env_with_metrics(
+    workspace_config: &AspRustConfig,
+) -> Result<AspRustWorkspaceBuildDagDerivation, String> {
     let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR")
         .map(PathBuf::from)
         .ok_or_else(|| {
             "CARGO_MANIFEST_DIR is required for ASP Rust workspace policy".to_string()
         })?;
     let workspace_root = crate::parser::find_required_cargo_workspace_root(&manifest_dir)?;
-    asp_rust_workspace_build_dag(&workspace_root, workspace_config)
+    asp_rust_workspace_build_dag_with_metrics(&workspace_root, workspace_config)
 }
 
 fn discover_dependency_graph_packages(
@@ -95,17 +149,26 @@ fn discover_dependency_graph_packages(
             workspace_root.display()
         ));
     }
+    let discovered_package_root_count = discovered_roots.len();
     let package_roots =
         crate::parser::retain_cargo_workspace_member_roots(workspace_root, discovered_roots)?;
+    let graph_facts = crate::parser::parse_required_cargo_workspace_package_graph_facts(
+        &package_roots,
+        workspace_root,
+    )?;
     let mut facts_by_root = BTreeMap::new();
     let mut root_by_name = BTreeMap::new();
-    for root in package_roots {
+    for (root, facts) in graph_facts.packages {
         let root = crate::path::normalize_lexical_path(&root);
-        let facts = crate::parser::parse_required_cargo_package_graph_facts(&root, workspace_root)?;
         insert_unique_dependency_graph_package(&mut root_by_name, &root, &facts)?;
         facts_by_root.insert(root, facts);
     }
-    Ok((facts_by_root, root_by_name))
+    Ok(WorkspacePackageCatalog {
+        facts_by_root,
+        root_by_name,
+        discovered_package_root_count,
+        parsed_manifest_count: graph_facts.parsed_manifest_count,
+    })
 }
 
 fn insert_unique_dependency_graph_package(

@@ -1,3 +1,5 @@
-pub fn package_name() -> &'static str {
-    "app"
-}
+//! Application fixture façade.
+
+mod identity;
+
+pub use identity::package_name;

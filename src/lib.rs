@@ -306,7 +306,8 @@ pub use verification::{
 };
 pub use verification::{
     RustScenarioBenchmarkContract, RustScenarioBenchmarkDuration, RustScenarioBenchmarkError,
-    RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkMemoryBytes,
+    RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkMeasurement,
+    RustScenarioBenchmarkMemoryBytes, RustScenarioBenchmarkMetric, RustScenarioBenchmarkMetricKind,
     RustScenarioBenchmarkPhase, RustScenarioBenchmarkReceipt, RustScenarioBenchmarkRequirement,
     RustScenarioBenchmarkStatus, RustScenarioBenchmarkSuiteReceipt, RustScenarioBenchmarkViolation,
     RustScenarioBenchmarkViolationKind, RustScenarioMetadata,
@@ -315,8 +316,10 @@ pub use verification::{
 };
 pub use workspace_build_dag::{
     ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_ID, ASP_RUST_WORKSPACE_BUILD_DAG_SCHEMA_VERSION,
-    AspRustWorkspaceBuildDag, AspRustWorkspaceBuildDagPackage, asp_rust_workspace_build_dag,
-    asp_rust_workspace_build_dag_from_env,
+    AspRustWorkspaceBuildDag, AspRustWorkspaceBuildDagDerivation, AspRustWorkspaceBuildDagMetrics,
+    AspRustWorkspaceBuildDagPackage, asp_rust_workspace_build_dag,
+    asp_rust_workspace_build_dag_from_env, asp_rust_workspace_build_dag_from_env_with_metrics,
+    asp_rust_workspace_build_dag_with_metrics,
 };
 pub use workspace_evidence_graph::{
     ASP_RUST_WORKSPACE_EVIDENCE_GRAPH_RECEIPT_SCHEMA_ID,

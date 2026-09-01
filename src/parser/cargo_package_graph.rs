@@ -11,6 +11,11 @@ pub(crate) struct CargoPackageGraphFacts {
     pub(crate) local_dependency_roots: Vec<PathBuf>,
 }
 
+pub(crate) struct CargoWorkspacePackageGraphFacts {
+    pub(crate) packages: Vec<(PathBuf, CargoPackageGraphFacts)>,
+    pub(crate) parsed_manifest_count: usize,
+}
+
 pub(crate) fn find_required_cargo_workspace_root(start: &Path) -> Result<PathBuf, String> {
     for candidate in start.ancestors() {
         let manifest_path = candidate.join("Cargo.toml");
@@ -90,9 +95,42 @@ fn compile_workspace_patterns(patterns: &[String], kind: &str) -> Result<GlobSet
         .map_err(|error| format!("compile Cargo workspace {kind} patterns: {error}"))
 }
 
-pub(crate) fn parse_required_cargo_package_graph_facts(
+pub(crate) fn parse_required_cargo_workspace_package_graph_facts(
+    package_roots: &[PathBuf],
+    workspace_root: &Path,
+) -> Result<CargoWorkspacePackageGraphFacts, String> {
+    let workspace_manifest_path = workspace_root.join("Cargo.toml");
+    let workspace_manifest = Manifest::from_path(&workspace_manifest_path).map_err(|error| {
+        format!(
+            "parse Cargo dependency graph workspace {}: {error}",
+            workspace_manifest_path.display()
+        )
+    })?;
+    let workspace_dependencies = workspace_manifest
+        .workspace
+        .as_ref()
+        .map(|workspace| &workspace.dependencies);
+    let packages = package_roots
+        .iter()
+        .map(|package_root| {
+            parse_required_cargo_package_graph_facts(
+                package_root,
+                workspace_root,
+                workspace_dependencies,
+            )
+            .map(|facts| (package_root.clone(), facts))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(CargoWorkspacePackageGraphFacts {
+        parsed_manifest_count: packages.len() + 1,
+        packages,
+    })
+}
+
+fn parse_required_cargo_package_graph_facts(
     package_root: &Path,
     workspace_root: &Path,
+    workspace_dependencies: Option<&DepsSet>,
 ) -> Result<CargoPackageGraphFacts, String> {
     let manifest_path = package_root.join("Cargo.toml");
     let manifest = Manifest::from_path(&manifest_path).map_err(|error| {
@@ -112,17 +150,6 @@ pub(crate) fn parse_required_cargo_package_graph_facts(
                 manifest_path.display()
             )
         })?;
-    let workspace_manifest =
-        Manifest::from_path(workspace_root.join("Cargo.toml")).map_err(|error| {
-            format!(
-                "parse Cargo dependency graph workspace {}: {error}",
-                workspace_root.join("Cargo.toml").display()
-            )
-        })?;
-    let workspace_dependencies = workspace_manifest
-        .workspace
-        .as_ref()
-        .map(|workspace| &workspace.dependencies);
     let mut roots = BTreeSet::new();
     collect_graph_dependency_roots(
         package_root,
