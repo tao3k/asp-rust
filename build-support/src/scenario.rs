@@ -104,9 +104,14 @@ pub struct AspRustScenarioMeasurement {
     pub observed_total: Duration,
     pub total_p50: Duration,
     pub total_p95: Duration,
+    pub total_p99: Duration,
     pub total_max: Duration,
     pub observed_memory_bytes: u64,
+    /// Backward-compatible p95 projection for existing benchmark consumers.
     pub observed_timings: BTreeMap<String, Duration>,
+    pub timing_p50: BTreeMap<String, Duration>,
+    pub timing_p99: BTreeMap<String, Duration>,
+    pub timing_max: BTreeMap<String, Duration>,
     pub metrics: BTreeMap<String, u64>,
     pub clock: &'static str,
     pub statistic: &'static str,
@@ -134,7 +139,8 @@ pub fn measure_asp_rust_scenario(
     let mut totals = Vec::with_capacity(benchmark.measure_iterations);
     let mut phase_samples = BTreeMap::<String, Vec<Duration>>::new();
     let mut phase_names = None;
-    let mut stable_metrics = None;
+    let mut metric_samples = BTreeMap::<String, Vec<u64>>::new();
+    let mut metric_names = None;
     let mut observed_memory_bytes = 0;
     for _ in 0..benchmark.measure_iterations {
         let started_at = Instant::now();
@@ -154,36 +160,51 @@ pub fn measure_asp_rust_scenario(
         for (name, duration) in observation.phase_timings {
             phase_samples.entry(name).or_default().push(duration);
         }
-        match &stable_metrics {
-            None => stable_metrics = Some(observation.metrics),
-            Some(expected) if expected == &observation.metrics => {}
-            Some(_) => return Err("Scenario custom metrics changed between samples".to_string()),
+        let current_metric_names = observation.metrics.keys().cloned().collect::<Vec<_>>();
+        match &metric_names {
+            None => metric_names = Some(current_metric_names),
+            Some(expected) if expected == &current_metric_names => {}
+            Some(_) => {
+                return Err("Scenario custom metric names changed between samples".to_string());
+            }
+        }
+        for (name, value) in observation.metrics {
+            metric_samples.entry(name).or_default().push(value);
         }
     }
     let total_p50 = percentile(&mut totals.clone(), 50);
-    let total_p95 = percentile(&mut totals, 95);
-    let total_max = *totals
-        .last()
-        .ok_or_else(|| "Scenario measurement produced no samples".to_string())?;
+    let total_p95 = percentile(&mut totals.clone(), 95);
+    let total_p99 = percentile(&mut totals.clone(), 99);
+    let total_max = percentile(&mut totals, 100);
     let observed_total = total_p95;
     if observed_total.is_zero() {
         return Err(
             "Scenario measurement resolution is insufficient: p95 elapsed time is zero".to_string(),
         );
     }
-    let observed_timings = phase_samples
-        .into_iter()
-        .map(|(name, mut samples)| (name, percentile(&mut samples, 95)))
-        .collect();
-    let metrics = stable_metrics.unwrap_or_default();
+    let mut observed_timings = BTreeMap::new();
+    let mut timing_p50 = BTreeMap::new();
+    let mut timing_p99 = BTreeMap::new();
+    let mut timing_max = BTreeMap::new();
+    for (name, samples) in phase_samples {
+        timing_p50.insert(name.clone(), percentile(&mut samples.clone(), 50));
+        observed_timings.insert(name.clone(), percentile(&mut samples.clone(), 95));
+        timing_p99.insert(name.clone(), percentile(&mut samples.clone(), 99));
+        timing_max.insert(name, percentile(&mut samples.clone(), 100));
+    }
+    let metrics = aggregate_metric_observations(&benchmark.metrics, metric_samples)?;
     validate_metric_observations(&benchmark.metrics, &metrics)?;
     Ok(AspRustScenarioMeasurement {
         observed_total,
         total_p50,
         total_p95,
+        total_p99,
         total_max,
         observed_memory_bytes,
         observed_timings,
+        timing_p50,
+        timing_p99,
+        timing_max,
         metrics,
         clock: "std::time::Instant",
         statistic: "p95",
@@ -257,12 +278,40 @@ pub fn render_asp_rust_scenario_benchmark_toml(
     );
     push_toml_string(
         &mut output,
+        "total_p99",
+        &format_duration(measurement.total_p99),
+    );
+    push_toml_string(
+        &mut output,
         "total_max",
         &format_duration(measurement.total_max),
     );
     output.push_str("\n[observed_timings]\n");
     for (name, duration) in &measurement.observed_timings {
         push_toml_string(&mut output, name, &format_duration(*duration));
+    }
+    for name in measurement.observed_timings.keys() {
+        writeln!(output, "\n[phase_distributions.{name}]").expect("write String");
+        push_toml_string(
+            &mut output,
+            "p50",
+            &format_duration(measurement.timing_p50[name]),
+        );
+        push_toml_string(
+            &mut output,
+            "p95",
+            &format_duration(measurement.observed_timings[name]),
+        );
+        push_toml_string(
+            &mut output,
+            "p99",
+            &format_duration(measurement.timing_p99[name]),
+        );
+        push_toml_string(
+            &mut output,
+            "max",
+            &format_duration(measurement.timing_max[name]),
+        );
     }
     for metric in &benchmark.metrics {
         let observed = measurement
@@ -278,6 +327,42 @@ pub fn render_asp_rust_scenario_benchmark_toml(
         writeln!(output, "observed = {observed}").expect("write String");
     }
     Ok(output)
+}
+
+fn aggregate_metric_observations(
+    specs: &[AspRustScenarioMetricSpec],
+    mut samples: BTreeMap<String, Vec<u64>>,
+) -> Result<BTreeMap<String, u64>, String> {
+    let mut observations = BTreeMap::new();
+    for spec in specs {
+        let values = samples
+            .remove(spec.name)
+            .ok_or_else(|| format!("Scenario metric {} is missing", spec.name))?;
+        let first = *values
+            .first()
+            .ok_or_else(|| format!("Scenario metric {} has no samples", spec.name))?;
+        let observed = match spec.kind {
+            AspRustScenarioMetricKind::Stable | AspRustScenarioMetricKind::Exact => {
+                if values.iter().any(|value| *value != first) {
+                    return Err(format!(
+                        "Scenario {} metric {} changed between samples",
+                        spec.kind.as_str(),
+                        spec.name
+                    ));
+                }
+                first
+            }
+            AspRustScenarioMetricKind::Maximum => values.into_iter().max().expect("nonempty"),
+            AspRustScenarioMetricKind::Minimum => values.into_iter().min().expect("nonempty"),
+        };
+        observations.insert(spec.name.to_owned(), observed);
+    }
+    if let Some(unregistered) = samples.keys().next() {
+        return Err(format!(
+            "Scenario metric {unregistered} has no benchmark specification"
+        ));
+    }
+    Ok(observations)
 }
 
 pub fn write_asp_rust_scenario_benchmark_toml(

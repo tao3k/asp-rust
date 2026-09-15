@@ -52,13 +52,56 @@ fn scenario_macro_generates_real_measurement_and_typed_zero_count() {
     );
     assert_eq!(measurement.observed_total, measurement.total_p95);
     assert!(measurement.total_p50 <= measurement.total_p95);
-    assert!(measurement.total_p95 <= measurement.total_max);
+    assert!(measurement.total_p95 <= measurement.total_p99);
+    assert!(measurement.total_p99 <= measurement.total_max);
     let rendered = render_asp_rust_scenario_benchmark_toml(&scenario, &measurement)
         .expect("render measured benchmark");
     assert!(rendered.contains("clock = \"std::time::Instant\""));
     assert!(rendered.contains("statistic = \"p95\""));
     assert!(rendered.contains("measure_iterations = 9"));
+    assert!(rendered.contains("total_p99 = \""));
+    assert!(rendered.contains("[phase_distributions.content_digest]"));
     assert!(rendered.contains("[metrics.provider_process_count]"));
     assert!(rendered.contains("observed = 0"));
     assert!(!rendered.contains("observed_total = \"0"));
+}
+
+#[test]
+fn scenario_aggregates_variable_bounded_metrics_by_contract_kind() {
+    let scenario = asp_rust_scenario! {
+        name: "variable-resource-observations",
+        package: "asp-rust",
+        description: "Queue and work observations retain their worst and best measured samples",
+        fixture_root: "tests/unit/scenarios/variable_resource_observations",
+        tags: ["performance", "resources"],
+        commands: [],
+        benchmark: {
+            harness: "libtest",
+            test: "scenario_aggregates_variable_bounded_metrics_by_contract_kind",
+            snapshot: "variable_resource_observations",
+            target_total: "5ms",
+            max_total: "25ms",
+            regression_budget: "5ms",
+            memory_budget_bytes: 4_194_304,
+            target_rationale: "Variable resource evidence must not be disguised as a stable metric.",
+            warmup_iterations: 0,
+            measure_iterations: 4,
+            metrics: [
+                { name: "queue_wait_micros", unit: "microseconds", kind: Maximum, target: 10 },
+                { name: "candidate_count", unit: "count", kind: Minimum, target: 1 }
+            ]
+        }
+    };
+    let mut sample = 0_u64;
+    let measurement = measure_asp_rust_scenario(&scenario, || {
+        sample += 1;
+        std::thread::yield_now();
+        AspRustScenarioObservation::default()
+            .with_metric("queue_wait_micros", sample)
+            .with_metric("candidate_count", 5 - sample)
+    })
+    .expect("aggregate variable metrics");
+
+    assert_eq!(measurement.metrics["queue_wait_micros"], 4);
+    assert_eq!(measurement.metrics["candidate_count"], 1);
 }
