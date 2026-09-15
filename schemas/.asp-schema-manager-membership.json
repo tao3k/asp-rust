@@ -1,7 +1,7 @@
 {
   "languageId": "rust",
   "profileDigest": "blake3-256:e0250dbec5b77d25e51ee0d8473ab4163daddc5ce7eb6895fb43dcbe6fba0d34",
-  "bundleDigest": "blake3-256:094d541dd1ae28322ce7299cb2375edf12392c30aa12a280a57787069fd02fba",
+  "bundleDigest": "blake3-256:588e3c4922f1c78adc351e534c7d5f85dca1c1d7e38b41e118c7cda719f5bb61",
   "schemas": [
     {
       "name": "asp-client-cancellation-probe-request.schema.json",
@@ -77,7 +77,7 @@
     },
     {
       "name": "asp-client-workspace-search-playbook-request.v1.schema.json",
-      "digest": "blake3-256:f32ea2abb85995ed2e2b5cbc9182de75b6e6b59228851184d80407d7fca4fa06"
+      "digest": "blake3-256:8d51558ac91f2ddb75d95bc5c573bbef884edd802e66cf5afd64f4a7d257498d"
     },
     {
       "name": "asp-client-workspace-source-mutation.schema.json",
@@ -265,7 +265,7 @@
     },
     {
       "name": "query-playbook-materialization-receipt.v1.schema.json",
-      "digest": "blake3-256:05d6793b11c3b2643bf394b8773c1b9131aa17cf9ddcc588f3f592542553d83c"
+      "digest": "blake3-256:d0c2135e238a90638a025a42947f769dd7083e5494f44bdb7a2f91362aecfa1b"
     },
     {
       "name": "query-playbook-materialization-request.v1.schema.json",
