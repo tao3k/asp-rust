@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::{findings_for_rule, write_manifest};
@@ -13,11 +13,8 @@ fn unused_test_support_reexports_are_agent_advice() {
     write_manifest(root, "unused-test-support-reexports");
     write_test_support_fixture(root, true);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-TEST-SUPPORT-014");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -34,11 +31,8 @@ fn consumed_test_support_reexports_are_not_agent_advice() {
     write_manifest(root, "consumed-test-support-reexports");
     write_test_support_fixture(root, false);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-TEST-SUPPORT-014").is_empty());
     assert!(report.is_clean(), "{:?}", report.findings);
@@ -51,11 +45,8 @@ fn consumed_name_in_one_support_scope_does_not_clear_sibling_support_scope() {
     write_manifest(root, "support-scope-specific-consumption");
     write_sibling_support_fixture(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-TEST-SUPPORT-014");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);

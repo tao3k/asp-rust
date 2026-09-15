@@ -1,9 +1,9 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationApiPathBaseline, RustVerificationProfileHint,
     RustVerificationReceipt, RustVerificationStabilityPictureConfig,
     RustVerificationStabilityRunReceipt, RustVerificationTaskKind,
     build_rust_verification_stability_picture, compare_rust_verification_stability_runs,
-    default_rust_harness_config, plan_rust_project_verification_with_config,
+    default_asp_rust_config, plan_rust_project_verification_with_config,
     render_rust_verification_stability_picture, render_rust_verification_stability_picture_json,
 };
 use tempfile::TempDir;
@@ -170,7 +170,7 @@ fn stability_picture_uses_owner_and_api_path_local_overrides() {
         .with_resource_delta_required(false)
         .with_state_growth_required(false)
         .with_stability_artifact_required(false);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(
             RustVerificationProfileHint::new(
                 "src/api.rs",
@@ -192,7 +192,7 @@ fn stability_picture_uses_owner_and_api_path_local_overrides() {
         .as_ref()
         .expect("picture config");
 
-    let picture = rust_lang_project_harness::build_rust_verification_stability_picture_with_policy(
+    let picture = asp_rust::build_rust_verification_stability_picture_with_policy(
         &plan,
         &config.verification_policy,
         picture_config,
@@ -239,8 +239,8 @@ fn stability_run_receipt_compares_against_baseline() {
     assert!(delta.determinism_changed);
 }
 
-fn availability_critical_config() -> rust_lang_project_harness::RustHarnessConfig {
-    default_rust_harness_config().with_verification_profile_hint(RustVerificationProfileHint::new(
+fn availability_critical_config() -> asp_rust::AspRustConfig {
+    default_asp_rust_config().with_verification_profile_hint(RustVerificationProfileHint::new(
         "src/api.rs",
         [RustOwnerResponsibility::AvailabilityCritical],
     ))

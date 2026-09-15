@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{
-    default_rust_harness_config, render_rust_project_harness_agent_snapshot,
-    render_rust_project_harness_agent_snapshot_with_config,
+use asp_rust::{
+    default_asp_rust_config, render_asp_rust_agent_snapshot,
+    render_asp_rust_agent_snapshot_with_config,
 };
 use tempfile::TempDir;
 
@@ -31,7 +31,7 @@ fn agent_reasoning_tree_snapshot_groups_owner_branches() {
     .expect("write leaf");
     fs::write(root.join("src/alt/custom.rs"), "//! Custom path child.\n").expect("write custom");
 
-    let rendered = render_rust_project_harness_agent_snapshot(root).expect("render snapshot");
+    let rendered = render_asp_rust_agent_snapshot(root).expect("render snapshot");
 
     insta::assert_snapshot!(
         "agent_reasoning_tree_snapshot",
@@ -70,7 +70,7 @@ fn agent_reasoning_tree_snapshot_compacts_workspace_packages() {
     )
     .expect("write active thing");
 
-    let rendered = render_rust_project_harness_agent_snapshot(root).expect("render snapshot");
+    let rendered = render_asp_rust_agent_snapshot(root).expect("render snapshot");
     let rendered = normalize_temp_root(&rendered, root);
 
     assert!(!rendered.contains("crates/empty"), "{rendered}");
@@ -109,10 +109,10 @@ fn agent_reasoning_tree_snapshot_ignores_test_context_owner_dependencies() {
         "//! Beta core.\n#[cfg(test)]\nmod tests {\n    use crate::alpha::Alpha;\n}\n/// Beta handle.\npub struct Beta;\n",
     )
     .expect("write beta core");
-    let config = default_rust_harness_config().with_disabled_rule("RUST-AGENT-PROJECT-003");
+    let config = default_asp_rust_config().with_disabled_rule("RUST-AGENT-PROJECT-003");
 
-    let rendered = render_rust_project_harness_agent_snapshot_with_config(root, &config)
-        .expect("render snapshot");
+    let rendered =
+        render_asp_rust_agent_snapshot_with_config(root, &config).expect("render snapshot");
     let rendered = normalize_temp_root(&rendered, root);
 
     assert!(!rendered.contains("deps="), "{rendered}");
@@ -128,7 +128,7 @@ fn agent_reasoning_tree_snapshot_omits_empty_child_edge_placeholder() {
     fs::create_dir_all(root.join("src/bin")).expect("create bin");
     fs::write(root.join("src/bin/tool.rs"), "fn main() {}\n").expect("write binary");
 
-    let rendered = render_rust_project_harness_agent_snapshot(root).expect("render snapshot");
+    let rendered = render_asp_rust_agent_snapshot(root).expect("render snapshot");
     let rendered = normalize_temp_root(&rendered, root);
 
     assert!(!rendered.contains("-> -"), "{rendered}");
@@ -161,7 +161,7 @@ fn agent_reasoning_tree_snapshot_caps_large_sections() {
     )
     .expect("write target");
 
-    let rendered = render_rust_project_harness_agent_snapshot(root).expect("render snapshot");
+    let rendered = render_asp_rust_agent_snapshot(root).expect("render snapshot");
     let rendered = normalize_temp_root(&rendered, root);
 
     assert!(rendered.contains("... +23 children"), "{rendered}");

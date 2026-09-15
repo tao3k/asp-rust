@@ -2,11 +2,11 @@
 
 use std::path::Path;
 
-use crate::model::{RustHarnessConfig, RustHarnessReport};
+use crate::model::{AspRustConfig, AspRustReport};
 
-use super::dependency_baseline::assert_rust_project_harness_dependency_baseline;
+use super::dependency_baseline::assert_asp_rust_dependency_baseline;
 use super::guidance::downstream_build_gate_agent_guidance;
-use super::policy::RustProjectHarnessDownstreamPolicy;
+use super::policy::{AspRustBuildGateAuthority, AspRustDownstreamPolicy};
 use super::support::{cargo_manifest_dir, has_explanation};
 
 /// Assert a complete downstream policy from `CARGO_MANIFEST_DIR`.
@@ -19,11 +19,11 @@ use super::support::{cargo_manifest_dir, has_explanation};
 /// Panics when `CARGO_MANIFEST_DIR` is missing, when the cargo-check policy
 /// gate fails, or when semantic verification coverage is incomplete.
 #[track_caller]
-pub fn assert_rust_project_harness_downstream_policy_from_env(
-    policy: &RustProjectHarnessDownstreamPolicy,
-) -> RustHarnessReport {
+pub fn assert_asp_rust_downstream_policy_from_env(
+    policy: &AspRustDownstreamPolicy,
+) -> AspRustReport {
     let root = cargo_manifest_dir();
-    assert_rust_project_harness_downstream_policy(&root, policy)
+    assert_asp_rust_downstream_policy(&root, policy)
 }
 
 /// Assert a complete downstream policy from an explicit project root.
@@ -33,31 +33,99 @@ pub fn assert_rust_project_harness_downstream_policy_from_env(
 /// Panics when the cargo-check policy gate fails, or when semantic
 /// verification coverage is incomplete.
 #[track_caller]
-pub fn assert_rust_project_harness_downstream_policy(
+pub fn assert_asp_rust_downstream_policy(
     project_root: &Path,
-    policy: &RustProjectHarnessDownstreamPolicy,
-) -> RustHarnessReport {
-    run_rust_project_harness_downstream_policy(project_root, policy)
+    policy: &AspRustDownstreamPolicy,
+) -> AspRustReport {
+    let cache_root = super::cache::build_gate_cache_root_from_env(project_root);
+    run_asp_rust_downstream_policy(
+        project_root,
+        policy,
+        cache_root.as_deref(),
+        "blake3-256:legacy-unbound-policy-authority",
+        true,
+    )
 }
 
-fn run_rust_project_harness_downstream_policy(
+/// Evaluate one package atom without terminating a whole-workspace audit early.
+pub fn evaluate_asp_rust_downstream_policy(
     project_root: &Path,
-    policy: &RustProjectHarnessDownstreamPolicy,
-) -> RustHarnessReport {
+    policy: &AspRustDownstreamPolicy,
+) -> AspRustReport {
+    let cache_root = super::cache::build_gate_cache_root_from_env(project_root);
+    run_asp_rust_downstream_policy(
+        project_root,
+        policy,
+        cache_root.as_deref(),
+        "blake3-256:workspace-policy-authority",
+        false,
+    )
+}
+
+/// Assert a downstream policy under an explicit build-support authority.
+///
+/// This is the preferred API for package build scripts. Cache ownership and
+/// declarative policy identity are supplied by the downstream build-support
+/// package rather than inferred by the ASP language provider.
+#[track_caller]
+pub fn assert_asp_rust_downstream_policy_with_authority(
+    project_root: &Path,
+    policy: &AspRustDownstreamPolicy,
+    authority: &AspRustBuildGateAuthority,
+) -> AspRustReport {
+    run_asp_rust_downstream_policy(
+        project_root,
+        policy,
+        Some(authority.cache_root()),
+        authority.policy_digest(),
+        true,
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn assert_asp_rust_downstream_policy_with_state_home(
+    project_root: &Path,
+    policy: &AspRustDownstreamPolicy,
+    state_home: &Path,
+) -> AspRustReport {
+    let cache_root =
+        super::cache::build_gate_cache_root(project_root, Some(state_home.as_os_str().to_owned()))
+            .expect("test State Home must resolve a build-gate cache root");
+    run_asp_rust_downstream_policy(
+        project_root,
+        policy,
+        Some(&cache_root),
+        "blake3-256:test-policy-authority",
+        true,
+    )
+}
+
+fn run_asp_rust_downstream_policy(
+    project_root: &Path,
+    policy: &AspRustDownstreamPolicy,
+    cache_root: Option<&Path>,
+    policy_authority_digest: &str,
+    assert_report: bool,
+) -> AspRustReport {
     let dependency_baseline_receipts = super::receipt::dependency_baseline_package_receipts(policy);
-    let snapshot = super::cache::snapshot_build_gate_inputs(project_root, policy.config())
-        .unwrap_or_else(|error| {
-            panic!(
-                "{} cargo-check build-gate snapshot: {error}\n{}",
-                policy.gate_label(),
-                downstream_build_gate_agent_guidance(policy.gate_label())
-            )
-        });
-    let cache_key = super::cache::build_gate_cache_key(
+    let snapshot = super::cache::snapshot_build_gate_inputs_with_cache(
+        project_root,
         policy.config(),
-        crate::runner::RustHarnessRunScope::Package,
+        cache_root,
+    )
+    .unwrap_or_else(|error| {
+        panic!(
+            "{} cargo-check build-gate snapshot: {error}\n{}",
+            policy.gate_label(),
+            downstream_build_gate_agent_guidance(policy.gate_label())
+        )
+    });
+    let cache_key = super::cache::build_gate_cache_key_with_policy_digest(
+        policy.config(),
+        crate::runner::AspRustRunScope::Package,
         &dependency_baseline_receipts,
         &snapshot,
+        policy_authority_digest,
     )
     .unwrap_or_else(|error| {
         panic!(
@@ -66,21 +134,21 @@ fn run_rust_project_harness_downstream_policy(
             downstream_build_gate_agent_guidance(policy.gate_label())
         )
     });
-    let cache_root = super::cache::build_gate_cache_root_from_env(project_root);
     if let Some(record) = cache_root
-        .as_deref()
         .and_then(|cache_root| super::cache::load_build_gate_cache(cache_root, &cache_key))
     {
         super::rerun::emit_cargo_rerun_paths(
             project_root,
             record.snapshot.files.iter().map(|file| &file.path),
         );
-        assert_build_report_clean_with_agent_guidance(
-            &record.report,
-            policy.config(),
-            policy.gate_label(),
-        );
-        super::verification_gate::assert_rust_project_harness_verification_plan(
+        if assert_report {
+            assert_build_report_clean_with_agent_guidance(
+                &record.report,
+                policy.config(),
+                policy.gate_label(),
+            );
+        }
+        super::verification_gate::assert_asp_rust_verification_plan(
             &record.verification_plan,
             &policy.config().verification_policy,
             policy.gate_label(),
@@ -100,7 +168,7 @@ fn run_rust_project_harness_downstream_policy(
             policy.gate_label()
         );
         if let Some(dependency_baseline) = policy.dependency_baseline() {
-            assert_rust_project_harness_dependency_baseline(
+            assert_asp_rust_dependency_baseline(
                 project_root,
                 dependency_baseline,
                 policy.gate_label(),
@@ -112,7 +180,7 @@ fn run_rust_project_harness_downstream_policy(
     let analysis = crate::runner::analyze_rust_project_once(
         project_root,
         policy.config(),
-        crate::runner::RustHarnessRunScope::Package,
+        crate::runner::AspRustRunScope::Package,
     )
     .unwrap_or_else(|error| {
         panic!(
@@ -123,22 +191,24 @@ fn run_rust_project_harness_downstream_policy(
     });
     super::rerun::emit_cargo_rerun_inputs(project_root, &analysis);
     let report = analysis.to_report(policy.config());
-    assert_build_report_clean_with_agent_guidance(&report, policy.config(), policy.gate_label());
+    if assert_report {
+        assert_build_report_clean_with_agent_guidance(
+            &report,
+            policy.config(),
+            policy.gate_label(),
+        );
+    }
     let verification_plan = crate::verification::plan_rust_verification_from_harness_analysis(
         analysis,
         &policy.config().verification_policy,
     );
-    super::verification_gate::assert_rust_project_harness_verification_plan(
+    super::verification_gate::assert_asp_rust_verification_plan(
         &verification_plan,
         &policy.config().verification_policy,
         policy.gate_label(),
     );
     if let Some(dependency_baseline) = policy.dependency_baseline() {
-        assert_rust_project_harness_dependency_baseline(
-            project_root,
-            dependency_baseline,
-            policy.gate_label(),
-        );
+        assert_asp_rust_dependency_baseline(project_root, dependency_baseline, policy.gate_label());
     }
     let downstream_policy_receipt =
         super::receipt::downstream_policy_receipt_from_plan(policy, &verification_plan);
@@ -156,10 +226,9 @@ fn run_rust_project_harness_downstream_policy(
                 downstream_build_gate_agent_guidance(policy.gate_label())
             )
         });
-        let record = super::cache::RustProjectHarnessBuildGateCacheRecord {
-            schema_id: super::cache::RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_ID.to_string(),
-            schema_version: super::cache::RUST_PROJECT_HARNESS_BUILD_GATE_CACHE_SCHEMA_VERSION
-                .to_string(),
+        let record = super::cache::AspRustBuildGateCacheRecord {
+            schema_id: super::cache::ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID.to_string(),
+            schema_version: super::cache::ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION.to_string(),
             cache_key,
             snapshot,
             payload_digest,
@@ -168,7 +237,7 @@ fn run_rust_project_harness_downstream_policy(
             downstream_policy_receipt,
             dependency_baseline_receipts,
         };
-        super::cache::store_build_gate_cache(&cache_root, &record).unwrap_or_else(|error| {
+        super::cache::store_build_gate_cache(cache_root, &record).unwrap_or_else(|error| {
             panic!(
                 "{} cargo-check build-gate cache publish: {error}\n{}",
                 policy.gate_label(),
@@ -180,29 +249,40 @@ fn run_rust_project_harness_downstream_policy(
 }
 
 fn assert_build_report_clean_with_agent_guidance(
-    report: &RustHarnessReport,
-    config: &RustHarnessConfig,
+    report: &AspRustReport,
+    config: &AspRustConfig,
     gate_label: &str,
 ) {
-    if !report.is_clean() {
-        panic!(
-            "{}\n{}",
-            crate::render_rust_project_harness(report),
-            downstream_build_gate_agent_guidance(gate_label)
-        );
-    }
-    if !config_allows_agent_advice(config) {
-        let rendered = crate::render_rust_project_harness_advice(report);
-        if !rendered.is_empty() {
-            panic!(
-                "{rendered}\n{}",
-                downstream_build_gate_agent_guidance(gate_label)
-            );
-        }
+    if let Some(rejection) = build_report_rejection(report, config, gate_label) {
+        panic!("{rejection}");
     }
 }
 
-fn config_allows_agent_advice(config: &RustHarnessConfig) -> bool {
+pub(crate) fn build_report_rejection(
+    report: &AspRustReport,
+    config: &AspRustConfig,
+    gate_label: &str,
+) -> Option<String> {
+    if !report.is_clean() {
+        return Some(format!(
+            "{}\n{}",
+            crate::render_asp_rust(report),
+            downstream_build_gate_agent_guidance(gate_label)
+        ));
+    }
+    if !config_allows_agent_advice(config) {
+        let rendered = crate::render_asp_rust_advice(report);
+        if !rendered.is_empty() {
+            return Some(format!(
+                "{rendered}\n{}",
+                downstream_build_gate_agent_guidance(gate_label)
+            ));
+        }
+    }
+    None
+}
+
+fn config_allows_agent_advice(config: &AspRustConfig) -> bool {
     has_explanation(config.cargo_check_advice_allow_explanation.as_deref())
         || has_explanation(config.agent_advice_allow_explanation.as_deref())
 }

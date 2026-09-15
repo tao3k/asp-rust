@@ -1,7 +1,7 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationProfileHint, RustVerificationReceipt,
     RustVerificationTaskKind, RustVerificationTaskState, build_rust_verification_report_bundle,
-    build_rust_verification_stability_index, default_rust_harness_config,
+    build_rust_verification_stability_index, default_asp_rust_config,
     plan_rust_project_verification_with_config, render_rust_verification_report_artifact_json,
     render_rust_verification_stability_index, render_rust_verification_stability_index_json,
 };
@@ -120,8 +120,8 @@ fn stability_report_artifact_is_source_baseline() {
     );
 }
 
-fn availability_critical_config() -> rust_lang_project_harness::RustHarnessConfig {
-    default_rust_harness_config().with_verification_profile_hint(RustVerificationProfileHint::new(
+fn availability_critical_config() -> asp_rust::AspRustConfig {
+    default_asp_rust_config().with_verification_profile_hint(RustVerificationProfileHint::new(
         "src/api.rs",
         [RustOwnerResponsibility::AvailabilityCritical],
     ))

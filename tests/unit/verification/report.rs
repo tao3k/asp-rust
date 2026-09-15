@@ -1,11 +1,11 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_ID, RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_VERSION,
     RustOwnerResponsibility, RustVerificationProfileHint, RustVerificationReportArtifactRole,
     RustVerificationReportOptions, RustVerificationReportPersistence,
     RustVerificationReportSidecarRole, RustVerificationReportTraceConfig,
     RustVerificationSkillBinding, RustVerificationStabilityPictureConfig, RustVerificationTaskKind,
     RustVerificationTraceMaxSeconds, build_rust_verification_report_bundle,
-    build_rust_verification_report_bundle_with_options, default_rust_harness_config,
+    build_rust_verification_report_bundle_with_options, default_asp_rust_config,
     plan_rust_project_verification_with_config, render_rust_verification_plan,
     render_rust_verification_report_artifact_json,
     render_rust_verification_report_artifact_json_with_config,
@@ -20,7 +20,7 @@ fn verification_report_bundle_materializes_required_artifacts() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],
@@ -157,7 +157,7 @@ fn verification_report_bundle_can_include_analysis_profile_artifact_explicitly()
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],
@@ -218,7 +218,7 @@ fn verification_report_bundle_materializes_stability_picture_artifact() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::AvailabilityCritical],
@@ -268,7 +268,7 @@ fn verification_report_bundle_allows_agent_trace_overrides() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],
@@ -306,7 +306,7 @@ fn verification_report_bundle_exposes_selection_advice_sidecar_contract() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],
@@ -360,8 +360,8 @@ fn verification_report_bundle_is_empty_without_active_tasks() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let plan = plan_rust_project_verification_with_config(root, &default_rust_harness_config())
-        .expect("plan");
+    let plan =
+        plan_rust_project_verification_with_config(root, &default_asp_rust_config()).expect("plan");
 
     let bundle = build_rust_verification_report_bundle(&plan);
     let json = render_rust_verification_report_bundle_json(&plan).expect("report json");

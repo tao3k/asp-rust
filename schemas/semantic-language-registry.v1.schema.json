@@ -44,18 +44,14 @@
     },
     "method": {
       "type": "string",
-      "pattern": "^(?:guide|query|(search|query|check|proof|review|verification|evidence|ast-patch|agent)/[a-z][a-z0-9_-]*)$"
+      "pattern": "^(?:guide|query|(query|proof|review|ast-patch|agent)/[a-z][a-z0-9_-]*)$"
     },
     "command": {
       "enum": [
         "guide",
-        "search",
         "query",
-        "check",
         "proof",
         "review",
-        "verification",
-        "evidence",
         "ast-patch",
         "agent"
       ]
@@ -213,7 +209,7 @@
           }
         },
         "queryPackDescriptor": {
-          "$ref": "https://tao3k.github.io/agent-semantic-protocols/schemas/provider-query-pack-descriptor.v1.schema.json"
+      "$ref": "https://schemas.agent-semantic-protocols.dev/provider-query-pack-descriptor.schema.json"
         }
       }
     },
@@ -235,6 +231,9 @@
         },
         "invocation": {
           "$ref": "#/$defs/commandTemplate"
+        },
+        "argumentProjection": {
+          "$ref": "https://tao3k.github.io/agent-semantic-protocols/schemas/provider-method-argument-projection.v1.schema.json"
         },
         "benchmarkInvocation": {
           "$ref": "#/$defs/benchmarkInvocation"

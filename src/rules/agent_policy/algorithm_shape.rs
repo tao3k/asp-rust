@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::parser::{
     ParsedRustModule, RustFunctionControlFlowSyntax, path_line_location, source_line,
 };
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use crate::rules::display_path;
 
@@ -59,8 +59,8 @@ fn compact_software_criterion(criterion_id: &str) -> String {
 
 pub(super) fn algorithm_shape_findings(
     modules: &[&ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     modules
         .iter()
         .flat_map(|module| {
@@ -83,8 +83,8 @@ pub(super) fn algorithm_shape_findings(
 
 pub(super) fn native_iterator_idiom_findings(
     modules: &[&ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_ITER_PUBLIC_MANUAL_TRANSFORM_V1];
     modules
         .iter()
@@ -100,7 +100,7 @@ pub(super) fn native_iterator_idiom_findings(
                 return None;
             }
                     Some(with_software_criteria(
-                        RustHarnessFinding::from_rule(
+                        AspRustFinding::from_rule(
                             rule,
                             format!(
                                 "{} public function `{}` manually spells iterator boilerplate. Criteria: {}.",
@@ -122,8 +122,8 @@ pub(super) fn native_iterator_idiom_findings(
 
 fn nested_algorithm_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_CFG_PUBLIC_NESTED_FLOW_V1];
     module
         .syntax_facts
@@ -137,7 +137,7 @@ fn nested_algorithm_findings(
             }
             let criterion_ids = nested_algorithm_software_criteria(&profile);
             Some(with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} public function `{}` hides algorithm shape. Criteria: {}.",
@@ -157,8 +157,8 @@ fn nested_algorithm_findings(
 
 fn broad_linear_algorithm_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_CFG_PUBLIC_BROAD_SURFACE_V1];
     module
         .syntax_facts
@@ -171,7 +171,7 @@ fn broad_linear_algorithm_findings(
                 return None;
             }
             Some(with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} public function `{}` spans {} lines with {} statements and a {}-statement block. Criteria: {}.",
@@ -194,8 +194,8 @@ fn broad_linear_algorithm_findings(
 
 fn implementation_traversal_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_CFG_IMPL_NESTED_TRAVERSAL_V1];
     module
         .syntax_facts
@@ -209,7 +209,7 @@ fn implementation_traversal_findings(
                 return None;
             }
             Some(with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} implementation function `{}` nests traversal scaffolding. Criteria: {}.",
@@ -229,8 +229,8 @@ fn implementation_traversal_findings(
 
 fn implementation_iterator_idiom_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_ITER_IMPL_MANUAL_TRANSFORM_V1];
     module
         .syntax_facts
@@ -245,7 +245,7 @@ fn implementation_iterator_idiom_findings(
                 return None;
             }
             Some(with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} implementation function `{}` manually spells iterator boilerplate. Criteria: {}.",
@@ -265,8 +265,8 @@ fn implementation_iterator_idiom_findings(
 
 fn linear_membership_scan_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_DATA_LINEAR_MEMBERSHIP_SCAN_V1];
     module
         .syntax_facts
@@ -276,7 +276,7 @@ fn linear_membership_scan_findings(
         .filter(|control_flow| control_flow.linear_membership_scan_loop_count > 0)
         .map(|control_flow| {
             with_software_criteria(
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} function `{}` performs {} loop-local linear membership scan(s). Criteria: {}.",
@@ -297,8 +297,8 @@ fn linear_membership_scan_findings(
 
 fn async_blocking_boundary_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_ASYNC_BLOCKING_BOUNDARY_V1];
     module
         .syntax_facts
@@ -309,7 +309,7 @@ fn async_blocking_boundary_findings(
         .filter(|control_flow| control_flow.blocking_call_count > 0)
         .map(|control_flow| {
             with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} async function `{}` performs {} blocking call(s) without an explicit runtime boundary. Criteria: {}.",
@@ -330,8 +330,8 @@ fn async_blocking_boundary_findings(
 
 fn async_sync_lock_across_await_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_ASYNC_SYNC_LOCK_BOUNDARY_V1];
     module
         .syntax_facts
@@ -342,7 +342,7 @@ fn async_sync_lock_across_await_findings(
         .filter(|control_flow| control_flow.sync_lock_guard_across_await_count > 0)
         .map(|control_flow| {
             with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} async function `{}` holds {} sync lock guard(s) across `.await`. Criteria: {}.",
@@ -363,8 +363,8 @@ fn async_sync_lock_across_await_findings(
 
 fn async_unbounded_queue_backpressure_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_ASYNC_BACKPRESSURE_BOUNDARY_V1];
     let has_backpressure_boundary = module
         .syntax_facts
@@ -383,7 +383,7 @@ fn async_unbounded_queue_backpressure_findings(
         .filter(|control_flow| control_flow.unbounded_async_queue_call_count > 0)
         .map(|control_flow| {
             with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} function `{}` creates {} unbounded async queue(s) without a readiness or capacity boundary. Criteria: {}.",
@@ -404,8 +404,8 @@ fn async_unbounded_queue_backpressure_findings(
 
 fn async_select_cancellation_safety_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_ASYNC_SELECT_CANCEL_SAFETY_V1];
     module
         .syntax_facts
@@ -415,7 +415,7 @@ fn async_select_cancellation_safety_findings(
         .filter(|control_flow| control_flow.tokio_select_cancel_unsafe_io_count > 0)
         .map(|control_flow| {
             with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} function `{}` places {} cancellation-unsafe I/O future(s) inside `tokio::select!`. Criteria: {}.",
@@ -436,8 +436,8 @@ fn async_select_cancellation_safety_findings(
 
 fn async_timeout_cancellation_safety_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_ASYNC_TIMEOUT_CANCEL_SAFETY_V1];
     module
         .syntax_facts
@@ -447,7 +447,7 @@ fn async_timeout_cancellation_safety_findings(
         .filter(|control_flow| control_flow.tokio_timeout_cancel_unsafe_io_count > 0)
         .map(|control_flow| {
             with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} function `{}` wraps {} cancellation-unsafe I/O future(s) in `tokio::time::timeout`. Criteria: {}.",
@@ -468,8 +468,8 @@ fn async_timeout_cancellation_safety_findings(
 
 fn async_task_lifecycle_boundary_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_ASYNC_TASK_LIFECYCLE_V1];
     module
         .syntax_facts
@@ -479,7 +479,7 @@ fn async_task_lifecycle_boundary_findings(
         .filter(|control_flow| control_flow.discarded_tokio_spawn_count > 0)
         .map(|control_flow| {
             with_software_criteria(
-                RustHarnessFinding::from_rule(
+                AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} function `{}` discards {} Tokio task handle(s) without a lifecycle boundary. Criteria: {}.",
@@ -499,9 +499,9 @@ fn async_task_lifecycle_boundary_findings(
 }
 
 fn with_software_criteria(
-    mut finding: RustHarnessFinding,
+    mut finding: AspRustFinding,
     criterion_ids: &[&'static str],
-) -> RustHarnessFinding {
+) -> AspRustFinding {
     finding
         .labels
         .insert(SOFTWARE_CRITERIA_LABEL.to_string(), criterion_ids.join(","));

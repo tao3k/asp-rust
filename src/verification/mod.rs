@@ -2,10 +2,8 @@
 
 mod analysis;
 mod api_path;
-mod assurance_case;
 mod behavior_snapshot;
 mod determinism_readiness;
-mod evidence_graph;
 mod execution_receipt;
 mod fingerprint;
 mod formal_proof_pilot;
@@ -38,16 +36,6 @@ pub use analysis::{
     build_rust_verification_analysis_profile, build_rust_verification_analysis_profile_with_config,
     render_rust_verification_analysis_profile, render_rust_verification_analysis_profile_json,
 };
-#[allow(unused_imports)]
-pub use assurance_case::{
-    RUST_ASSURANCE_CASE_PROTOCOL_ID, RUST_ASSURANCE_CASE_PROTOCOL_VERSION,
-    RUST_ASSURANCE_CASE_SCHEMA_ID, RUST_ASSURANCE_CASE_SCHEMA_VERSION, RustAssuranceActionRef,
-    RustAssuranceCase, RustAssuranceCaseInput, RustAssuranceCaseSet, RustAssuranceCaseSetProducer,
-    RustAssuranceCaseSetProject, RustAssuranceCaseStatus, RustAssuranceCaseSummary,
-    RustAssuranceClaim, RustAssuranceClaimKind, RustAssuranceGap, RustAssuranceNodeKind,
-    RustAssuranceNodeRef, RustAssuranceNodeStatus, build_rust_assurance_case_set,
-    render_rust_assurance_case_set, render_rust_assurance_case_set_json,
-};
 pub use behavior_snapshot::{
     RUST_BEHAVIOR_SNAPSHOT_PROTOCOL_ID, RUST_BEHAVIOR_SNAPSHOT_PROTOCOL_VERSION,
     RUST_BEHAVIOR_SNAPSHOT_SCHEMA_ID, RUST_BEHAVIOR_SNAPSHOT_SCHEMA_VERSION, RustBehaviorSnapshot,
@@ -78,22 +66,6 @@ pub use determinism_readiness::{
     RustDeterminismReadinessSummary, RustDeterminismReadinessSymbol,
     RustDeterminismReadinessTraitName, build_rust_determinism_readiness,
     render_rust_determinism_readiness, render_rust_determinism_readiness_json,
-};
-#[allow(unused_imports)]
-pub use evidence_graph::{
-    RUST_EVIDENCE_GRAPH_ANALYSIS_PACKET_KIND, RUST_EVIDENCE_GRAPH_ANALYSIS_PROFILE,
-    RUST_EVIDENCE_GRAPH_ANALYSIS_REQUEST_SCHEMA_ID,
-    RUST_EVIDENCE_GRAPH_ANALYSIS_REQUEST_SCHEMA_VERSION, RUST_EVIDENCE_GRAPH_PROTOCOL_ID,
-    RUST_EVIDENCE_GRAPH_PROTOCOL_VERSION, RUST_EVIDENCE_GRAPH_SCHEMA_ID,
-    RUST_EVIDENCE_GRAPH_SCHEMA_VERSION, RustEvidenceEdge, RustEvidenceEdgeKind, RustEvidenceGap,
-    RustEvidenceGraph, RustEvidenceGraphAnalysisGraph, RustEvidenceGraphAnalysisInput,
-    RustEvidenceGraphAnalysisPacketKind, RustEvidenceGraphAnalysisProducer,
-    RustEvidenceGraphAnalysisRequest, RustEvidenceGraphAnalysisSummary, RustEvidenceGraphInput,
-    RustEvidenceGraphProducer, RustEvidenceGraphProject, RustEvidenceGraphSummary,
-    RustEvidenceLocation, RustEvidenceNode, RustEvidenceNodeKind, RustEvidenceNodeStatus,
-    build_rust_evidence_graph, build_rust_evidence_graph_analysis_request,
-    render_rust_evidence_graph, render_rust_evidence_graph_analysis_request,
-    render_rust_evidence_graph_analysis_request_json, render_rust_evidence_graph_json,
 };
 pub use execution_receipt::{
     RUST_VERIFICATION_EXECUTION_RECEIPT_PROTOCOL_ID,
@@ -215,7 +187,8 @@ pub use review_packet::{
 };
 pub use scenario_benchmark::{
     RustScenarioBenchmarkContract, RustScenarioBenchmarkDuration, RustScenarioBenchmarkError,
-    RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkMemoryBytes,
+    RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkMeasurement,
+    RustScenarioBenchmarkMemoryBytes, RustScenarioBenchmarkMetric, RustScenarioBenchmarkMetricKind,
     RustScenarioBenchmarkPhase, RustScenarioBenchmarkReceipt, RustScenarioBenchmarkRequirement,
     RustScenarioBenchmarkStatus, RustScenarioBenchmarkSuiteReceipt, RustScenarioBenchmarkViolation,
     RustScenarioBenchmarkViolationKind, RustScenarioMetadata,

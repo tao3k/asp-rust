@@ -34,7 +34,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             exe: ".exe"
     env:
-      BINARY: rs-harness
+      BINARY: asp-rust
       EXE: ${{ matrix.exe }}
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
@@ -70,7 +70,7 @@ jobs:
 
       - name: Build release binary
         shell: bash
-        run: cargo build --release --features cli --bin "$BINARY"
+        run: cargo build --release --features provider-server --bin "$BINARY"
 
       - name: Package provider binary
         shell: bash

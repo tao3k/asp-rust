@@ -7,7 +7,7 @@ use crate::parser::{
     ParsedRustModule, RustReasoningOwnerDependencyFacts, RustReasoningTreeFacts, file_location,
     path_line_location, source_line,
 };
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use crate::rules::display_path;
 
@@ -21,8 +21,8 @@ const MIN_OWNER_FAN_OUT: usize = 3;
 pub(super) fn dependency_graph_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     module_by_path: &BTreeMap<PathBuf, &ParsedRustModule>,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
     findings.extend(owner_dependency_cycle_findings(
         reasoning_tree,
@@ -45,8 +45,8 @@ pub(super) fn dependency_graph_findings(
 fn owner_dependency_cycle_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     module_by_path: &BTreeMap<PathBuf, &ParsedRustModule>,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let dependencies = non_test_owner_dependencies(reasoning_tree);
     let proof_edges = dependencies
         .iter()
@@ -65,7 +65,7 @@ fn owner_dependency_cycle_findings(
             continue;
         };
         let rule = &rules[RUST_AGENT_POLICY_OWNER_DEPENDENCY_CYCLE_V1];
-        findings.push(RustHarnessFinding::from_rule(
+        findings.push(AspRustFinding::from_rule(
             rule,
             format!(
                 "Owner dependency cycle crosses {}.",
@@ -183,8 +183,8 @@ fn display_dependency_cycle(
 fn cross_owner_leaf_import_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     module_by_path: &BTreeMap<PathBuf, &ParsedRustModule>,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let owner_branch_namespaces = owner_branch_namespaces(reasoning_tree);
     let owner_branch_paths = owner_branch_paths(reasoning_tree);
     let rule = &rules[RUST_AGENT_POLICY_OWNER_LEAF_IMPORT_V1];
@@ -202,7 +202,7 @@ fn cross_owner_leaf_import_findings(
             if target_owner == dependency.source_namespace {
                 return None;
             }
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} imports leaf {} across owner boundary.",
@@ -220,8 +220,8 @@ fn cross_owner_leaf_import_findings(
 fn owner_fan_out_intent_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     module_by_path: &BTreeMap<PathBuf, &ParsedRustModule>,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let owner_branch_namespaces = owner_branch_namespaces(reasoning_tree);
     let mut dependencies_by_source = BTreeMap::<PathBuf, BTreeSet<Vec<String>>>::new();
     for dependency in reasoning_tree
@@ -256,7 +256,7 @@ fn owner_fan_out_intent_findings(
             if module.syntax_facts.has_module_doc {
                 return None;
             }
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} depends on {} owner branches without an intent doc.",

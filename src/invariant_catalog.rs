@@ -3,14 +3,14 @@
 use std::collections::BTreeMap;
 
 use crate::model::{
-    RustHarnessFinding, RustInvariantCandidate, RustInvariantCandidateStatus,
-    RustInvariantEvidence, RustInvariantEvidenceKind, RustInvariantId, RustInvariantKind,
-    RustInvariantReceiptKind, RustInvariantRulePackId, RustInvariantSourceRuleId,
+    AspRustFinding, RustInvariantCandidate, RustInvariantCandidateStatus, RustInvariantEvidence,
+    RustInvariantEvidenceKind, RustInvariantId, RustInvariantKind, RustInvariantReceiptKind,
+    RustInvariantRulePackId, RustInvariantSourceRuleId,
 };
 
 /// Derive machine-facing invariant candidates from configured findings.
 pub(crate) fn invariant_candidates_from_findings(
-    findings: &[RustHarnessFinding],
+    findings: &[AspRustFinding],
 ) -> Vec<RustInvariantCandidate> {
     findings
         .iter()
@@ -18,9 +18,7 @@ pub(crate) fn invariant_candidates_from_findings(
         .collect()
 }
 
-fn invariant_candidate_from_finding(
-    finding: &RustHarnessFinding,
-) -> Option<RustInvariantCandidate> {
+fn invariant_candidate_from_finding(finding: &AspRustFinding) -> Option<RustInvariantCandidate> {
     let spec = invariant_spec(&finding.rule_id)?;
     let mut evidence_fields = BTreeMap::new();
     evidence_fields.insert("requirement".to_owned(), finding.requirement.clone());
@@ -50,7 +48,7 @@ fn invariant_candidate_from_finding(
     })
 }
 
-fn invariant_id(finding: &RustHarnessFinding) -> String {
+fn invariant_id(finding: &AspRustFinding) -> String {
     let path = finding
         .location
         .path

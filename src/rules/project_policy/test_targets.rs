@@ -6,23 +6,20 @@ use std::path::Path;
 use crate::parser::{
     CargoManifestFacts, ParsedRustModule, RustTopLevelItemSyntax, path_line_location, source_line,
 };
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
-use super::config::{LayoutPolicy, is_allowed_test_suite_path};
+use super::config::is_allowed_test_suite_path;
 use super::support::display_project_path;
 use super::{RUST_PROJ_R006, RUST_PROJ_R007, RUST_PROJ_R008};
 
-const CARGO_TEST_GATE_MACROS: &[&str] = &[
-    "rust_project_harness_gate",
-    "rust_project_harness_cargo_test_gate",
-];
+const CARGO_TEST_GATE_MACROS: &[&str] = &["asp_rust_gate", "asp_rust_cargo_test_gate"];
 
 pub(super) fn retired_test_target_gate_findings(
     project_root: &Path,
     cargo_manifest: &CargoManifestFacts,
     cargo_test_targets: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if !cargo_manifest.references_harness {
         return Vec::new();
     }
@@ -39,7 +36,7 @@ pub(super) fn retired_test_target_gate_findings(
                     CARGO_TEST_GATE_MACROS.contains(&invocation.terminal_name.as_str())
                 })
                 .map(|invocation| {
-                    RustHarnessFinding::from_rule(
+                    AspRustFinding::from_rule(
                         rule,
                         format!(
                             "{} mounts a retired cargo-test harness gate.",
@@ -47,7 +44,7 @@ pub(super) fn retired_test_target_gate_findings(
                         ),
                         path_line_location(&parsed.report.path, invocation.line),
                         source_line(&parsed.source, invocation.line),
-                        "move parser-native harness policy to [build-dependencies] plus root build.rs using assert_rust_project_harness_cargo_check_clean_from_env_with_config(...), then keep this test target as a thin suite aggregate",
+                        "move parser-native harness policy to [build-dependencies] plus root build.rs using assert_asp_rust_cargo_check_clean_from_env_with_config(...), then keep this test target as a thin suite aggregate",
                     )
                 })
                 .collect::<Vec<_>>()
@@ -58,18 +55,21 @@ pub(super) fn retired_test_target_gate_findings(
 pub(super) fn test_target_aggregate_findings(
     project_root: &Path,
     cargo_test_targets: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
     let rule = &rules[RUST_PROJ_R007];
     for parsed in cargo_test_targets {
+        if is_explicit_suite_leaf_target(project_root, &parsed.report.path) {
+            continue;
+        }
         for item in parsed
             .syntax_facts
             .top_level_items
             .iter()
             .filter(|item| !is_test_target_aggregate_item_syntax(item))
         {
-            findings.push(RustHarnessFinding::from_rule(
+            findings.push(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} contains top-level implementation item `{}`.",
@@ -88,12 +88,14 @@ pub(super) fn test_target_aggregate_findings(
 pub(super) fn test_target_module_mount_findings(
     project_root: &Path,
     cargo_test_targets: &[ParsedRustModule],
-    policy: &LayoutPolicy,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
     let rule = &rules[RUST_PROJ_R008];
     for parsed in cargo_test_targets {
+        if is_explicit_suite_leaf_target(project_root, &parsed.report.path) {
+            continue;
+        }
         for item_mod in parsed
             .syntax_facts
             .top_level_items
@@ -102,7 +104,7 @@ pub(super) fn test_target_module_mount_findings(
             .filter(|item_mod| !item_mod.is_inline)
         {
             let Some(path_value) = item_mod.path_attr.as_deref() else {
-                findings.push(RustHarnessFinding::from_rule(
+                findings.push(AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} declares root module `{}` without an explicit #[path].",
@@ -118,13 +120,13 @@ pub(super) fn test_target_module_mount_findings(
             let Some(resolved) = item_mod.resolved_path_attr.as_ref() else {
                 continue;
             };
-            let allowed = is_allowed_resolved_test_suite_path(project_root, resolved, policy)
+            let allowed = is_allowed_resolved_test_suite_path(project_root, resolved)
                 || parsed.report.path.parent().is_some_and(|parent| {
                     let candidate = parent.join(path_value);
-                    is_allowed_resolved_test_suite_path(project_root, &candidate, policy)
+                    is_allowed_resolved_test_suite_path(project_root, &candidate)
                 });
             if !allowed {
-                findings.push(RustHarnessFinding::from_rule(
+                findings.push(AspRustFinding::from_rule(
                     rule,
                     format!(
                         "{} mounts `{path_value}`, but root test modules must resolve under an allowed tests suite directory.",
@@ -132,7 +134,7 @@ pub(super) fn test_target_module_mount_findings(
                     ),
                     path_line_location(&parsed.report.path, item_mod.line),
                     source_line(&parsed.source, item_mod.line),
-                    "point this root test module at tests/unit, tests/integration, or a documented suite",
+                    "point this root test module at tests/unit, tests/integration, or another standard suite",
                 ));
             }
         }
@@ -140,15 +142,16 @@ pub(super) fn test_target_module_mount_findings(
     findings
 }
 
+fn is_explicit_suite_leaf_target(project_root: &Path, candidate: &Path) -> bool {
+    let project_relative = candidate.strip_prefix(project_root).unwrap_or(candidate);
+    is_allowed_test_suite_path(project_root, project_relative)
+}
+
 fn is_test_target_aggregate_item_syntax(item: &RustTopLevelItemSyntax) -> bool {
     item.is_macro || item.is_use || item.module.as_ref().is_some_and(|module| !module.is_inline)
 }
 
-fn is_allowed_resolved_test_suite_path(
-    project_root: &Path,
-    candidate: &Path,
-    policy: &LayoutPolicy,
-) -> bool {
+fn is_allowed_resolved_test_suite_path(project_root: &Path, candidate: &Path) -> bool {
     let project_relative = candidate.strip_prefix(project_root).unwrap_or(candidate);
-    candidate.exists() && is_allowed_test_suite_path(project_root, project_relative, policy)
+    candidate.exists() && is_allowed_test_suite_path(project_root, project_relative)
 }

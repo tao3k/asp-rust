@@ -1,0 +1,523 @@
+{
+  "languageId": "rust",
+  "profileDigest": "blake3-256:e0250dbec5b77d25e51ee0d8473ab4163daddc5ce7eb6895fb43dcbe6fba0d34",
+  "bundleDigest": "blake3-256:094d541dd1ae28322ce7299cb2375edf12392c30aa12a280a57787069fd02fba",
+  "schemas": [
+    {
+      "name": "asp-client-cancellation-probe-request.schema.json",
+      "digest": "blake3-256:b34c40da202136d5377f5584f095319a7d4877837cb7c57275bd8a1ab177bf92"
+    },
+    {
+      "name": "asp-client-cancellation-probe-response.schema.json",
+      "digest": "blake3-256:ea85dd8bba3d5049893fb029e227c9837a55804274879e70f8c3c4ebeaac95d7"
+    },
+    {
+      "name": "asp-client-conformance.schema.json",
+      "digest": "blake3-256:bc12a1065c633e47a848f42a89975206c0538e5b66b0b54085468481b44145c9"
+    },
+    {
+      "name": "asp-client-dispatch-failure.schema.json",
+      "digest": "blake3-256:7fcefb16f740f471c32e91f233a82760b8e3aaf57b0dafcee08f11c3fa457f36"
+    },
+    {
+      "name": "asp-client-exact-query-failure.schema.json",
+      "digest": "blake3-256:0a59369cdd4dd4a305f60fd073733acddabd0593c475817f93064ba54e065cf7"
+    },
+    {
+      "name": "asp-client-exact-query-request.schema.json",
+      "digest": "blake3-256:95e9b4cf48223f31bbe86a816890e4689070790288b300799290d7041adaa7ba"
+    },
+    {
+      "name": "asp-client-exact-query-response.schema.json",
+      "digest": "blake3-256:95e3897fce365809610d2ee3eea636cb2d21d56037721dd81fd8e1e96cc257ef"
+    },
+    {
+      "name": "asp-client-frame.schema.json",
+      "digest": "blake3-256:67df97458bb86ef192bfe03f6200860fa2c1b952199a92881a9d474acc04666b"
+    },
+    {
+      "name": "asp-client-graphs-timeline-request.v1.schema.json",
+      "digest": "blake3-256:dc856c6a65c352081670053d6347d7632d71cc7f90e9248b2553833f30b178df"
+    },
+    {
+      "name": "asp-client-protocol-catalog.schema.json",
+      "digest": "blake3-256:e3b6411bd9e583608a41d01852b052ba1438948f485e4ec08750c7d6d454c64a"
+    },
+    {
+      "name": "asp-client-query-readiness-failure.schema.json",
+      "digest": "blake3-256:451736da76395cdb07ffc14523323657db1be90f22bd4e776282f47bc3e32fb3"
+    },
+    {
+      "name": "asp-client-schema-bundle-request.schema.json",
+      "digest": "blake3-256:b04fed590c0e023686f28cd77c045726c851abd960b5aa1f9734f45a4daacf1c"
+    },
+    {
+      "name": "asp-client-schema-bundle-response.schema.json",
+      "digest": "blake3-256:9e42923bf92de5b10b74ec2412b1d855f46219e2153e14a4cf7560a5598675a4"
+    },
+    {
+      "name": "asp-client-server-descriptor.schema.json",
+      "digest": "blake3-256:d4e432eacba544a5eb504c1e6d1161d9599a14cfb85d62d2d5da0e1d47f6cdde"
+    },
+    {
+      "name": "asp-client-source-index-lookup-request.schema.json",
+      "digest": "blake3-256:2c4e52f1a8d8d39b8a42903ccd662c966166e28a20f9f7645b7a6d6d622a67c0"
+    },
+    {
+      "name": "asp-client-work-counters.schema.json",
+      "digest": "blake3-256:aba81ca4e8f518bb515cb7b014b5c535cab3d1634dfd9ae6ccdf24d553ba3133"
+    },
+    {
+      "name": "asp-client-workspace-generation-ensure-ready-request.schema.json",
+      "digest": "blake3-256:9f7c9a437713874b8ea5c4e701f61adf355f26bbc35ddd5a59a2d6889d1f2bd0"
+    },
+    {
+      "name": "asp-client-workspace-query-playbook-request.v1.schema.json",
+      "digest": "blake3-256:bc7510bad29790b74a91ec1070451c311909f5e154e2980d25a337171f649332"
+    },
+    {
+      "name": "asp-client-workspace-search-playbook-request.v1.schema.json",
+      "digest": "blake3-256:f32ea2abb85995ed2e2b5cbc9182de75b6e6b59228851184d80407d7fca4fa06"
+    },
+    {
+      "name": "asp-client-workspace-source-mutation.schema.json",
+      "digest": "blake3-256:74b0baf814e96b3f2f47eefcc537ae53c5ac740315cdbc8c4f1079dcc2f484a8"
+    },
+    {
+      "name": "asp-client-workspace-syntax-plan-context-request.v1.schema.json",
+      "digest": "blake3-256:5de15bb202116b438456fce1077baf739360c3a01791f9e6f6c97a6f7efed961"
+    },
+    {
+      "name": "asp-client-workspace-syntax-plan-context-response.v1.schema.json",
+      "digest": "blake3-256:ef83ac19ddf8dc9dbd874272e9de12bd861ca82bface838fab5d8d9a28fa5517"
+    },
+    {
+      "name": "asp-client-workspace-syntax-query-request.v1.schema.json",
+      "digest": "blake3-256:f37f7e4f5ba66e48d3b0f6d2b7b6bd8770e4164b290f90f2b05a9da21be5f2c4"
+    },
+    {
+      "name": "asp-client-workspace-syntax-query-response.v1.schema.json",
+      "digest": "blake3-256:ea0a59d79d102ff37d34583d2075962fad175dd93c64eee582843863d38c5b16"
+    },
+    {
+      "name": "asp-python-graphs-session.v1.schema.json",
+      "digest": "blake3-256:74ced1d824c781b78062fd9f1f4ef4d3859adf07bb22a7cecb0e1011a99bbe7e"
+    },
+    {
+      "name": "callable-skeleton.schema.json",
+      "digest": "blake3-256:094f5d077b8aeaf1be0d835246a8bf1f6c6ff26e2238e6d9147236daaa22e9bd"
+    },
+    {
+      "name": "canonical-item-selector.v1.schema.json",
+      "digest": "blake3-256:97540b46b0f4fb0b450771d010b9e0000a1366fb0fb1cb7bab209b081c095c68"
+    },
+    {
+      "name": "canonical-language-item-identity.schema.json",
+      "digest": "blake3-256:29932815327cfba4424cc6443f04a9b3586c6ab8ce1f64d76904e9e80fc970e4"
+    },
+    {
+      "name": "content-binding.schema.json",
+      "digest": "blake3-256:d994d67092a39eb4c7cec8df470839372d06c815f9068c7e685336ad251a0b1a"
+    },
+    {
+      "name": "content-publication-commit.v1.schema.json",
+      "digest": "blake3-256:afac75ce2bece1c60ffb9435a5c107c9687088459988dc7c3e79fd78c38aacfe"
+    },
+    {
+      "name": "enhanced-tree-sitter-query-capability-table.v1.schema.json",
+      "digest": "blake3-256:14089324f44d5f9725cad72280575cc753c03892eff81e790ece6f9a4e4a4f6d"
+    },
+    {
+      "name": "enhanced-tree-sitter-query-operator-table.v1.schema.json",
+      "digest": "blake3-256:eef530969846082023b91405104663a9a28fe56ce449ee1368f6916c10c5e2a7"
+    },
+    {
+      "name": "exact-definitions.v1.schema.json",
+      "digest": "blake3-256:f2a9d369c221ad07ec3376150fec180c617d40318d4b0d49def6e68b0c5d00f1"
+    },
+    {
+      "name": "exact-structural-selector.v1.schema.json",
+      "digest": "blake3-256:3def98370fcc3d4a3c7958b5b31e32398d8b5d4aa33d2831a95026078603f8f9"
+    },
+    {
+      "name": "grpc-warm-latency-receipt.schema.json",
+      "digest": "blake3-256:b05cb70a17c9169e81fef1491fb6e6c972e9bab8843131af5637d52405424297"
+    },
+    {
+      "name": "host-workspace-initialization-binding.v1.schema.json",
+      "digest": "blake3-256:bd2fd298d4b3f8e469986a092aa40653a3bbfc59c4f51810c1829f4f6dd146a0"
+    },
+    {
+      "name": "language-package-graph.schema.json",
+      "digest": "blake3-256:4c2a985b14d27fb574e989452f031c545df08312d7e656044743af851550fafd"
+    },
+    {
+      "name": "language-schema-bundle-receipt.schema.json",
+      "digest": "blake3-256:11f17ec46eb769fc3d650236af1fc19ba02486bce478b57d2fdd62a0cab3512d"
+    },
+    {
+      "name": "large-search-playbook-performance-receipt.v1.schema.json",
+      "digest": "blake3-256:fc1ad6a88802f416a49e73c6b020a237f0bae61a5b3f385e82981c31956796c0"
+    },
+    {
+      "name": "lexical-postings-work-reduction-receipt.schema.json",
+      "digest": "blake3-256:416d3bbbd584a7268632aa9852eae189501f923bd39c5af9ed5469d001c9fff5"
+    },
+    {
+      "name": "project-resolution.schema.json",
+      "digest": "blake3-256:bfa2f1966d9d05e0f0c05cdb635112513498dedb076edf760f0504db60a358bb"
+    },
+    {
+      "name": "project-topology-inference-receipt.v1.schema.json",
+      "digest": "blake3-256:a55c11817cde68db3a30092f06467ae49ff43508ccd155d15432df5d57cb52bb"
+    },
+    {
+      "name": "project-topology-library.v1.schema.json",
+      "digest": "blake3-256:bb4d6d756d488b210d2ab104c60db812616bf100c150864c4531256052a4830c"
+    },
+    {
+      "name": "project-workspace-binding.v1.schema.json",
+      "digest": "blake3-256:85a1cfdff5e432e593bb346ae447116a4bf11e5e49be10530ff1362e81603061"
+    },
+    {
+      "name": "provider-definitions.v1.schema.json",
+      "digest": "blake3-256:0ff66bd35a2c1561424f0aa2b95df689cfcb6513059ea5d06245f7efb38c45ce"
+    },
+    {
+      "name": "provider-document-resolution-descriptor.v1.schema.json",
+      "digest": "blake3-256:b8ac27d78e7450932817b7018f4c2b98130d64e8fb5f9425c48df39cd6d0c5b5"
+    },
+    {
+      "name": "provider-language-projection-batch-request.schema.json",
+      "digest": "blake3-256:9352612e33943a7953a327dcf691797cf4f177ffabe7c920d975f34b5d4f9722"
+    },
+    {
+      "name": "provider-language-projection-batch-response.schema.json",
+      "digest": "blake3-256:1fb2e8d535c278bb46e09f391b6b1812d1242491089a6abf49603783b8c6d122"
+    },
+    {
+      "name": "provider-manifest.schema.json",
+      "digest": "blake3-256:5beb3ddeeac806d3dc69285b36b77b2cdf262be154d1c9f11fa8db780907c0f9"
+    },
+    {
+      "name": "provider-method-argument-projection.v1.schema.json",
+      "digest": "blake3-256:4f6716b4dda5710f523cd06292a33dd91b9b6b171c022cd9ff04f3796d3765ed"
+    },
+    {
+      "name": "provider-native-exact-request.v1.schema.json",
+      "digest": "blake3-256:57125f2235a6a8350d7f73d8bc2b5c7a89a8a793b9f9653201a7138c49b598c8"
+    },
+    {
+      "name": "provider-native-exact-response.v1.schema.json",
+      "digest": "blake3-256:81a3c3149a15bdd3171e780e2786f7eac2be280345d50254cb620c6ef39aa25e"
+    },
+    {
+      "name": "provider-project-resolution-descriptor.schema.json",
+      "digest": "blake3-256:1bd422dbb2b0c8d561aff3df34f6ac0361c0725279bd64c55e63b17a15036e53"
+    },
+    {
+      "name": "provider-project-resolution-request.schema.json",
+      "digest": "blake3-256:d72002bef3a99e162e3f338a38933250666f058450c68d29708086716ad513a8"
+    },
+    {
+      "name": "provider-project-resolution-response.schema.json",
+      "digest": "blake3-256:bc489fdb7a8bf86c8460acb50a436f7a2c6233afa4cb1bd97d7acdf16d5b208c"
+    },
+    {
+      "name": "provider-query-pack-descriptor.schema.json",
+      "digest": "blake3-256:78b4ad05a5b20488f4104bf598f6dfa5edfdf1d33eb10cf4f33a2d3307b519aa"
+    },
+    {
+      "name": "provider-registration.schema.json",
+      "digest": "blake3-256:c21cf1d2d5b5403255f38a789e0d942b6817acf7b19f2b98363be15453de6ae7"
+    },
+    {
+      "name": "provider-route.schema.json",
+      "digest": "blake3-256:350834ac053462f48b68d7fa66aabfe01a507b83dbe6fb5547b378fa5a5180c2"
+    },
+    {
+      "name": "provider-runtime-contract-descriptor.schema.json",
+      "digest": "blake3-256:ab45c308f484d03a7c3f5106976a8621ced27c4cd5867542b27b85d1b9240bcb"
+    },
+    {
+      "name": "provider-runtime-request-stream-ack.schema.json",
+      "digest": "blake3-256:5082d2dbfb7fb05e23c18aaf15534a3f61ba4ed1579cc9704793f02c6e47b3aa"
+    },
+    {
+      "name": "provider-runtime-request-stream-frame.schema.json",
+      "digest": "blake3-256:958c8f4bbabfa06b7600be3067e9feb7c5257a97597bf8221a1f424302ba2336"
+    },
+    {
+      "name": "provider-syntax-query-request.schema.json",
+      "digest": "blake3-256:703ae2fb298878c363a50721efaf8a575f03c1f4d4b96881da7be9017b1722fd"
+    },
+    {
+      "name": "provider-syntax-query-response.schema.json",
+      "digest": "blake3-256:2405405f11c1c8a391541e30328f812e66dc1ab9b239fe558490aa7ddb28c760"
+    },
+    {
+      "name": "provider-workspace-install.schema.json",
+      "digest": "blake3-256:a607ae5a7ea24b889a6bac9ee4624c03def801da7932b8c9818de176a66f856f"
+    },
+    {
+      "name": "python-generation-graph-performance-receipt.v1.schema.json",
+      "digest": "blake3-256:a643303b31fadc141b265c8e073b24ad69c7edd95a773bd044ac4ab5c18e8135"
+    },
+    {
+      "name": "query-playbook-materialization-receipt.v1.schema.json",
+      "digest": "blake3-256:05d6793b11c3b2643bf394b8773c1b9131aa17cf9ddcc588f3f592542553d83c"
+    },
+    {
+      "name": "query-playbook-materialization-request.v1.schema.json",
+      "digest": "blake3-256:080aa7a4443f7f694d38da9cd26dee1cc86f75618159c3f91f799e28591ef6d3"
+    },
+    {
+      "name": "resident-search-result.v1.schema.json",
+      "digest": "blake3-256:f725fd1b7a004f28e7e579e6b6b76626880931ff9663bbd1de42519d66afbe78"
+    },
+    {
+      "name": "resident-syntax-query-plan.v1.schema.json",
+      "digest": "blake3-256:b106844f168b1d0d7226050294b83395a3c4819d9496c289e3d8e24f0bb5613c"
+    },
+    {
+      "name": "resolved-source-scope.v1.schema.json",
+      "digest": "blake3-256:0dcc57d7b2f8ffc931901231a72c61f4dca1b22d8eb7ffeccb544e3aad9c5b01"
+    },
+    {
+      "name": "rg-coverage-receipt.schema.json",
+      "digest": "blake3-256:9faa9e8e584171ff85907fbe6715fab6408e77c505e97cd484a286c17f2aa836"
+    },
+    {
+      "name": "runtime-artifact-bundle-binding.v2.schema.json",
+      "digest": "blake3-256:33502b4f75b3213cba8f24ba74d460525838b9627542c7fec9bdb28e35d1cbce"
+    },
+    {
+      "name": "runtime-artifact-execution-closure-member.v1.schema.json",
+      "digest": "blake3-256:8d18d295e3e6651d665a01efc2e53e8b434261927579259d2faf48074f0d8077"
+    },
+    {
+      "name": "runtime-binary-bundle.v2.schema.json",
+      "digest": "blake3-256:70ad1c9d87f4841788ba348fba007f8e12152bb74aa34a00f3e52c1a016eab91"
+    },
+    {
+      "name": "runtime-client-terminal.schema.json",
+      "digest": "blake3-256:bdf3e6b1bd11b201cc7802a364d678ad7a99a74cc40df2be90f76e2f6e050e70"
+    },
+    {
+      "name": "runtime-execution-binding.v2.schema.json",
+      "digest": "blake3-256:86f2829a05451dd84d180a6dab2cf621a14bd7e0c1ffcb3552ab9b7e61f6feb6"
+    },
+    {
+      "name": "runtime-provider-search-receipt.v1.schema.json",
+      "digest": "blake3-256:2e439b2ee83198710238aed803c9c37cd2cb06bc7a5e2c010486cdaa605df691"
+    },
+    {
+      "name": "runtime-resident-request-plane-receipt.v1.schema.json",
+      "digest": "blake3-256:57b822406c38a630efba30c231d09ced69d5a0f1cda34fd688a5a042816eb8da"
+    },
+    {
+      "name": "runtime-search-client-timing-witness.v1.schema.json",
+      "digest": "blake3-256:076543ae9ba44348c9867a5454f043aeb36211742a6c299f57f33543cc071881"
+    },
+    {
+      "name": "runtime-search-execution-budget.v1.schema.json",
+      "digest": "blake3-256:e7af7abd057b887c63490bcb143e6be322ed8e10ce244fa93e9cb043ed1107a7"
+    },
+    {
+      "name": "runtime-workspace-execution-pointer.v1.schema.json",
+      "digest": "blake3-256:858db6ddc09da3fc1b71e45aa7cea58680bee44bfd78b0fa4c36bfb9b56b9276"
+    },
+    {
+      "name": "runtime-workspace-execution-publication.v1.schema.json",
+      "digest": "blake3-256:889e816172637c38d87e8e0fdd8d186d0a1562149823774638f0128189d2f5d5"
+    },
+    {
+      "name": "search-generation-change-set.v1.schema.json",
+      "digest": "blake3-256:2c367cda53c1d03672c268fe2576fff2d11b7cd349992bc0f2c96bea206a2d80"
+    },
+    {
+      "name": "search-topology-settlement.v1.schema.json",
+      "digest": "blake3-256:0417bbaeaf787da8ab63931270b8d99d3dcfc0db64418bd4ca26b4170cd867ba"
+    },
+    {
+      "name": "semantic-assurance-definitions.v1.schema.json",
+      "digest": "blake3-256:b8afa21d876917b25887799e41a7710f8dd1cbf22be26c515a91d5b97c91497e"
+    },
+    {
+      "name": "semantic-ast-patch-definitions.v1.schema.json",
+      "digest": "blake3-256:5d462a785c510104a7f5ca25cfe2849453452798362cc23863164ab35cfab43e"
+    },
+    {
+      "name": "semantic-ast-patch-receipt.v1.schema.json",
+      "digest": "blake3-256:234ddf5df9c58b68c7d4fdbd58e4815aeaf54018c13c6d352466568a73e6641d"
+    },
+    {
+      "name": "semantic-ast-patch.v1.schema.json",
+      "digest": "blake3-256:d8fc49ecf5b6bc85b735cc22b7b15610eb00ab8a9e72b432bb0bb84349249701"
+    },
+    {
+      "name": "semantic-behavior-snapshot.v1.schema.json",
+      "digest": "blake3-256:84354e29c9b8e7854df3361d29e65e7d914ac202bdc1a99d1e2a8072b7588dc2"
+    },
+    {
+      "name": "semantic-codeql-evidence.v1.schema.json",
+      "digest": "blake3-256:33713f45901c55bf13286646c87135918f95e1534d522aaaa42d8e2fb3cf4cfc"
+    },
+    {
+      "name": "semantic-compare-packet.v1.schema.json",
+      "digest": "blake3-256:8fe88875690128280ecf6a451bf0be17c10d439ab433c594910f32c0bca5edbb"
+    },
+    {
+      "name": "semantic-content-compaction.v1.schema.json",
+      "digest": "blake3-256:8567552403687cfb06c97604862d754dcf044e168bbd9d66348a22fdce336ca0"
+    },
+    {
+      "name": "semantic-definitions.v1.schema.json",
+      "digest": "blake3-256:6567efcdc71e72f1bb66c536dc746d5240c3e4566b098f5f7c1ef8e6a01291b2"
+    },
+    {
+      "name": "semantic-dependency-topology.v1.schema.json",
+      "digest": "blake3-256:b52c183a98032ea7634a956c50d1b9d3bf5ce5033635949a85d136a3feda6c05"
+    },
+    {
+      "name": "semantic-determinism-readiness.v1.schema.json",
+      "digest": "blake3-256:775296e77bde56263c8568006fdec741292d441b855a1ede63c76624863d418d"
+    },
+    {
+      "name": "semantic-dev-command-log.v1.schema.json",
+      "digest": "blake3-256:d42cd166c1e47a2769584f86efde7f89cab0bd24174a805552b623d39a23e6ee"
+    },
+    {
+      "name": "semantic-exact-selector-receipt.v1.schema.json",
+      "digest": "blake3-256:eabd5d76ef05a8ed48745ce6efe896a91224649fff64f469cb4b221f4e764cb9"
+    },
+    {
+      "name": "semantic-fact-definitions.v1.schema.json",
+      "digest": "blake3-256:f49dbf083d84d1a44c8dcea72b8ed6160a36532380ce966da5110c24e44e30a5"
+    },
+    {
+      "name": "semantic-fact-graph.v1.schema.json",
+      "digest": "blake3-256:5cb49f85016a9250b4926a9d2e685974aca681b1374b2890b0bad7720baf9dcb"
+    },
+    {
+      "name": "semantic-fact-ontology.v1.schema.json",
+      "digest": "blake3-256:90481a76d65c4e088c221dca528a9c69e4b1f1bdcb4de9aa32dedb54f4adc017"
+    },
+    {
+      "name": "semantic-flow-lite.v1.schema.json",
+      "digest": "blake3-256:2362a5be3afd923fe7eb9109214529b692c66c0ee97268a4c4f1866a9b407c41"
+    },
+    {
+      "name": "semantic-formal-proof-pilot.v1.schema.json",
+      "digest": "blake3-256:f3d04cc56caa24b4a48f524810ccafe3e77838c96d600d78776108e3373202db"
+    },
+    {
+      "name": "semantic-graph-resident-evaluation-request.v1.schema.json",
+      "digest": "blake3-256:3147c5f98f8e0af8a461c74fba6d0114dab0f173fae6e2df4a43bee8e8cd1839"
+    },
+    {
+      "name": "semantic-graph-resident-evaluation-result.v1.schema.json",
+      "digest": "blake3-256:0b4c0b2ff31409e0e61745f2db72b20a7a786370efa304cb7c31cacc0059e3d4"
+    },
+    {
+      "name": "semantic-graph-turbo-artifact-events.v1.schema.json",
+      "digest": "blake3-256:2be62f0ff356bbeeb0eeca549018c47709c3e8cbb34c528066579c3ab397ab88"
+    },
+    {
+      "name": "semantic-graph-turbo-definitions.v1.schema.json",
+      "digest": "blake3-256:75fd86c5e08a03949ab0f82bae5a3c91439494c8ffdc7543f5e02aca49b26fd5"
+    },
+    {
+      "name": "semantic-graph-turbo-request.v1.schema.json",
+      "digest": "blake3-256:4d684bf1ffe87d634cc04fd8006c4b2cab4facad7fc4830df460efbbd3aeb8ba"
+    },
+    {
+      "name": "semantic-graph.v1.schema.json",
+      "digest": "blake3-256:294ada02587507054162c766fc932eae693c99337c869661c4627adcb2ff43c1"
+    },
+    {
+      "name": "semantic-handle.v1.schema.json",
+      "digest": "blake3-256:ebdeb44c571eac4a69a4bfb7f5871e9f0c0063819aac8967eb0c25849eaf7d08"
+    },
+    {
+      "name": "semantic-invariant-candidate.v1.schema.json",
+      "digest": "blake3-256:dfbbb5dde44825022063dbc5435434d19b684f8a5e4c4f374a5ff035a1e29b43"
+    },
+    {
+      "name": "semantic-language-projection.v1.schema.json",
+      "digest": "blake3-256:e1e62111d74a6fe408130e1de0d3a8c2d7a16bfff2ff7e16eb842742cb5ffac5"
+    },
+    {
+      "name": "semantic-language-registry.v1.schema.json",
+      "digest": "blake3-256:a76fc564023e63cab6b81131e96d9472788fee6c5a8f2dadd553e56df0c8be29"
+    },
+    {
+      "name": "semantic-native-syntax-fact-index.v1.schema.json",
+      "digest": "blake3-256:0f7f98c4281e7fb025b9aaf4f643f915aa5cc6f4cbbe093c66c5d9c89d0fe030"
+    },
+    {
+      "name": "semantic-owner-item-evidence.v1.schema.json",
+      "digest": "blake3-256:5b68dd2fbb5042beb19874401a94b4371fbdacd3b1f239e8193c604c23ec580e"
+    },
+    {
+      "name": "semantic-query-packet.v1.schema.json",
+      "digest": "blake3-256:fb181854af59044d1c25819087924118df835af466b6a869ccf36a2ccc46ed27"
+    },
+    {
+      "name": "semantic-read-packet.v1.schema.json",
+      "digest": "blake3-256:c6141d808a7ce236cb25506fc122aedfae69379b856846ceb3b6ec3a4de19058"
+    },
+    {
+      "name": "semantic-relation-plan.v1.schema.json",
+      "digest": "blake3-256:fa0ca667f89e068257fd82ca1e28d5d9c988b6a907c9d7c7a13eba922031c1ff"
+    },
+    {
+      "name": "semantic-review-packet.v1.schema.json",
+      "digest": "blake3-256:5114705b02088801a5ca0e446c749dc0b515f8990fcc3e3a2284b9a6656defbd"
+    },
+    {
+      "name": "semantic-search-definitions.v1.schema.json",
+      "digest": "blake3-256:e9766a7280a5fe3960ab4c478b20a82c1d8bb06a9ea52b0eededc69a33495159"
+    },
+    {
+      "name": "semantic-search-storage-route.v1.schema.json",
+      "digest": "blake3-256:cd1011b2097bfdc9b9f0a878ebadac50a7d227405ee637358a64d76763783fa0"
+    },
+    {
+      "name": "semantic-source-location.v1.schema.json",
+      "digest": "blake3-256:a447fe4cfca0853f84c64496455b49fb8315e0abcaf841df0caecc47120a56d3"
+    },
+    {
+      "name": "semantic-structural-index.v1.schema.json",
+      "digest": "blake3-256:9101c64b8621b7a748a47d86adcef03eedf1e786e3f3ddf47273343d545048a7"
+    },
+    {
+      "name": "semantic-tree-sitter-grammar-profile.v1.schema.json",
+      "digest": "blake3-256:822c1ad9b0221b319a1a53e439591bdd0035462be3b34aa51f95db4d0c6dd47e"
+    },
+    {
+      "name": "semantic-tree-sitter-provenance.v1.schema.json",
+      "digest": "blake3-256:bae387d2ac500d1752bbfe01ebd33a49bd577fcd25b140837a4e633d21ca8a67"
+    },
+    {
+      "name": "semantic-tree-sitter-query.v1.schema.json",
+      "digest": "blake3-256:5dd9530db1fcb34a89e4c33086128dc1df62879529126fae8dac242a1ef298b5"
+    },
+    {
+      "name": "semantic-type-surface.v1.schema.json",
+      "digest": "blake3-256:c266f095fa652b0ebc442cca930baed8fed2113f003c9980489d1183de91f8df"
+    },
+    {
+      "name": "semantic-verification-receipt.v1.schema.json",
+      "digest": "blake3-256:4cc1c1dab5c0c4f3e544817e6dc05f66a86304fe315bd711e0d3feca45d4d41c"
+    },
+    {
+      "name": "software-criterion-catalog.v1.schema.json",
+      "digest": "blake3-256:a9bcc4f2cd83ff3f26f7a8bc31e7f3032f8dc5679649ace6c6aec913345bc478"
+    },
+    {
+      "name": "source-snapshot-evidence.v1.schema.json",
+      "digest": "blake3-256:b22f980c1c70e1927670be25e8d86c4d3b78538e81e6aad28b608ca9707f99cb"
+    }
+  ]
+}

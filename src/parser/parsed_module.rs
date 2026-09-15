@@ -38,6 +38,10 @@ pub(crate) fn parse_rust_file(path: &Path) -> ParsedRustModule {
             };
         }
     };
+    parse_rust_source(path, source)
+}
+
+pub(crate) fn parse_rust_source(path: &Path, source: String) -> ParsedRustModule {
     let source_metrics = super::source_metrics::rust_source_metrics(&source);
     match parse_rust_source_syntax(&source) {
         Ok(syntax) => {

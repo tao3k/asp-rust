@@ -1,15 +1,15 @@
 //! Default rule-pack execution.
 
 use crate::parser::ParsedRustModule;
-use crate::{RustHarnessConfig, RustHarnessFinding, RustProjectHarnessScope};
+use crate::{AspRustConfig, AspRustFinding, AspRustScope};
 
 use super::{agent_policy, modularity, project_policy, syntax};
 
 pub(crate) fn evaluate_default_rule_packs_with_config(
-    scope: Option<&RustProjectHarnessScope>,
+    scope: Option<&AspRustScope>,
     modules: &[ParsedRustModule],
-    config: &RustHarnessConfig,
-) -> Vec<RustHarnessFinding> {
+    config: &AspRustConfig,
+) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
     findings.extend(syntax::evaluate(modules));
     findings.extend(project_policy::evaluate(scope, modules, config));
@@ -20,9 +20,9 @@ pub(crate) fn evaluate_default_rule_packs_with_config(
 
 pub(crate) fn evaluate_workspace_rule_packs_with_config(
     workspace_root: &std::path::Path,
-    package_scopes: &[RustProjectHarnessScope],
-    config: &RustHarnessConfig,
-) -> Vec<RustHarnessFinding> {
+    package_scopes: &[AspRustScope],
+    config: &AspRustConfig,
+) -> Vec<AspRustFinding> {
     apply_policy_config(
         super::project_policy::evaluate_workspace(workspace_root, package_scopes, config),
         config,
@@ -30,9 +30,9 @@ pub(crate) fn evaluate_workspace_rule_packs_with_config(
 }
 
 fn apply_policy_config(
-    findings: Vec<RustHarnessFinding>,
-    config: &RustHarnessConfig,
-) -> Vec<RustHarnessFinding> {
+    findings: Vec<AspRustFinding>,
+    config: &AspRustConfig,
+) -> Vec<AspRustFinding> {
     findings
         .into_iter()
         .filter_map(|mut finding| {

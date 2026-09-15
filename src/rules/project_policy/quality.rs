@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::parser::{ParsedRustModule, file_location, path_line_location, source_line};
-use crate::{RustHarnessConfig, RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustConfig, AspRustFinding, AspRustRule};
 
 use super::support::display_project_path;
 use super::{
@@ -13,10 +13,10 @@ use super::{
 
 pub(super) fn quality_findings(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
     findings.extend(weak_advice_explanation_findings(
         project_root,
@@ -53,9 +53,9 @@ pub(super) fn quality_findings(
 
 fn weak_advice_explanation_findings(
     project_root: &Path,
-    config: &RustHarnessConfig,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    config: &AspRustConfig,
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     [
         (
             "agent_advice_allow_explanation",
@@ -77,7 +77,7 @@ fn weak_advice_explanation_findings(
             return None;
         }
         let rule = &rules[RUST_PROJ_R017];
-        Some(RustHarnessFinding::from_rule(
+        Some(AspRustFinding::from_rule(
             rule,
             format!(
                 "{field_name} is configured without a structured allowance contract."
@@ -106,8 +106,8 @@ fn advice_explanation_is_structured(explanation: &str) -> bool {
 fn fake_identity_fallback_findings(
     project_root: &Path,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_PROJ_R018];
     modules
         .iter()
@@ -118,7 +118,7 @@ fn fake_identity_fallback_findings(
                 .lines()
                 .position(line_has_fake_identity_fallback)?;
             let line = line + 1;
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} synthesizes a fake Cargo package identity fallback.",
@@ -148,8 +148,8 @@ fn line_has_fake_identity_fallback(line: &str) -> bool {
 fn redundant_workspace_wrapper_findings(
     project_root: &Path,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_PROJ_R019];
     modules
         .iter()
@@ -166,7 +166,7 @@ fn redundant_workspace_wrapper_findings(
                     {
                         return None;
                     }
-                    Some(RustHarnessFinding::from_rule(
+                    Some(AspRustFinding::from_rule(
                         rule,
                         format!(
                             "{} exposes redundant public build-gate alias `{function_name}`.",
@@ -204,8 +204,8 @@ fn item_range_contains_harness_alias_target(
 fn silent_evidence_default_findings(
     project_root: &Path,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_PROJ_R020];
     modules
         .iter()
@@ -217,7 +217,7 @@ fn silent_evidence_default_findings(
                 .lines()
                 .position(line_has_silent_evidence_default)?;
             let line = line + 1;
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} silently defaults missing evidence-bearing data.",
@@ -252,8 +252,8 @@ fn line_has_silent_evidence_default(line: &str) -> bool {
 fn source_location_sentinel_findings(
     project_root: &Path,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_PROJ_R021];
     modules
         .iter()
@@ -265,7 +265,7 @@ fn source_location_sentinel_findings(
                 .lines()
                 .position(line_has_source_location_sentinel)?;
             let line = line + 1;
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} uses a sentinel source location value.",
@@ -293,8 +293,8 @@ fn line_has_source_location_sentinel(line: &str) -> bool {
 fn candidate_loop_telemetry_findings(
     project_root: &Path,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_PROJ_R022];
     modules
         .iter()
@@ -305,7 +305,7 @@ fn candidate_loop_telemetry_findings(
         .filter(|module| !module_records_candidate_rejection(module))
         .filter_map(|module| {
             let line = first_score_continue_line(&module.source)?;
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} skips candidate rows without rejection telemetry.",

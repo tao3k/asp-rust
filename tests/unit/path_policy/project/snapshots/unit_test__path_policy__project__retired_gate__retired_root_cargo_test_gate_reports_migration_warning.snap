@@ -4,7 +4,7 @@ expression: rendered
 ---
 [RUST-AGENT-PROJECT-006] Warning: Retired cargo-test target gate should migrate
 @ $TEMP/tests/unit_test.rs:1:1
-fix: move parser-native harness policy to [build-dependencies] plus root build.rs using assert_rust_project_harness_cargo_check_clean_from_env_with_config(...), then keep this test target as a thin suite aggregate
-line: 1 | rust_lang_project_harness::rust_project_harness_gate!();
+fix: move parser-native harness policy to [build-dependencies] plus root build.rs using assert_asp_rust_cargo_check_clean_from_env_with_config(...), then keep this test target as a thin suite aggregate
+line: 1 | asp_rust::asp_rust_gate!();
 Help: tests/unit_test.rs mounts a retired cargo-test harness gate.
 Contract: Root Cargo test target harness gates should move parser-native project policy to the cargo-check build gate and keep root test targets as thin suite aggregates.

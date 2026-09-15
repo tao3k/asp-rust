@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use crate::runner::RustHarnessAnalysis;
+use crate::runner::AspRustAnalysis;
 
-pub(super) fn emit_cargo_rerun_inputs(project_root: &Path, analysis: &RustHarnessAnalysis) {
+pub(super) fn emit_cargo_rerun_inputs(project_root: &Path, analysis: &AspRustAnalysis) {
     for path in rerun_inputs(project_root, analysis) {
         println!("cargo:rerun-if-changed={}", path.display());
     }
@@ -22,7 +22,7 @@ pub(super) fn emit_cargo_rerun_paths(
     }
 }
 
-fn rerun_inputs(project_root: &Path, analysis: &RustHarnessAnalysis) -> BTreeSet<PathBuf> {
+fn rerun_inputs(project_root: &Path, analysis: &AspRustAnalysis) -> BTreeSet<PathBuf> {
     let mut paths = BTreeSet::from([
         project_root.join("Cargo.toml"),
         project_root.join("Cargo.lock"),

@@ -1,7 +1,7 @@
-# rust-lang-project-harness Skills
+# asp-rust Skills
 
 This directory contains repo-local Agent skills for working on
-`rust-lang-project-harness`.
+`asp-rust`.
 
 The skills are intentionally small and harness-specific. They are not a vendored
 copy of general Rust best-practice catalogs, and they are not meant to be loaded
@@ -15,7 +15,7 @@ contract remains available in JSON.
 
 ## When To Load
 
-- Read [`rust-harness-policy`](rust-harness-policy/SKILL.md) when onboarding to
+- Read [`asp-rust-policy`](asp-rust-policy/SKILL.md) when onboarding to
   this repository or repairing parser/policy drift that compact output cannot
   resolve alone.
 - Read [`rust-verification-profile`](rust-verification-profile/SKILL.md) when
@@ -37,4 +37,4 @@ only as organization references:
 Do not copy their rule text into this repository. Convert useful patterns into
 parser facts, verification contracts, skill bindings, or configuration helpers.
 This repository's skills must remain original, compact, and tied to
-`rust-lang-project-harness` facts.
+`asp-rust` facts.

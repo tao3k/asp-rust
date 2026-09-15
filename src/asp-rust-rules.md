@@ -1,0 +1,74 @@
+- RUST-AGENT-DOCS-MODULE-001: Requires public Rust modules to declare concise module intent docs for agent search and repair.
+- RUST-AGENT-DOCS-PUBLIC-002: Requires public Rust items to document their boundary so agents can infer intent from native syntax.
+- RUST-AGENT-SOURCE-NAMESPACE-003: Detects repeated namespace path segments that obscure Rust ownership paths.
+- RUST-AGENT-API-NAME-004: Detects public item name conflicts that make cross-namespace intent ambiguous.
+- RUST-AGENT-API-FACADE-005: Keeps facade exports grouped by owner so agents can locate the repair surface.
+- RUST-AGENT-SOURCE-MODULE-006: Rejects generic public module names that hide domain ownership.
+- RUST-AGENT-SOURCE-PATH-007: Rejects generic source path segments that hide owner responsibility.
+- RUST-AGENT-DOCS-BRANCH-008: Requires branch modules with multiple resolved child edges to document reasoning-tree intent.
+- RUST-AGENT-OWNER-GRAPH-009: Detects owner dependency cycles that block acyclic reasoning-tree traversal.
+- RUST-AGENT-OWNER-BOUNDARY-010: Requires owner branches to depend on another owner through its branch boundary instead of leaf internals.
+- RUST-AGENT-DOCS-OWNER-FANOUT-011: Requires owner fan-out modules to document their coordination intent.
+- RUST-AGENT-API-TYPE-012: Requires public semantic identifiers to use named domain types instead of primitives.
+- RUST-AGENT-API-ERROR-013: Keeps public library error boundaries typed so recovery does not depend on application context.
+- RUST-AGENT-TEST-SUPPORT-014: Keeps test support facades narrow by re-exporting only names consumed through that surface.
+- RUST-AGENT-CFG-PUBLIC-015: Requires public Rust algorithms to expose branch shape through guards, matches, dispatch, or named steps.
+- RUST-AGENT-CFG-PUBLIC-016: Splits broad public Rust functions into named helpers or pipeline steps.
+- RUST-AGENT-ITER-PUBLIC-017: Replaces manual public iterator transforms with iterator adapters or named iterator helpers.
+- RUST-AGENT-API-FLAGS-018: Replaces multiple public flag parameters with named enums, newtypes, or config structs.
+- RUST-AGENT-API-PARAMETERS-019: Replaces broad public positional parameters with named config, request, or builder surfaces.
+- RUST-AGENT-DATA-FIELD-020: Wraps repeated public primitive data fields in named domain types.
+- RUST-AGENT-DATA-ENUM-PAYLOAD-021: Moves broad public enum payloads into named domain types or payload structs.
+- RUST-AGENT-DATA-BOUNDS-022: Moves duplicated derivable bounds off public data type definitions.
+- RUST-AGENT-DATA-ENUM-TUPLE-024: Replaces public enum tuple variants that bundle primitives with named payload shapes.
+- RUST-AGENT-CFG-IMPL-025: Extracts nested internal traversals into named helpers with visible algorithm boundaries.
+- RUST-AGENT-ITER-IMPL-026: Replaces internal manual iterator transforms with iterator adapters or named helpers.
+- RUST-AGENT-API-TYPE-ALIAS-027: Replaces public primitive type aliases for semantic values with public newtypes or structs.
+- RUST-AGENT-DATA-STATE-028: Replaces public stringly state fields with enums, newtypes, or typed catalog boundaries.
+- RUST-AGENT-DATA-MEMBERSHIP-029: Replaces loop-local linear membership scans with precomputed set or map indexes or an explicit bounded-scan explanation.
+- RUST-AGENT-ASYNC-BLOCKING-030: Async task performs blocking work on the runtime.
+- RUST-AGENT-ASYNC-SYNC-LOCK-031: Drops sync lock guards before async suspension points or moves the state boundary to async-aware synchronization.
+- RUST-AGENT-ASYNC-BACKPRESSURE-032: Keeps unbounded async queues behind explicit backpressure, readiness, or capacity boundaries.
+- RUST-AGENT-ASYNC-CANCEL-SAFETY-033: Keeps Tokio select branches cancellation-safe around exact async I/O operations.
+- RUST-AGENT-ASYNC-CANCEL-SAFETY-034: Keeps Tokio timeout wrappers cancellation-safe around exact async I/O operations.
+- RUST-AGENT-ASYNC-TASK-LIFECYCLE-001: Keeps spawned Tokio tasks behind an explicit lifecycle boundary.
+- RUST-AGENT-PROC-001: Keeps process command probes split across command construction, execution, environment shaping, and typed receipt parsing owners.
+- RUST-MOD-R001: Keeps module interface files free of implementation.
+- RUST-MOD-R002: Splits oversized source files into smaller owner modules with clear public boundaries.
+- RUST-MOD-R003: Replaces deep relative imports with explicit owner or facade imports.
+- RUST-MOD-R004: Keeps crate facade files free of implementation.
+- RUST-MOD-R005: Keeps binary entrypoints as thin adapters.
+- RUST-MOD-R006: Keeps build script entrypoints as thin adapters.
+- RUST-MOD-R007: Prevents duplicate file and directory forms for the same module owner.
+- RUST-MOD-R008: Moves inline source modules into external module files.
+- RUST-MOD-R009: Requires every scanned source file to be reachable from a crate or binary root.
+- RUST-MOD-R010: Replaces glob imports with explicit owner imports.
+- RUST-MOD-R011: Prevents sibling file and directory owners from sharing the same name.
+- RUST-AGENT-PROJECT-001: Moves root-level test files under standard suites or requires an explicit harness entry explanation.
+- RUST-AGENT-PROJECT-002: Keeps only standard suite directories directly under tests or requires documented exceptions.
+- RUST-AGENT-PROJECT-003: Keeps test bodies out of source files by mounting source-backed unit tests externally.
+- RUST-AGENT-PROJECT-004: Requires external source-backed tests to resolve to existing files under tests unit.
+- RUST-AGENT-PROJECT-005: Splits oversized test leaves into folder-first suites with focused modules.
+- RUST-AGENT-PROJECT-006: Migrates retired root cargo-test harness gates toward cargo-check build gates.
+- RUST-AGENT-PROJECT-007: Keeps root Cargo test targets as thin aggregates with external module mounts only.
+- RUST-AGENT-PROJECT-008: Requires root Cargo test targets to mount external modules with explicit path attributes.
+- RUST-AGENT-PROJECT-009: Migrates retired source cargo-test harness gates toward cargo-check build gates.
+- RUST-AGENT-PROJECT-010: Requires Rust-native performance skills to expose runnable bench targets.
+- RUST-AGENT-PROJECT-011: Requires cargo-check harness gates to declare verification hints, suppressions, or skill bindings.
+- RUST-AGENT-PROJECT-012: Requires ASP Rust-enabled packages to emit lightweight build-time contract evidence.
+- RUST-AGENT-PROJECT-013: Requires custom harness scope paths to carry explicit explanations.
+- RUST-AGENT-PROJECT-014: Requires cargo-backed scope reductions to be explained or removed from coverage.
+- RUST-AGENT-PROJECT-015: Requires retired cargo-test advice allowances to include explicit explanations.
+- RUST-AGENT-PROJECT-016: Requires remaining source cargo-test gates to declare verification hints, suppressions, or skill bindings.
+- RUST-AGENT-PROJECT-017: Requires advice allowance explanations to state scope, owner, finding category, current safety, and cleanup trigger.
+- RUST-AGENT-PROJECT-018: Rejects fake Cargo package identity fallbacks in policy and evidence code.
+- RUST-AGENT-PROJECT-019: Rejects redundant public workspace member build-gate wrapper aliases.
+- RUST-AGENT-PROJECT-020: Rejects silent default values for missing evidence-bearing data.
+- RUST-AGENT-PROJECT-021: Rejects sentinel source locations in line, column, and range conversion.
+- RUST-AGENT-PROJECT-022: Advises candidate loops to record skipped or filtered row telemetry.
+- RUST-AGENT-PROJECT-024: Advises oversized test support and fixture modules to split into focused support owners.
+- RUST-AGENT-PROJECT-MANIFEST-023: Requires Cargo package manifests to target Rust edition 2024 or document a compatibility boundary.
+- RUST-AGENT-TOKIO-RUNTIME-002: Routes Tokio spawn, blocking work, and runtime construction through a typed runtime facade.
+- RUST-AGENT-NATIVE-ABI-001: Keeps public `repr(C)` native ABI layouts beside ABI version, ABI id, header path, and header source constants.
+- RUST-AGENT-API-SHAPE-036: Replaces public dynamic JSON payload boundaries with named request, response, enum, or documented adapter types.
+- RUST-AGENT-API-SHAPE-023: Replaces anonymous public primitive tuples with named structs, enums, or newtypes.

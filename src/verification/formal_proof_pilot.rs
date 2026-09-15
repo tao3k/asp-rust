@@ -323,9 +323,9 @@ pub fn build_rust_dependency_graph_acyclicity_proof_pilot(
         },
         method: RustFormalProofPilotMethod {
             kind: RustFormalProofPilotMethodKind::ExhaustiveSmallModel,
-            tool: RustFormalProofPilotTool("rs-harness".to_owned()),
+            tool: RustFormalProofPilotTool("asp-rust".to_owned()),
             command: vec![
-                "rs-harness".to_owned(),
+                "asp-rust".to_owned(),
                 "proof".to_owned(),
                 "pilot".to_owned(),
                 "dependency-graph-acyclicity".to_owned(),
@@ -497,9 +497,9 @@ enum VisitState {
 fn default_producer() -> RustFormalProofPilotProducer {
     RustFormalProofPilotProducer {
         language_id: RustFormalProofPilotLanguageId("rust".to_owned()),
-        provider_id: RustFormalProofPilotProviderId("rs-harness".to_owned()),
+        provider_id: RustFormalProofPilotProviderId("asp-rust".to_owned()),
         namespace: RustFormalProofPilotNamespace(
-            "agent.semantic-protocols.languages.rust.rs-harness".to_owned(),
+            "agent.semantic-protocols.languages.rust.asp-rust".to_owned(),
         ),
     }
 }

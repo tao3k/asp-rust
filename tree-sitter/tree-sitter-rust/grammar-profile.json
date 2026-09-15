@@ -13,7 +13,7 @@
     "owner": "main-asp",
     "repository": "https://github.com/tao3k/agent-semantic-protocols",
     "revision": "4e3417721d576716bcf82b7cbf8b9c2dc9a2b32a",
-    "contractFingerprint": "sha256:ddd5b628c61a4bae28d78a74631f27e3a028c1dff878358f813812fec0771535",
+    "contractFingerprint": "sha256:183eb9b0c727f815e67e46e96b00d832840afc6ae7ec16ad726cd10e797e0bbf",
     "queryCorpusValidator": "asp-tree-sitter-validate-rust-query-corpus"
   },
   "standardQueries": [
@@ -31,6 +31,7 @@
     }
   ],
   "corpusProfilePath": "tree-sitter/tree-sitter-rust/corpus-profile.json",
+  "enhancedQueryCapabilityTablePath": "tree-sitter/tree-sitter-rust/enhanced-query-capabilities.v1.json",
   "queryCorpus": {
     "path": "tree-sitter/tree-sitter-rust/query-corpus",
     "validator": "asp-tree-sitter-validate-rust-query-corpus",

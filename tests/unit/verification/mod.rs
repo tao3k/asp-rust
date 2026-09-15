@@ -1,10 +1,8 @@
 mod analysis;
-mod assurance_case;
 mod behavior_snapshot;
 mod build_gate;
 mod config;
 mod determinism_readiness;
-mod evidence_graph;
 mod execution_receipt;
 mod formal_proof_pilot;
 mod lifecycle;
