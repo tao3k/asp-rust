@@ -1,6 +1,8 @@
 //! Cargo lockfile dependency-baseline policy and evidence.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(feature = "dependency-baseline")]
+use std::path::PathBuf;
 
 /// Cargo.lock dependency baseline shared by downstream build gates.
 ///
@@ -81,6 +83,7 @@ impl AspRustDependencyBaselinePackage {
 /// required package resolves to a missing, duplicate, wrong-version, or
 /// wrong-source entry.
 #[track_caller]
+#[cfg(feature = "dependency-baseline")]
 pub fn assert_asp_rust_dependency_baseline(
     project_root: &Path,
     dependency_baseline: &AspRustDependencyBaseline,
@@ -110,6 +113,26 @@ pub fn assert_asp_rust_dependency_baseline(
     }
 }
 
+/// Reject a configured dependency baseline when the owning ASP Rust feature is
+/// deliberately absent from a style-only build.
+///
+/// Empty baselines remain valid so source Style policy can use the smaller
+/// parser/rule build graph without silently weakening a requested lockfile
+/// contract.
+#[track_caller]
+#[cfg(not(feature = "dependency-baseline"))]
+pub fn assert_asp_rust_dependency_baseline(
+    _project_root: &Path,
+    dependency_baseline: &AspRustDependencyBaseline,
+    gate_label: &str,
+) {
+    assert!(
+        dependency_baseline.packages().is_empty(),
+        "{gate_label} dependency baseline requires the ASP Rust `dependency-baseline` feature"
+    );
+}
+
+#[cfg(feature = "dependency-baseline")]
 fn assert_dependency_baseline_package(
     lockfile: &cargo_lock::Lockfile,
     required_package: &AspRustDependencyBaselinePackage,
@@ -154,6 +177,7 @@ fn assert_dependency_baseline_package(
     }
 }
 
+#[cfg(feature = "dependency-baseline")]
 fn render_required_dependency_baseline_package(
     package: &AspRustDependencyBaselinePackage,
 ) -> String {
@@ -165,6 +189,7 @@ fn render_required_dependency_baseline_package(
     )
 }
 
+#[cfg(feature = "dependency-baseline")]
 fn render_dependency_baseline_package_matches(packages: &[&cargo_lock::Package]) -> String {
     if packages.is_empty() {
         return "- <none>".to_string();
@@ -176,6 +201,7 @@ fn render_dependency_baseline_package_matches(packages: &[&cargo_lock::Package])
         .join("\n")
 }
 
+#[cfg(feature = "dependency-baseline")]
 fn render_dependency_baseline_package(package: &cargo_lock::Package) -> String {
     let source = package
         .source
@@ -185,6 +211,7 @@ fn render_dependency_baseline_package(package: &cargo_lock::Package) -> String {
     format!("{} {} source {source}", package.name, package.version)
 }
 
+#[cfg(feature = "dependency-baseline")]
 fn dependency_baseline_agent_guidance(gate_label: &str) -> String {
     format!(
         "\
@@ -201,6 +228,7 @@ repair:
     )
 }
 
+#[cfg(feature = "dependency-baseline")]
 fn find_cargo_lock(project_root: &Path) -> Option<PathBuf> {
     let mut current = Some(project_root);
     while let Some(root) = current {
