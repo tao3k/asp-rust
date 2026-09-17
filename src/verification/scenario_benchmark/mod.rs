@@ -9,7 +9,7 @@ mod types;
 pub use contract::{
     RustScenarioBenchmarkContract, RustScenarioBenchmarkDuration, RustScenarioBenchmarkMeasurement,
     RustScenarioBenchmarkMemoryBytes, RustScenarioBenchmarkMetric, RustScenarioBenchmarkMetricKind,
-    RustScenarioBenchmarkPhase,
+    RustScenarioBenchmarkPhase, RustScenarioBenchmarkPhaseDistribution,
 };
 pub use core::{
     assert_rule_fixture_scenario_benchmarks, validate_required_rust_scenario_benchmarks,

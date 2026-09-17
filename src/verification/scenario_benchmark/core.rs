@@ -550,11 +550,12 @@ fn require_measurement_provenance(
         ));
     }
     if measurement.total_p50 > measurement.total_p95
-        || measurement.total_p95 > measurement.total_max
+        || measurement.total_p95 > measurement.total_p99
+        || measurement.total_p99 > measurement.total_max
     {
         violations.push(contract_violation(
             "benchmark.measurement",
-            "measured distribution must satisfy p50 <= p95 <= max",
+            "measured distribution must satisfy p50 <= p95 <= p99 <= max",
         ));
     }
     if benchmark.observed_total != measurement.total_p95 {
@@ -582,6 +583,40 @@ fn require_measurement_provenance(
                 "measured phase resolved to zero; increase the sample workload and remeasure",
             ));
         }
+        let Some(distribution) = benchmark.phase_distributions.get(name) else {
+            continue;
+        };
+        if distribution.p50 > distribution.p95
+            || distribution.p95 > distribution.p99
+            || distribution.p99 > distribution.max
+        {
+            violations.push(contract_violation(
+                &format!("benchmark.phase_distributions.{name}"),
+                "measured phase distribution must satisfy p50 <= p95 <= p99 <= max",
+            ));
+        }
+        if *timing != distribution.p95 {
+            violations.push(contract_violation(
+                &format!("benchmark.observed_timings.{name}"),
+                "observed phase timing must equal its runner-generated p95 measurement",
+            ));
+        }
+    }
+    for name in benchmark.phase_distributions.keys() {
+        if !benchmark.observed_timings.contains_key(name) {
+            violations.push(contract_violation(
+                &format!("benchmark.phase_distributions.{name}"),
+                "phase distribution must have a corresponding observed timing",
+            ));
+        }
+    }
+    if !benchmark.phase_distributions.is_empty()
+        && benchmark.phase_distributions.len() != benchmark.observed_timings.len()
+    {
+        violations.push(contract_violation(
+            "benchmark.phase_distributions",
+            "runner-generated phase distributions must cover every observed timing",
+        ));
     }
 }
 

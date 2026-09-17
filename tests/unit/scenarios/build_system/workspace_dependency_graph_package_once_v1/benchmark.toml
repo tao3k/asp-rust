@@ -16,6 +16,7 @@ warmup_iterations = 2
 measure_iterations = 9
 total_p50 = "9534750ns"
 total_p95 = "10547167ns"
+total_p99 = "10547167ns"
 total_max = "10547167ns"
 
 [observed_timings]

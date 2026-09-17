@@ -64,6 +64,7 @@ warmup_iterations = 2
 measure_iterations = 9
 total_p50 = "27us"
 total_p95 = "31us"
+total_p99 = "38us"
 total_max = "38us"
 
 [observed_timings]
@@ -107,6 +108,7 @@ warmup_iterations = 2
 measure_iterations = 9
 total_p50 = "0us"
 total_p95 = "0us"
+total_p99 = "0us"
 total_max = "0us"
 
 [observed_timings]

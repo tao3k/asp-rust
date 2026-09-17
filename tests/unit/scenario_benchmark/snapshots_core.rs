@@ -183,6 +183,24 @@ fn workspace_build_dag_benchmark_is_generated_from_real_samples() {
             .expect("generated measurement provenance")
             .total_p95
     );
+    let measurement = generated
+        .measurement
+        .as_ref()
+        .expect("generated measurement provenance");
+    assert!(measurement.total_p50 <= measurement.total_p95);
+    assert!(measurement.total_p95 <= measurement.total_p99);
+    assert!(measurement.total_p99 <= measurement.total_max);
+    assert_eq!(
+        generated.phase_distributions.len(),
+        generated.observed_timings.len()
+    );
+    for (name, timing) in &generated.observed_timings {
+        let distribution = &generated.phase_distributions[name];
+        assert_eq!(*timing, distribution.p95);
+        assert!(distribution.p50 <= distribution.p95);
+        assert!(distribution.p95 <= distribution.p99);
+        assert!(distribution.p99 <= distribution.max);
+    }
     assert!(generated.observed_total.as_duration().as_nanos() > 0);
     assert_eq!(
         generated.metrics["discovered_package_root_count"].observed,

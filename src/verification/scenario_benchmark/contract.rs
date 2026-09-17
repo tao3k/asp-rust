@@ -124,7 +124,18 @@ pub struct RustScenarioBenchmarkMeasurement {
     pub measure_iterations: usize,
     pub total_p50: RustScenarioBenchmarkDuration,
     pub total_p95: RustScenarioBenchmarkDuration,
+    pub total_p99: RustScenarioBenchmarkDuration,
     pub total_max: RustScenarioBenchmarkDuration,
+}
+
+/// Percentile distribution for one measured Scenario phase.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RustScenarioBenchmarkPhaseDistribution {
+    pub p50: RustScenarioBenchmarkDuration,
+    pub p95: RustScenarioBenchmarkDuration,
+    pub p99: RustScenarioBenchmarkDuration,
+    pub max: RustScenarioBenchmarkDuration,
 }
 
 /// Scenario benchmark thresholds and observed receipts loaded from `benchmark.toml`.
@@ -180,6 +191,9 @@ pub struct RustScenarioBenchmarkContract {
     /// Phase-level observed timings, normalized in snapshots.
     #[serde(default)]
     pub observed_timings: BTreeMap<String, RustScenarioBenchmarkDuration>,
+    /// Runner-generated percentile distributions for each observed phase.
+    #[serde(default)]
+    pub phase_distributions: BTreeMap<String, RustScenarioBenchmarkPhaseDistribution>,
     /// Scenario-specific typed counters, such as manifest parses or policy executions.
     #[serde(default)]
     pub metrics: BTreeMap<String, RustScenarioBenchmarkMetric>,
