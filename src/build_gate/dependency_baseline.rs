@@ -76,6 +76,8 @@ impl AspRustDependencyBaselinePackage {
 ///
 /// The lockfile is searched from `project_root` upward, so member crates in a
 /// Cargo workspace can share the workspace root `Cargo.lock`.
+/// With the `dependency-baseline` feature disabled, an empty baseline remains
+/// valid for style-only consumers while any required package is rejected.
 ///
 /// # Panics
 ///
@@ -83,8 +85,26 @@ impl AspRustDependencyBaselinePackage {
 /// required package resolves to a missing, duplicate, wrong-version, or
 /// wrong-source entry.
 #[track_caller]
-#[cfg(feature = "dependency-baseline")]
 pub fn assert_asp_rust_dependency_baseline(
+    project_root: &Path,
+    dependency_baseline: &AspRustDependencyBaseline,
+    gate_label: &str,
+) {
+    #[cfg(feature = "dependency-baseline")]
+    assert_dependency_baseline_enabled(project_root, dependency_baseline, gate_label);
+
+    #[cfg(not(feature = "dependency-baseline"))]
+    {
+        let _ = project_root;
+        assert!(
+            dependency_baseline.packages().is_empty(),
+            "{gate_label} dependency baseline requires the ASP Rust `dependency-baseline` feature"
+        );
+    }
+}
+
+#[cfg(feature = "dependency-baseline")]
+fn assert_dependency_baseline_enabled(
     project_root: &Path,
     dependency_baseline: &AspRustDependencyBaseline,
     gate_label: &str,
@@ -111,25 +131,6 @@ pub fn assert_asp_rust_dependency_baseline(
     for required_package in dependency_baseline.packages() {
         assert_dependency_baseline_package(&lockfile, required_package, gate_label, &lockfile_path);
     }
-}
-
-/// Reject a configured dependency baseline when the owning ASP Rust feature is
-/// deliberately absent from a style-only build.
-///
-/// Empty baselines remain valid so source Style policy can use the smaller
-/// parser/rule build graph without silently weakening a requested lockfile
-/// contract.
-#[track_caller]
-#[cfg(not(feature = "dependency-baseline"))]
-pub fn assert_asp_rust_dependency_baseline(
-    _project_root: &Path,
-    dependency_baseline: &AspRustDependencyBaseline,
-    gate_label: &str,
-) {
-    assert!(
-        dependency_baseline.packages().is_empty(),
-        "{gate_label} dependency baseline requires the ASP Rust `dependency-baseline` feature"
-    );
 }
 
 #[cfg(feature = "dependency-baseline")]

@@ -10,6 +10,8 @@ use asp_rust::{
     rust_downstream_verification_gate_guide_markdown,
 };
 use std::fs;
+#[cfg(not(feature = "dependency-baseline"))]
+use std::path::Path;
 use tempfile::TempDir;
 
 use crate::verification::support::write_api_project;
@@ -337,6 +339,7 @@ source = "git+https://github.com/tao3k/agent-semantic-protocols?rev=abc123#abc12
 }
 
 #[test]
+#[cfg(feature = "dependency-baseline")]
 fn dependency_baseline_reports_duplicate_or_stale_entries_with_agent_guidance() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
@@ -376,6 +379,23 @@ source = "git+https://github.com/tao3k/agent-semantic-protocols?rev=new#new"
     assert!(message.contains("cargo tree -i <package>"), "{message}");
     assert!(message.contains("rev=old"), "{message}");
     assert!(message.contains("rev=new"), "{message}");
+}
+
+#[test]
+#[cfg(not(feature = "dependency-baseline"))]
+fn disabled_dependency_baseline_accepts_empty_policy_and_rejects_required_packages() {
+    let empty = AspRustDependencyBaseline::new();
+    assert_asp_rust_dependency_baseline(Path::new("."), &empty, "style-only crate");
+
+    let required =
+        AspRustDependencyBaseline::new().require_git_package("asp-rust", "0.1.2", "rev=required");
+    let rejected = std::panic::catch_unwind(|| {
+        assert_asp_rust_dependency_baseline(Path::new("."), &required, "style-only crate");
+    })
+    .expect_err("a required package must not bypass the disabled baseline feature");
+    let message = panic_message(rejected);
+    assert!(message.contains("style-only crate"), "{message}");
+    assert!(message.contains("dependency-baseline"), "{message}");
 }
 
 #[test]
