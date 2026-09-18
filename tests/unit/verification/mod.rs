@@ -1,8 +1,8 @@
 mod analysis;
 mod behavior_snapshot;
-mod build_gate;
 mod config;
 mod determinism_readiness;
+mod dev_gate;
 mod execution_receipt;
 mod formal_proof_pilot;
 mod lifecycle;

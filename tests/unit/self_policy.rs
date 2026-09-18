@@ -11,7 +11,7 @@ fn asp_rust_package_is_clean_under_its_own_policy() {
         RustVerificationProfileHint::new("src/lib.rs", [RustOwnerResponsibility::PublicApi])
             .without_verification_tasks()
             .with_rationale(
-                "the external unit target owns full ASP Rust policy while build.rs emits only lightweight contract evidence",
+                "the external unit target owns the full test-only ASP Rust policy gate",
             ),
     );
     config.ignored_dir_names.insert("scenarios".to_string());

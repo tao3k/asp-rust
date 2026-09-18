@@ -12,28 +12,17 @@ use crate::parser::{
 use crate::verification::RustVerificationTaskKind;
 use crate::{AspRustConfig, AspRustFinding, AspRustRule};
 
-use super::build_gate::{module_default_build_gate_call_lines, root_build_script_module};
 use super::support::display_project_path;
-use super::{RUST_PROJ_R009, RUST_PROJ_R010, RUST_PROJ_R011, RUST_PROJ_R015, RUST_PROJ_R016};
-
-const SOURCE_CARGO_TEST_GATE_MACROS: &[&str] = &["asp_rust_gate", "asp_rust_cargo_test_gate"];
+use super::{RUST_PROJ_R010, RUST_PROJ_R015, RUST_PROJ_R016};
 
 pub(super) fn verification_integration_findings(
     project_root: &Path,
     reasoning_tree: &RustReasoningTreeFacts,
     config: &AspRustConfig,
     modules: &[ParsedRustModule],
-    cargo_manifest: &CargoManifestFacts,
     rules: &BTreeMap<&'static str, AspRustRule>,
 ) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
-    findings.extend(retired_source_cargo_test_gate_findings(
-        project_root,
-        reasoning_tree,
-        modules,
-        cargo_manifest,
-        rules,
-    ));
     findings.extend(empty_cargo_test_gate_config_findings(
         project_root,
         reasoning_tree,
@@ -47,73 +36,8 @@ pub(super) fn verification_integration_findings(
         modules,
         rules,
     ));
-    findings.extend(empty_build_gate_config_findings(
-        project_root,
-        modules,
-        rules,
-    ));
 
     findings
-}
-
-fn retired_source_cargo_test_gate_findings(
-    project_root: &Path,
-    reasoning_tree: &RustReasoningTreeFacts,
-    modules: &[ParsedRustModule],
-    cargo_manifest: &CargoManifestFacts,
-    rules: &BTreeMap<&'static str, AspRustRule>,
-) -> Vec<AspRustFinding> {
-    if !cargo_manifest.references_harness {
-        return Vec::new();
-    }
-
-    let rule = &rules[RUST_PROJ_R009];
-    source_modules(reasoning_tree, modules)
-        .filter_map(|module| {
-            let invocation = module
-                .syntax_facts
-                .macro_invocations
-                .iter()
-                .find(|invocation| {
-                    SOURCE_CARGO_TEST_GATE_MACROS.contains(&invocation.terminal_name.as_str())
-                })?;
-            Some(AspRustFinding::from_rule(
-                rule,
-                format!(
-                    "{} mounts a retired source cargo-test harness gate.",
-                    display_project_path(project_root, &module.report.path)
-                ),
-                path_line_location(&module.report.path, invocation.line),
-                source_line(&module.source, invocation.line),
-                "move parser-native harness policy to [build-dependencies] plus root build.rs using assert_asp_rust_downstream_policy_from_env(...), then remove this cargo-test source gate",
-            ))
-        })
-        .collect()
-}
-
-fn empty_build_gate_config_findings(
-    project_root: &Path,
-    modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, AspRustRule>,
-) -> Vec<AspRustFinding> {
-    let Some(module) = root_build_script_module(project_root, modules) else {
-        return Vec::new();
-    };
-    let rule = &rules[RUST_PROJ_R011];
-    module_default_build_gate_call_lines(module)
-        .map(|line| {
-            AspRustFinding::from_rule(
-                rule,
-                format!(
-                    "{} mounts the build-time harness gate without explicit verification config.",
-                    display_project_path(project_root, &module.report.path)
-                ),
-                path_line_location(&module.report.path, line),
-                source_line(&module.source, line),
-                "use assert_asp_rust_downstream_policy_from_env(...) with a policy that declares verification profile hints, explicit suppressions, or skill bindings",
-            )
-        })
-        .collect()
 }
 
 fn empty_cargo_test_gate_config_findings(

@@ -1,4 +1,4 @@
-//! Workspace-level composition of package-atomic Rust build gates.
+//! Workspace-level composition of package-atomic Rust test gates.
 
 use std::path::{Path, PathBuf};
 
@@ -39,9 +39,21 @@ pub struct AspRustWorkspaceMemberRunReport {
 #[track_caller]
 pub fn assert_asp_rust_workspace_policy(
     workspace_root: &Path,
-    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+    workspace_policy: &crate::dev_gate::AspRustWorkspacePolicy,
 ) -> AspRustWorkspaceRunReport {
     assert_asp_rust_workspace_policy_with(workspace_root, workspace_policy, |_, config| config)
+}
+
+/// Evaluate one Cargo workspace without rejecting advisory or blocking findings.
+///
+/// This is the reporting half of the workspace Dev Gate. Build Support uses it
+/// for `mode = warn`; `mode = deny` uses the corresponding assertion API.
+#[must_use]
+pub fn evaluate_asp_rust_workspace_policy(
+    workspace_root: &Path,
+    workspace_policy: &crate::dev_gate::AspRustWorkspacePolicy,
+) -> AspRustWorkspaceRunReport {
+    evaluate_asp_rust_workspace_policy_with(workspace_root, workspace_policy, |_, config| config)
 }
 
 /// Assert one Cargo workspace while applying one package-local config projection.
@@ -52,7 +64,23 @@ pub fn assert_asp_rust_workspace_policy(
 #[track_caller]
 pub fn assert_asp_rust_workspace_policy_with<F>(
     workspace_root: &Path,
-    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+    workspace_policy: &crate::dev_gate::AspRustWorkspacePolicy,
+    configure_member: F,
+) -> AspRustWorkspaceRunReport
+where
+    F: FnMut(&str, crate::AspRustConfig) -> crate::AspRustConfig,
+{
+    let report =
+        evaluate_asp_rust_workspace_policy_with(workspace_root, workspace_policy, configure_member);
+    assert_workspace_report_clean(&report, workspace_policy.workspace_label());
+    report
+}
+
+/// Evaluate one Cargo workspace with a package-local config projection.
+#[must_use]
+pub fn evaluate_asp_rust_workspace_policy_with<F>(
+    workspace_root: &Path,
+    workspace_policy: &crate::dev_gate::AspRustWorkspacePolicy,
     configure_member: F,
 ) -> AspRustWorkspaceRunReport
 where
@@ -60,19 +88,38 @@ where
 {
     let build_dag = asp_rust_workspace_build_dag(workspace_root, workspace_policy.config())
         .unwrap_or_else(|error| panic!("ASP Rust workspace dependency graph: {error}"));
-    assert_asp_rust_workspace_build_dag_policy_with(build_dag, workspace_policy, configure_member)
+    evaluate_asp_rust_workspace_build_dag_policy_with(build_dag, workspace_policy, configure_member)
 }
 
 /// Assert a pre-derived Cargo Build DAG without rediscovering workspace packages.
 ///
-/// This is the build-script boundary: the workspace owner derives the Cargo DAG
+/// This is the Build Support test boundary: the workspace owner derives the Cargo DAG
 /// exactly once, then evaluates every package atom exactly once against that
 /// immutable graph. Downstream packages never compile or invoke a second full
 /// source scanner.
 #[track_caller]
 pub fn assert_asp_rust_workspace_build_dag_policy_with<F>(
     build_dag: AspRustWorkspaceBuildDag,
-    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+    workspace_policy: &crate::dev_gate::AspRustWorkspacePolicy,
+    configure_member: F,
+) -> AspRustWorkspaceRunReport
+where
+    F: FnMut(&str, crate::AspRustConfig) -> crate::AspRustConfig,
+{
+    let report = evaluate_asp_rust_workspace_build_dag_policy_with(
+        build_dag,
+        workspace_policy,
+        configure_member,
+    );
+    assert_workspace_report_clean(&report, workspace_policy.workspace_label());
+    report
+}
+
+/// Evaluate a pre-derived Cargo Build DAG without rejecting its findings.
+#[must_use]
+pub fn evaluate_asp_rust_workspace_build_dag_policy_with<F>(
+    build_dag: AspRustWorkspaceBuildDag,
+    workspace_policy: &crate::dev_gate::AspRustWorkspacePolicy,
     mut configure_member: F,
 ) -> AspRustWorkspaceRunReport
 where
@@ -80,13 +127,12 @@ where
 {
     let workspace_root = build_dag.workspace_root.clone();
     let mut reports = Vec::new();
-    let mut rejections = Vec::new();
     for package in &build_dag.packages {
         let policy = workspace_policy.member_crate_with_config(&package.package_name, |config| {
             configure_member(&package.package_name, config)
         });
         let report =
-            crate::build_gate::evaluate_asp_rust_downstream_policy(&package.package_root, &policy);
+            crate::dev_gate::evaluate_asp_rust_downstream_policy(&package.package_root, &policy);
         assert!(
             report
                 .root_paths
@@ -95,28 +141,12 @@ where
             "workspace member gate escaped package atom {}",
             package.package_root.display()
         );
-        // Advisory findings remain visible in each package atom, but admission
-        // is governed by the report's configured blocking severities.
-        if !report.is_clean() {
-            rejections.push(format!(
-                "[{}]\n{}",
-                policy.gate_label(),
-                crate::render_asp_rust(&report)
-            ));
-        }
         reports.push(AspRustWorkspaceMemberRunReport {
             crate_label: package.package_name.clone(),
             project_root: package.package_root.clone(),
             report,
         });
     }
-    assert!(
-        rejections.is_empty(),
-        "ASP Rust workspace policy rejected {} of {} package atoms:\n{}",
-        rejections.len(),
-        build_dag.packages.len(),
-        rejections.join("\n\n")
-    );
     AspRustWorkspaceRunReport {
         workspace_root,
         build_dag,
@@ -124,10 +154,32 @@ where
     }
 }
 
+fn assert_workspace_report_clean(report: &AspRustWorkspaceRunReport, workspace_label: &str) {
+    let rejections = report
+        .members
+        .iter()
+        .filter(|member| !member.report.is_clean())
+        .map(|member| {
+            format!(
+                "[{}]\n{}",
+                format_args!("{workspace_label}::{}", member.crate_label),
+                crate::render_asp_rust(&member.report)
+            )
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        rejections.is_empty(),
+        "ASP Rust workspace policy rejected {} of {} package atoms:\n{}",
+        rejections.len(),
+        report.members.len(),
+        rejections.join("\n\n")
+    );
+}
+
 /// Assert the single Cargo workspace instance owning `CARGO_MANIFEST_DIR`.
 #[track_caller]
 pub fn assert_asp_rust_workspace_policy_from_env(
-    workspace_policy: &crate::build_gate::AspRustWorkspacePolicy,
+    workspace_policy: &crate::dev_gate::AspRustWorkspacePolicy,
 ) -> AspRustWorkspaceRunReport {
     let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR")
         .map(PathBuf::from)
@@ -135,4 +187,17 @@ pub fn assert_asp_rust_workspace_policy_from_env(
     let workspace_root = crate::parser::find_required_cargo_workspace_root(&manifest_dir)
         .unwrap_or_else(|error| panic!("resolve ASP Rust workspace instance: {error}"));
     assert_asp_rust_workspace_policy(&workspace_root, workspace_policy)
+}
+
+/// Evaluate the Cargo workspace owning `CARGO_MANIFEST_DIR` without rejecting findings.
+#[must_use]
+pub fn evaluate_asp_rust_workspace_policy_from_env(
+    workspace_policy: &crate::dev_gate::AspRustWorkspacePolicy,
+) -> AspRustWorkspaceRunReport {
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| panic!("CARGO_MANIFEST_DIR is required for ASP Rust workspace policy"));
+    let workspace_root = crate::parser::find_required_cargo_workspace_root(&manifest_dir)
+        .unwrap_or_else(|error| panic!("resolve ASP Rust workspace instance: {error}"));
+    evaluate_asp_rust_workspace_policy(&workspace_root, workspace_policy)
 }

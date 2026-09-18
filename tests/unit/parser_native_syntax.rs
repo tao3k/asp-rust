@@ -56,15 +56,15 @@ fn native_syntax_facts_record_cfg_and_module_declaring_macros() {
             .any(|ident| ident == "config"),
         "{configured_gate_invocation:?}"
     );
-    let configured_build_gate_call = module
+    let configured_dev_gate_call = module
         .syntax_facts
         .function_calls
         .iter()
         .find(|invocation| {
             invocation.terminal_name == "assert_asp_rust_cargo_check_clean_from_env_with_config"
         })
-        .expect("configured build gate call");
-    assert_eq!(configured_build_gate_call.argument_token_count, 1);
+        .expect("configured dev gate call");
+    assert_eq!(configured_dev_gate_call.argument_token_count, 1);
 
     let cfg_feature = module
         .syntax_facts

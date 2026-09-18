@@ -11,11 +11,10 @@ use std::path::{Path, PathBuf};
 
 use cargo_toml::{Dependency, DepsSet, Manifest, Product};
 
-const ASP_RUST_PACKAGE_NAMES: &[&str] = &["asp-rust", "asp-rust-build-support"];
-
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CargoManifestFacts {
     pub(crate) has_package: bool,
+    pub(crate) is_asp_rust_package: bool,
     #[cfg(feature = "provider-server")]
     pub(crate) package_name: Option<String>,
     pub(crate) package_edition: Option<String>,
@@ -28,7 +27,7 @@ pub(crate) struct CargoManifestFacts {
     pub(crate) example_targets: Vec<CargoExampleTargetFacts>,
     pub(crate) test_target_files: Vec<PathBuf>,
     pub(crate) bench_targets: Vec<CargoBenchTargetFacts>,
-    pub(crate) references_harness: bool,
+    pub(crate) references_harness_dev_dependency: bool,
     pub(crate) references_harness_non_optional_normal_dependency: bool,
     pub(crate) references_harness_build_dependency: bool,
 }
@@ -135,7 +134,8 @@ fn read_candidate_manifest(project_root: &Path) -> Option<Manifest> {
 }
 
 fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManifestFacts {
-    let references_harness = manifest_references_harness(manifest);
+    let references_harness_dev_dependency =
+        manifest_references_full_harness_dev_dependency(manifest);
     let references_harness_non_optional_normal_dependency =
         manifest_references_harness_non_optional_normal_dependency(manifest);
     let references_harness_build_dependency =
@@ -151,6 +151,7 @@ fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManife
     let has_package = package_name
         .as_deref()
         .is_some_and(|name| !name.trim().is_empty());
+    let is_asp_rust_package = package_name.as_deref() == Some("asp-rust");
     let (workspace_members, workspace_excludes) = manifest
         .workspace
         .as_ref()
@@ -165,6 +166,7 @@ fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManife
     let path_dependency_roots = manifest_path_dependency_roots(project_root, manifest);
     CargoManifestFacts {
         has_package,
+        is_asp_rust_package,
         #[cfg(feature = "provider-server")]
         package_name,
         package_edition,
@@ -177,7 +179,7 @@ fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManife
         example_targets,
         test_target_files,
         bench_targets,
-        references_harness,
+        references_harness_dev_dependency,
         references_harness_non_optional_normal_dependency,
         references_harness_build_dependency,
     }
@@ -631,23 +633,20 @@ fn manifest_bench_targets(
         .collect()
 }
 
-fn manifest_references_harness(manifest: &Manifest) -> bool {
-    dependency_table_references_harness(&manifest.dependencies)
-        || dependency_table_references_harness(&manifest.dev_dependencies)
-        || dependency_table_references_harness(&manifest.build_dependencies)
-        || manifest.target.values().any(|target| {
-            dependency_table_references_harness(&target.dependencies)
-                || dependency_table_references_harness(&target.dev_dependencies)
-                || dependency_table_references_harness(&target.build_dependencies)
-        })
-}
-
 fn manifest_references_harness_build_dependency(manifest: &Manifest) -> bool {
-    dependency_table_references_harness(&manifest.build_dependencies)
+    dependency_table_references_full_harness(&manifest.build_dependencies)
         || manifest
             .target
             .values()
-            .any(|target| dependency_table_references_harness(&target.build_dependencies))
+            .any(|target| dependency_table_references_full_harness(&target.build_dependencies))
+}
+
+fn manifest_references_full_harness_dev_dependency(manifest: &Manifest) -> bool {
+    dependency_table_references_full_harness(&manifest.dev_dependencies)
+        || manifest
+            .target
+            .values()
+            .any(|target| dependency_table_references_full_harness(&target.dev_dependencies))
 }
 
 fn manifest_references_harness_non_optional_normal_dependency(manifest: &Manifest) -> bool {
@@ -664,20 +663,12 @@ fn dependency_table_references_non_optional_harness(dependencies: &DepsSet) -> b
         .any(|(name, value)| dependency_references_full_harness(name, value) && !value.optional())
 }
 
-fn dependency_references_full_harness(name: &str, value: &Dependency) -> bool {
-    name == "asp-rust" || value.package().is_some_and(|package| package == "asp-rust")
-}
-
-fn dependency_table_references_harness(dependencies: &DepsSet) -> bool {
+fn dependency_table_references_full_harness(dependencies: &DepsSet) -> bool {
     dependencies
         .iter()
-        .any(|(name, value)| dependency_references_harness(name, value))
+        .any(|(name, value)| dependency_references_full_harness(name, value))
 }
 
-fn dependency_references_harness(name: &str, value: &Dependency) -> bool {
-    dependency_name_is_harness(name) || value.package().is_some_and(dependency_name_is_harness)
-}
-
-fn dependency_name_is_harness(name: &str) -> bool {
-    ASP_RUST_PACKAGE_NAMES.contains(&name)
+fn dependency_references_full_harness(name: &str, value: &Dependency) -> bool {
+    name == "asp-rust" || value.package().is_some_and(|package| package == "asp-rust")
 }

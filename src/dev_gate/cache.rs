@@ -16,9 +16,9 @@ use sha2::{Digest, Sha256};
 
 use crate::runner::AspRustRunScope;
 
-pub(super) const ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID: &str =
-    "agent.semantic-protocols.asp-rust.build-gate-cache";
-pub(super) const ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION: &str = "1";
+pub(super) const ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID: &str =
+    "agent.semantic-protocols.asp-rust.dev-gate-cache";
+pub(super) const ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION: &str = "1";
 
 static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 #[cfg(test)]
@@ -27,21 +27,21 @@ thread_local! {
 }
 
 const SNAPSHOT_DIGEST_INDEX_SCHEMA_ID: &str =
-    "agent.semantic-protocols.asp-rust.build-gate-snapshot-index";
+    "agent.semantic-protocols.asp-rust.dev-gate-snapshot-index";
 const SNAPSHOT_DIGEST_INDEX_SCHEMA_VERSION: &str = "1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct AspRustBuildGateSnapshot {
+pub(super) struct AspRustDevGateSnapshot {
     pub digest: String,
     pub file_count: usize,
     pub byte_count: u64,
-    pub files: Vec<AspRustBuildGateSnapshotFile>,
+    pub files: Vec<AspRustDevGateSnapshotFile>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct AspRustBuildGateSnapshotFile {
+pub(super) struct AspRustDevGateSnapshotFile {
     pub path: PathBuf,
     pub byte_count: u64,
     pub content_digest: String,
@@ -49,11 +49,11 @@ pub(super) struct AspRustBuildGateSnapshotFile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct AspRustBuildGateCacheRecord {
+pub(super) struct AspRustDevGateCacheRecord {
     pub schema_id: String,
     pub schema_version: String,
     pub cache_key: String,
-    pub snapshot: AspRustBuildGateSnapshot,
+    pub snapshot: AspRustDevGateSnapshot,
     pub payload_digest: String,
     pub report: AspRustReport,
     pub verification_plan: RustVerificationPlan,
@@ -63,7 +63,7 @@ pub(super) struct AspRustBuildGateCacheRecord {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct AspRustBuildGateCacheKey<'a> {
+struct AspRustDevGateCacheKey<'a> {
     schema_id: &'static str,
     schema_version: &'static str,
     harness_version: &'static str,
@@ -77,7 +77,7 @@ struct AspRustBuildGateCacheKey<'a> {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct AspRustBuildGateCachePayload<'a> {
+struct AspRustDevGateCachePayload<'a> {
     report: &'a AspRustReport,
     verification_plan: &'a RustVerificationPlan,
     downstream_policy_receipt: &'a AspRustDownstreamPolicyReceipt,
@@ -100,41 +100,39 @@ struct AspRustSnapshotDigestIndexFile {
     content_digest: String,
 }
 
-pub(super) fn build_gate_cache_root_from_env(project_root: &Path) -> Option<PathBuf> {
-    build_gate_cache_root(project_root, std::env::var_os("ASP_STATE_HOME"))
+pub(super) fn dev_gate_cache_root_from_env(project_root: &Path) -> Option<PathBuf> {
+    dev_gate_cache_root(project_root, std::env::var_os("ASP_STATE_HOME"))
 }
 
-pub(super) fn build_gate_cache_root(
+pub(super) fn dev_gate_cache_root(
     project_root: &Path,
     state_home: Option<std::ffi::OsString>,
 ) -> Option<PathBuf> {
     let canonical_root = project_root.canonicalize().ok()?;
     let project_identity = cache_digest_hex(
-        b"asp-rust.build-gate-cache.project.v1",
+        b"asp-rust.dev-gate-cache.project.v1",
         canonical_root.as_os_str().as_encoded_bytes(),
     );
-    let base = PathBuf::from(state_home?)
-        .join("runtime")
-        .join("build-gates");
+    let base = PathBuf::from(state_home?).join("runtime").join("dev-gates");
     Some(project_cache_root(base, &project_identity))
 }
 
 #[cfg(test)]
-pub(super) fn snapshot_build_gate_inputs(
+pub(super) fn snapshot_dev_gate_inputs(
     project_root: &Path,
     config: &AspRustConfig,
-) -> Result<AspRustBuildGateSnapshot, String> {
-    snapshot_build_gate_inputs_with_cache(project_root, config, None)
+) -> Result<AspRustDevGateSnapshot, String> {
+    snapshot_dev_gate_inputs_with_cache(project_root, config, None)
 }
 
-pub(super) fn snapshot_build_gate_inputs_with_cache(
+pub(super) fn snapshot_dev_gate_inputs_with_cache(
     project_root: &Path,
     config: &AspRustConfig,
     cache_root: Option<&Path>,
-) -> Result<AspRustBuildGateSnapshot, String> {
+) -> Result<AspRustDevGateSnapshot, String> {
     let project_root = project_root
         .canonicalize()
-        .map_err(|error| format!("canonicalize build-gate project root: {error}"))?;
+        .map_err(|error| format!("canonicalize dev-gate project root: {error}"))?;
     let scope = crate::discovery::asp_rust_scope(
         &project_root,
         config.include_tests,
@@ -175,12 +173,12 @@ pub(super) fn snapshot_build_gate_inputs_with_cache(
     let byte_count = files
         .iter()
         .try_fold(0_u64, |total, file| total.checked_add(file.byte_count))
-        .ok_or_else(|| "build-gate snapshot byte count overflow".to_string())?;
+        .ok_or_else(|| "dev-gate snapshot byte count overflow".to_string())?;
     let digest = content_digest(
         &serde_json::to_vec(&files)
-            .map_err(|error| format!("serialize build-gate snapshot files: {error}"))?,
+            .map_err(|error| format!("serialize dev-gate snapshot files: {error}"))?,
     );
-    let snapshot = AspRustBuildGateSnapshot {
+    let snapshot = AspRustDevGateSnapshot {
         digest,
         file_count: files.len(),
         byte_count,
@@ -193,13 +191,13 @@ pub(super) fn snapshot_build_gate_inputs_with_cache(
 }
 
 #[cfg(test)]
-pub(super) fn build_gate_cache_key(
+pub(super) fn dev_gate_cache_key(
     config: &AspRustConfig,
     scope: AspRustRunScope,
     dependency_baseline_receipts: &[AspRustDependencyBaselinePackageReceipt],
-    snapshot: &AspRustBuildGateSnapshot,
+    snapshot: &AspRustDevGateSnapshot,
 ) -> Result<String, String> {
-    build_gate_cache_key_with_policy_digest(
+    dev_gate_cache_key_with_policy_digest(
         config,
         scope,
         dependency_baseline_receipts,
@@ -208,22 +206,22 @@ pub(super) fn build_gate_cache_key(
     )
 }
 
-pub(super) fn build_gate_cache_key_with_policy_digest(
+pub(super) fn dev_gate_cache_key_with_policy_digest(
     config: &AspRustConfig,
     scope: AspRustRunScope,
     dependency_baseline_receipts: &[AspRustDependencyBaselinePackageReceipt],
-    snapshot: &AspRustBuildGateSnapshot,
+    snapshot: &AspRustDevGateSnapshot,
     policy_authority_digest: &str,
 ) -> Result<String, String> {
     let harness_provider_digest = harness_provider_digest()?;
-    build_gate_cache_key_with_contract(
+    dev_gate_cache_key_with_contract(
         config,
         scope,
         dependency_baseline_receipts,
         snapshot,
-        BuildGateCacheContract {
-            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
-            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
+        DevGateCacheContract {
+            schema_id: ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID,
+            schema_version: ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION,
             harness_version: env!("CARGO_PKG_VERSION"),
             harness_provider_digest: &harness_provider_digest,
             policy_authority_digest,
@@ -235,7 +233,7 @@ fn harness_provider_digest() -> Result<String, String> {
     Ok(env!("ASP_RUST_PROVIDER_DIGEST").to_string())
 }
 
-struct BuildGateCacheContract<'a> {
+struct DevGateCacheContract<'a> {
     schema_id: &'static str,
     schema_version: &'static str,
     harness_version: &'static str,
@@ -243,12 +241,12 @@ struct BuildGateCacheContract<'a> {
     policy_authority_digest: &'a str,
 }
 
-fn build_gate_cache_key_with_contract(
+fn dev_gate_cache_key_with_contract(
     config: &AspRustConfig,
     scope: AspRustRunScope,
     dependency_baseline_receipts: &[AspRustDependencyBaselinePackageReceipt],
-    snapshot: &AspRustBuildGateSnapshot,
-    contract: BuildGateCacheContract<'_>,
+    snapshot: &AspRustDevGateSnapshot,
+    contract: DevGateCacheContract<'_>,
 ) -> Result<String, String> {
     let scope = match scope {
         AspRustRunScope::Package => "package",
@@ -267,7 +265,7 @@ fn build_gate_cache_key_with_contract(
                 right.source_contains.as_str(),
             ))
     });
-    let material = AspRustBuildGateCacheKey {
+    let material = AspRustDevGateCacheKey {
         schema_id: contract.schema_id,
         schema_version: contract.schema_version,
         harness_version: contract.harness_version,
@@ -280,36 +278,36 @@ fn build_gate_cache_key_with_contract(
     };
     serde_json::to_vec(&material)
         .map(|bytes| content_digest(&bytes))
-        .map_err(|error| format!("serialize build-gate cache key: {error}"))
+        .map_err(|error| format!("serialize dev-gate cache key: {error}"))
 }
 
 fn project_cache_root(base: PathBuf, project_identity: &str) -> PathBuf {
     base.join("rph")
         .join("bg")
-        .join(format!("v{}", ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION))
+        .join(format!("v{}", ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION))
         .join(project_identity_stem(project_identity))
 }
 
-pub(super) fn load_build_gate_cache(
+pub(super) fn load_dev_gate_cache(
     cache_root: &Path,
     cache_key: &str,
-) -> Option<AspRustBuildGateCacheRecord> {
+) -> Option<AspRustDevGateCacheRecord> {
     let bytes = fs::read(cache_path(cache_root, cache_key)).ok()?;
-    let record = serde_json::from_slice::<AspRustBuildGateCacheRecord>(&bytes).ok()?;
+    let record = serde_json::from_slice::<AspRustDevGateCacheRecord>(&bytes).ok()?;
     let byte_count = record
         .snapshot
         .files
         .iter()
         .try_fold(0_u64, |total, file| total.checked_add(file.byte_count))?;
-    (record.schema_id == ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID
-        && record.schema_version == ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION
+    (record.schema_id == ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID
+        && record.schema_version == ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION
         && record.cache_key == cache_key
         && record.snapshot.file_count == record.snapshot.files.len()
         && record.snapshot.byte_count == byte_count
         && record.snapshot.digest
             == content_digest(&serde_json::to_vec(&record.snapshot.files).ok()?)
         && record.payload_digest
-            == build_gate_cache_payload_digest(
+            == dev_gate_cache_payload_digest(
                 &record.report,
                 &record.verification_plan,
                 &record.downstream_policy_receipt,
@@ -319,46 +317,46 @@ pub(super) fn load_build_gate_cache(
     .then_some(record)
 }
 
-pub(super) fn build_gate_cache_payload_digest(
+pub(super) fn dev_gate_cache_payload_digest(
     report: &AspRustReport,
     verification_plan: &RustVerificationPlan,
     downstream_policy_receipt: &AspRustDownstreamPolicyReceipt,
     dependency_baseline_receipts: &[AspRustDependencyBaselinePackageReceipt],
 ) -> Result<String, String> {
-    serde_json::to_vec(&AspRustBuildGateCachePayload {
+    serde_json::to_vec(&AspRustDevGateCachePayload {
         report,
         verification_plan,
         downstream_policy_receipt,
         dependency_baseline_receipts,
     })
     .map(|bytes| content_digest(&bytes))
-    .map_err(|error| format!("serialize build-gate cache payload: {error}"))
+    .map_err(|error| format!("serialize dev-gate cache payload: {error}"))
 }
 
-pub(super) fn store_build_gate_cache(
+pub(super) fn store_dev_gate_cache(
     cache_root: &Path,
-    record: &AspRustBuildGateCacheRecord,
+    record: &AspRustDevGateCacheRecord,
 ) -> Result<(), String> {
     fs::create_dir_all(cache_root)
-        .map_err(|error| format!("create build-gate cache directory: {error}"))?;
+        .map_err(|error| format!("create dev-gate cache directory: {error}"))?;
     let destination = cache_path(cache_root, &record.cache_key);
     let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let temporary = cache_root.join(format!(".{}.{}.tmp", std::process::id(), sequence));
     let bytes = serde_json::to_vec(record)
-        .map_err(|error| format!("serialize build-gate cache record: {error}"))?;
+        .map_err(|error| format!("serialize dev-gate cache record: {error}"))?;
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(&temporary)
-        .map_err(|error| format!("create build-gate cache temporary file: {error}"))?;
+        .map_err(|error| format!("create dev-gate cache temporary file: {error}"))?;
     file.write_all(&bytes)
         .and_then(|()| file.sync_all())
-        .map_err(|error| format!("write build-gate cache temporary file: {error}"))?;
+        .map_err(|error| format!("write dev-gate cache temporary file: {error}"))?;
     drop(file);
     if let Err(error) = fs::rename(&temporary, &destination) {
         let _ = fs::remove_file(&temporary);
         if !destination.is_file() {
-            return Err(format!("publish build-gate cache record: {error}"));
+            return Err(format!("publish dev-gate cache record: {error}"));
         }
     }
     Ok(())
@@ -371,7 +369,7 @@ fn collect_snapshot_path(
     config: &AspRustConfig,
     previous_index: &AspRustSnapshotDigestIndex,
     next_index: &mut AspRustSnapshotDigestIndex,
-    files: &mut BTreeMap<PathBuf, AspRustBuildGateSnapshotFile>,
+    files: &mut BTreeMap<PathBuf, AspRustDevGateSnapshotFile>,
 ) -> Result<(), String> {
     if crate::discovery::is_symlink_path(path) {
         return Ok(());
@@ -379,12 +377,12 @@ fn collect_snapshot_path(
     if path.is_file() {
         let relative_path = path
             .strip_prefix(project_root)
-            .map_err(|error| format!("relativize build-gate snapshot path: {error}"))?
+            .map_err(|error| format!("relativize dev-gate snapshot path: {error}"))?
             .to_path_buf();
         let indexed = snapshot_file(path, &relative_path, previous_index)?;
         files.insert(
             relative_path.clone(),
-            AspRustBuildGateSnapshotFile {
+            AspRustDevGateSnapshotFile {
                 path: relative_path.clone(),
                 byte_count: indexed.byte_count,
                 content_digest: indexed.content_digest.clone(),
@@ -400,9 +398,9 @@ fn collect_snapshot_path(
         return Ok(());
     }
     let mut entries = fs::read_dir(path)
-        .map_err(|error| format!("read build-gate snapshot directory: {error}"))?
+        .map_err(|error| format!("read dev-gate snapshot directory: {error}"))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("read build-gate snapshot entry: {error}"))?;
+        .map_err(|error| format!("read dev-gate snapshot entry: {error}"))?;
     entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
         let path = entry.path();
@@ -411,7 +409,7 @@ fn collect_snapshot_path(
         }
         let file_type = entry
             .file_type()
-            .map_err(|error| format!("inspect build-gate snapshot entry: {error}"))?;
+            .map_err(|error| format!("inspect dev-gate snapshot entry: {error}"))?;
         if file_type.is_dir() {
             if should_skip_directory(&entry.file_name(), config) {
                 continue;
@@ -432,12 +430,12 @@ fn collect_snapshot_path(
         }
         let relative_path = path
             .strip_prefix(project_root)
-            .map_err(|error| format!("relativize build-gate snapshot path: {error}"))?
+            .map_err(|error| format!("relativize dev-gate snapshot path: {error}"))?
             .to_path_buf();
         let indexed = snapshot_file(&path, &relative_path, previous_index)?;
         files.insert(
             relative_path.clone(),
-            AspRustBuildGateSnapshotFile {
+            AspRustDevGateSnapshotFile {
                 path: relative_path.clone(),
                 byte_count: indexed.byte_count,
                 content_digest: indexed.content_digest.clone(),
@@ -453,25 +451,21 @@ fn snapshot_file(
     relative_path: &Path,
     previous_index: &AspRustSnapshotDigestIndex,
 ) -> Result<AspRustSnapshotDigestIndexFile, String> {
-    let metadata = fs::metadata(path).map_err(|error| {
-        format!(
-            "inspect build-gate snapshot file {}: {error}",
-            path.display()
-        )
-    })?;
+    let metadata = fs::metadata(path)
+        .map_err(|error| format!("inspect dev-gate snapshot file {}: {error}", path.display()))?;
     let byte_count = metadata.len();
     let modified_nanos_since_epoch = metadata
         .modified()
         .map_err(|error| {
             format!(
-                "inspect build-gate snapshot mtime {}: {error}",
+                "inspect dev-gate snapshot mtime {}: {error}",
                 path.display()
             )
         })?
         .duration_since(UNIX_EPOCH)
         .map_err(|error| {
             format!(
-                "normalize build-gate snapshot mtime {}: {error}",
+                "normalize dev-gate snapshot mtime {}: {error}",
                 path.display()
             )
         })?
@@ -485,7 +479,7 @@ fn snapshot_file(
     #[cfg(test)]
     SNAPSHOT_FILE_READ_COUNT.with(|count| count.set(count.get() + 1));
     let content = fs::read(path)
-        .map_err(|error| format!("read build-gate snapshot file {}: {error}", path.display()))?;
+        .map_err(|error| format!("read dev-gate snapshot file {}: {error}", path.display()))?;
     Ok(AspRustSnapshotDigestIndexFile {
         byte_count,
         modified_nanos_since_epoch,
@@ -510,7 +504,7 @@ fn store_snapshot_digest_index(
     index: &AspRustSnapshotDigestIndex,
 ) -> Result<(), String> {
     fs::create_dir_all(cache_root)
-        .map_err(|error| format!("create build-gate snapshot index directory: {error}"))?;
+        .map_err(|error| format!("create dev-gate snapshot index directory: {error}"))?;
     let destination = snapshot_digest_index_path(cache_root);
     let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let temporary = cache_root.join(format!(
@@ -519,19 +513,19 @@ fn store_snapshot_digest_index(
         sequence
     ));
     let bytes = serde_json::to_vec(index)
-        .map_err(|error| format!("serialize build-gate snapshot index: {error}"))?;
+        .map_err(|error| format!("serialize dev-gate snapshot index: {error}"))?;
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(&temporary)
-        .map_err(|error| format!("create build-gate snapshot index temporary file: {error}"))?;
+        .map_err(|error| format!("create dev-gate snapshot index temporary file: {error}"))?;
     file.write_all(&bytes)
         .and_then(|()| file.sync_all())
-        .map_err(|error| format!("write build-gate snapshot index temporary file: {error}"))?;
+        .map_err(|error| format!("write dev-gate snapshot index temporary file: {error}"))?;
     drop(file);
     fs::rename(&temporary, &destination).map_err(|error| {
         let _ = fs::remove_file(&temporary);
-        format!("publish build-gate snapshot index: {error}")
+        format!("publish dev-gate snapshot index: {error}")
     })
 }
 
@@ -569,7 +563,7 @@ fn project_identity_stem(project_identity: &str) -> &str {
 fn content_digest(content: &[u8]) -> String {
     format!(
         "sha256:{}",
-        cache_digest_hex(b"asp-rust.build-gate-cache.content.v1", content,)
+        cache_digest_hex(b"asp-rust.dev-gate-cache.content.v1", content,)
     )
 }
 
@@ -587,5 +581,5 @@ fn cache_digest_hex(namespace: &[u8], content: &[u8]) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../tests/unit/build_gate/cache.rs"]
+#[path = "../../tests/unit/dev_gate/cache.rs"]
 mod tests;

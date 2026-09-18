@@ -54,6 +54,8 @@ mod runner_config;
 #[path = "unit/sample_project.rs"]
 mod sample_project;
 
+#[path = "unit/dev_dependency_boundary.rs"]
+mod dev_dependency_boundary;
 #[path = "unit/nested_item_facts.rs"]
 mod nested_item_facts;
 #[path = "unit/no_asp_crate_dependencies.rs"]

@@ -16,13 +16,13 @@ use tempfile::TempDir;
 
 use crate::verification::support::write_api_project;
 
-const THIN_BUILD_SCRIPT_ADVICE_ALLOW: &str = "scope=downstream policy thin-build-script test; owner=verification::build_gate test; finding_category=advisory public API doc findings; why_safe_now=the test verifies policy object wiring while advisory findings remain visible; cleanup_trigger=remove when the API fixture documents its public item";
-const WORKSPACE_POLICY_ADVICE_ALLOW: &str = "scope=workspace common policy test; owner=verification::build_gate test; finding_category=advisory public API doc findings; why_safe_now=the test verifies common workspace policy reuse while advisory findings remain visible; cleanup_trigger=remove when the API fixture documents its public item";
-const MEMBER_POLICY_ADVICE_ALLOW: &str = "scope=workspace member override test; owner=verification::build_gate test; finding_category=advisory public API doc findings; why_safe_now=the test verifies member-specific policy override behavior; cleanup_trigger=remove when the member fixture no longer needs an advice override";
-const CRITERION_POLICY_ADVICE_ALLOW: &str = "scope=criterion downstream policy test; owner=verification::build_gate test; finding_category=advisory public API doc findings; why_safe_now=the test verifies criterion policy wiring while advisory findings remain visible; cleanup_trigger=remove when the API fixture documents its public item";
+const THIN_DEV_GATE_ADVICE_ALLOW: &str = "scope=downstream policy thin-dev-gate test; owner=verification::dev_gate test; finding_category=advisory public API doc findings; why_safe_now=the test verifies policy object wiring while advisory findings remain visible; cleanup_trigger=remove when the API fixture documents its public item";
+const WORKSPACE_POLICY_ADVICE_ALLOW: &str = "scope=workspace common policy test; owner=verification::dev_gate test; finding_category=advisory public API doc findings; why_safe_now=the test verifies common workspace policy reuse while advisory findings remain visible; cleanup_trigger=remove when the API fixture documents its public item";
+const MEMBER_POLICY_ADVICE_ALLOW: &str = "scope=workspace member override test; owner=verification::dev_gate test; finding_category=advisory public API doc findings; why_safe_now=the test verifies member-specific policy override behavior; cleanup_trigger=remove when the member fixture no longer needs an advice override";
+const CRITERION_POLICY_ADVICE_ALLOW: &str = "scope=criterion downstream policy test; owner=verification::dev_gate test; finding_category=advisory public API doc findings; why_safe_now=the test verifies criterion policy wiring while advisory findings remain visible; cleanup_trigger=remove when the API fixture documents its public item";
 
 #[test]
-fn build_gate_verification_requires_reports_for_configured_task_kinds() {
+fn dev_gate_verification_requires_reports_for_configured_task_kinds() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
@@ -140,7 +140,7 @@ fn downstream_verification_gate_guide_classifies_api_and_cli_surfaces() {
     assert!(guide.contains("## Crate Layout"), "{guide}");
     assert!(guide.contains("## Classification"), "{guide}");
     assert!(guide.contains("workspace semantic contract"), "{guide}");
-    assert!(guide.contains("shared Build Support gate"), "{guide}");
+    assert!(guide.contains("test-only policy gate"), "{guide}");
     assert!(
         guide.contains("assert_asp_rust_workspace_policy_from_env"),
         "{guide}"
@@ -184,14 +184,14 @@ fn downstream_verification_gate_guide_classifies_api_and_cli_surfaces() {
         "{guide}"
     );
     assert!(
-        guide.contains("`cargo test` automatically triggers that shared Cargo unit"),
+        guide.contains("Cargo triggers one test-only policy gate"),
         "{guide}"
     );
     assert!(guide.contains("[asp-rust-agent-guidance]"), "{guide}");
 }
 
 #[test]
-fn downstream_policy_object_keeps_build_script_thin() {
+fn downstream_policy_object_keeps_dev_gate_thin() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
@@ -199,7 +199,7 @@ fn downstream_policy_object_keeps_build_script_thin() {
     let policy = AspRustDownstreamPolicy::new(
         "api crate",
         default_asp_rust_config()
-            .with_cargo_check_advice_allow_explanation(THIN_BUILD_SCRIPT_ADVICE_ALLOW)
+            .with_cargo_check_advice_allow_explanation(THIN_DEV_GATE_ADVICE_ALLOW)
             .with_latency_sensitive_performance_owner(
                 "src/api.rs",
                 "API request path owns latency-sensitive dispatch",
@@ -309,7 +309,7 @@ source = "git+https://github.com/tao3k/agent-semantic-protocols?rev=abc123#abc12
     let policy = AspRustDownstreamPolicy::new(
         "api crate",
         default_asp_rust_config()
-            .with_cargo_check_advice_allow_explanation(THIN_BUILD_SCRIPT_ADVICE_ALLOW)
+            .with_cargo_check_advice_allow_explanation(THIN_DEV_GATE_ADVICE_ALLOW)
             .with_latency_sensitive_performance_owner(
                 "src/api.rs",
                 "API request path owns latency-sensitive dispatch",

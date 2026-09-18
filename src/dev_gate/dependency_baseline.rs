@@ -4,7 +4,7 @@ use std::path::Path;
 #[cfg(feature = "dependency-baseline")]
 use std::path::PathBuf;
 
-/// Cargo.lock dependency baseline shared by downstream build gates.
+/// Cargo.lock dependency baseline shared by downstream dev gates.
 ///
 /// Use this when a downstream workspace must guarantee that a package resolves
 /// to one exact version and one git source/rev across all member crates.

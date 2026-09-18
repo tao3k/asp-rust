@@ -6,14 +6,14 @@
 2. parsing Rust files with native Rust syntax
 3. emitting deterministic findings from small rule packs
 4. rendering compact diagnostics for repair-oriented agents
-5. exposing assertion helpers that can be mounted in Cargo build scripts
+5. exposing assertion helpers that can be mounted in Cargo tests
 
 The package is deliberately library-like and Agent-facing. It does not know
 about a specific workspace, crate family, or CI provider, and it does not assume
 a human will read a long audit report before code is repaired. Callers pass a
 project root or explicit paths, then decide whether to assert, render, or
-inspect the report. The usual downstream loop is: mount the harness in root
-`build.rs`, let `cargo check` run parser-native policy, and let the next coding
+inspect the report. The usual downstream loop is: mount the harness as a
+dev-dependency test gate, let `cargo test` run parser-native policy, and let the next coding
 Agent repair the compact finding or configure an explicit project-local
 rationale.
 
@@ -48,9 +48,8 @@ evidence.
 Root Cargo test targets follow that parser boundary too: conventional
 `tests/*.rs` targets and manifest-declared `[[test]]` paths are collected and
 parsed under `src/parser/` before `RUST-AGENT-PROJECT-007` and `RUST-AGENT-PROJECT-008` render
-findings about test-target structure. If a harness-enabled package still mounts
-a cargo-test harness macro from a root test target, `RUST-AGENT-PROJECT-006` reports a
-migration warning that points the Agent to the `cargo check` build gate.
+findings about test-target structure. A cargo-test harness macro in a root test
+target is an active package policy entrypoint.
 Rust `#[path]` attributes are also resolved there, so project policy consumes
 both the native attribute text and its normalized target path as parser facts.
 Rust source path interpretation follows the same contract: namespace
@@ -106,36 +105,25 @@ module-tree facts under `src/parser/` before `RUST-MOD-R007` and
 ## Self-Apply Contract
 
 The package is also self-hosted by its own default policy. The library target
-mounts `asp_rust_cargo_test_gate!` from `src/self_policy.rs`
-because this crate cannot add itself as a build-dependency. Downstream packages
-should instead mount the build-time gate from root `build.rs`; that gate runs
-during `cargo check`, before libtest, test filters, or runtime evaluation.
-Build-gate embedding is intentionally stricter than the raw library runner:
-`rust.agent_policy` findings remain `Info`, but the default build gate fails on
-compact agent advice so the next repair agent can see and enrich the project
-structure instead of losing the message inside passing build output.
+mounts `asp_rust_cargo_test_gate!` from `src/self_policy.rs`. Downstream packages
+use the same test-only boundary so ASP Rust never enters their normal or build
+dependency graph. `mode = warn` renders findings without failing; `mode = deny`
+fails on configured blocking findings.
 Projects can clear that notification by fixing the structure, by configuring
-the relevant rule surface, or by using an explicit
-`with_cargo_check_advice_allow_explanation(...)` rationale. Cargo-test advice
+the relevant rule surface, or by using an explicit cargo-test rationale. Cargo-test advice
 allowance is still audited by `RUST-AGENT-PROJECT-015`; this keeps `allow` from
 becoming a cheap Agent escape hatch for passing gates while ignoring advisory
 policy.
 
-The layer split is deliberate:
-
-- `cargo check`: parser-native policy, including syntax, Cargo manifest facts,
-  module/owner graph, import clarity, source/test scope coverage, build-gate
-  closure, and verification planning reminders.
-- `cargo test`: test-layer compatibility policy, including retired source gate
-  configuration, explicit advice allowance, and future checks that consume
-  runtime test or verification receipts.
+The layer split is deliberate: `cargo build` and `cargo check` build the product;
+`cargo test` additionally activates parser-native policy and verification
+contracts from the dev dependency graph.
 
 New source-backed test modules should stay under `tests/unit` and be mounted
 with `#[path]`. Harness-enabled library crates should mount a complete
-build-time gate from root `build.rs`; otherwise they will be reported by
-`RUST-AGENT-PROJECT-012`. Source cargo-test gates remain supported only as compatibility
-mounts for crates that cannot yet add a build script, and `RUST-AGENT-PROJECT-009`
-keeps warning until the Agent migrates parser-native policy to the build gate.
+cargo-test gate backed by an `asp-rust` dev-dependency; otherwise they will be
+reported by `RUST-AGENT-PROJECT-012`. `RUST-AGENT-PROJECT-009` reports legacy
+activation from `build.rs`.
 Root Cargo test targets are thin aggregates: they should mount external suite
 modules only, while test bodies and helpers belong in suite files under
 `tests/unit`, `tests/integration`, or another standard suite.

@@ -77,15 +77,15 @@ fn fake_cargo_package_identity_fallback_is_flagged() {
 }
 
 #[test]
-fn redundant_workspace_member_build_gate_alias_is_flagged() {
+fn redundant_workspace_member_dev_gate_alias_is_flagged() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
-    write_minimal_project(root, "redundant-build-gate-alias");
+    write_minimal_project(root, "redundant-dev-gate-alias");
     fs::write(
         root.join("src/lib.rs"),
-        "pub fn assert_member_build_gate_from_env() {\n    \
-         assert_member_harness_build_gate_from_env();\n}\n\n\
-         pub fn assert_member_harness_build_gate_from_env() {}\n",
+        "pub fn assert_member_dev_gate_from_env() {\n    \
+         assert_member_harness_dev_gate_from_env();\n}\n\n\
+         pub fn assert_member_harness_dev_gate_from_env() {}\n",
     )
     .expect("write lib");
 

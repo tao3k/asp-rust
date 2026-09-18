@@ -1,4 +1,4 @@
-//! Snapshot of downstream build-gate policy obligations and evidence.
+//! Snapshot of downstream dev-gate policy obligations and evidence.
 
 use std::path::Path;
 
@@ -16,7 +16,7 @@ pub const ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID: &str = "asp-rust.downstr
 /// Current downstream policy receipt schema version.
 pub const ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION: &str = "1";
 
-/// Agent-facing receipt for a downstream build-gate policy.
+/// Agent-facing receipt for a downstream dev-gate policy.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AspRustDownstreamPolicyReceipt {
     pub schema_id: String,

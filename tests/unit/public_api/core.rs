@@ -21,7 +21,7 @@ mod embedded_cargo_test_gate_macro_smoke {
                     [asp_rust::RustOwnerResponsibility::PublicApi],
                 )
                 .without_verification_tasks()
-                .with_rationale("macro smoke test exercises retired cargo-test gate wiring"),
+                .with_rationale("macro smoke test exercises cargo-test gate wiring"),
             )
         }
     );
@@ -48,6 +48,13 @@ mod embedded_cargo_test_gate_macro_smoke {
                          cleanup_trigger=remove when the compatibility macro no longer supports advice=allow",
                     )
             }
+        );
+    }
+
+    mod warning_mode {
+        asp_rust::asp_rust_cargo_test_gate!(
+            mode = warn,
+            config = asp_rust::default_asp_rust_config()
         );
     }
 }

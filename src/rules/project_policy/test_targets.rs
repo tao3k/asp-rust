@@ -3,54 +3,12 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::parser::{
-    CargoManifestFacts, ParsedRustModule, RustTopLevelItemSyntax, path_line_location, source_line,
-};
+use crate::parser::{ParsedRustModule, RustTopLevelItemSyntax, path_line_location, source_line};
 use crate::{AspRustFinding, AspRustRule};
 
 use super::config::is_allowed_test_suite_path;
 use super::support::display_project_path;
-use super::{RUST_PROJ_R006, RUST_PROJ_R007, RUST_PROJ_R008};
-
-const CARGO_TEST_GATE_MACROS: &[&str] = &["asp_rust_gate", "asp_rust_cargo_test_gate"];
-
-pub(super) fn retired_test_target_gate_findings(
-    project_root: &Path,
-    cargo_manifest: &CargoManifestFacts,
-    cargo_test_targets: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, AspRustRule>,
-) -> Vec<AspRustFinding> {
-    if !cargo_manifest.references_harness {
-        return Vec::new();
-    }
-
-    let rule = &rules[RUST_PROJ_R006];
-    cargo_test_targets
-        .iter()
-        .flat_map(|parsed| {
-            parsed
-                .syntax_facts
-                .macro_invocations
-                .iter()
-                .filter(|invocation| {
-                    CARGO_TEST_GATE_MACROS.contains(&invocation.terminal_name.as_str())
-                })
-                .map(|invocation| {
-                    AspRustFinding::from_rule(
-                        rule,
-                        format!(
-                            "{} mounts a retired cargo-test harness gate.",
-                            display_project_path(project_root, &parsed.report.path)
-                        ),
-                        path_line_location(&parsed.report.path, invocation.line),
-                        source_line(&parsed.source, invocation.line),
-                        "move parser-native harness policy to [build-dependencies] plus root build.rs using assert_asp_rust_cargo_check_clean_from_env_with_config(...), then keep this test target as a thin suite aggregate",
-                    )
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect()
-}
+use super::{RUST_PROJ_R007, RUST_PROJ_R008};
 
 pub(super) fn test_target_aggregate_findings(
     project_root: &Path,

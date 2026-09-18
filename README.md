@@ -10,17 +10,16 @@ by ASP Server. The `asp-rust` binary is only the Runtime-managed HTTP/JSON
 provider server and is built behind the `provider-server` feature; it does not
 expose provider-local business commands.
 
-The workspace's `build-support` crate contains lightweight build-script
-plumbing and does not own policy evaluation. Policy admission remains
-package-scoped; ASP Rust does not wrap individual test functions with a
-procedural macro that would repeat the package policy scan per test.
+Policy admission is package-scoped and mounted once as a Cargo test. ASP Rust
+does not wrap individual test functions with a procedural macro, so the package
+policy scan still runs only once per test binary.
 
 ## What It Does
 
 - Builds parser-native project facts from Rust source and Cargo manifests.
 - Runs deterministic rule packs for syntax, project policy, modularity, and
   agent repair advice.
-- Provides package and dependency-graph `cargo check` gates for downstream crates.
+- Provides package and dependency-graph `cargo test` gates for downstream crates.
 - Exposes parser-owned provider operations through the ASP Server HTTP/JSON
   transport.
 - Plans verification obligations for external skills without running benchmarks,
@@ -28,30 +27,48 @@ procedural macro that would repeat the package policy scan per test.
 
 ## Quick Use
 
-For downstream projects, add ASP Rust as a build-dependency:
+For downstream projects, add ASP Rust only as a dev-dependency:
 
 ```toml
-[build-dependencies]
+[dev-dependencies]
 asp-rust = { git = "https://github.com/tao3k/asp-rust", branch = "main" }
 ```
 
-Then call the build gate from a thin root `build.rs`:
+Then mount one test-only Dev Gate from `src/lib.rs`:
 
 ```rust,ignore
-fn main() {
-    let config = asp_rust::default_asp_rust_config();
-    asp_rust::assert_asp_rust_cargo_check_clean_from_env_with_config(
-        &config,
-    );
-}
+#[cfg(test)]
+asp_rust::asp_rust_cargo_test_gate!(
+    mode = deny,
+    config = asp_rust::default_asp_rust_config()
+);
 ```
 
-For a multi-package workspace, use the graph gate at the product root rather
-than copying the same full policy gate into every member:
+Use `mode = warn` to render findings without failing the test, or `mode = deny`
+to enforce the configured blocking contract. For a multi-package workspace,
+keep the shared policy in the existing workspace Build Support crate. Member
+packages reference that crate under `[dev-dependencies]`, and a thin test target
+mounts its policy macro. Build Support may depend on `asp-rust` normally because
+the member reaches the entire support graph only through its dev edge.
 
 ```rust,ignore
-fn main() {
-    asp_rust::assert_asp_rust_workspace_policy_from_env(&harness::workspace_policy());
+workspace_build_support::asp_workspace_policy_gate!();
+```
+
+Build Support owns that thin wrapper and the shared policy:
+
+```rust,ignore
+#[doc(hidden)]
+pub use asp_rust;
+
+#[macro_export]
+macro_rules! asp_workspace_policy_gate {
+    () => {
+        $crate::asp_rust::asp_rust_workspace_dev_gate!(
+            mode = deny,
+            policy = $crate::workspace_policy()
+        );
+    };
 }
 ```
 
@@ -80,9 +97,8 @@ just install-bin-linux
 
 ## Development
 
-This crate self-applies the default ASP Rust policy. Downstream crates should
-prefer the build-time `cargo check` gate; this crate uses a self-apply path
-because it cannot build-depend on itself.
+This crate self-applies the default ASP Rust policy through its test suite.
+Downstream crates should use the same dev-dependency-only Cargo test boundary.
 
 Useful local checks:
 

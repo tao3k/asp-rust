@@ -96,9 +96,15 @@ async fn read_request(stream: &mut TcpStream) -> Result<HttpJsonRequest, String>
         .next()
         .ok_or_else(|| "HTTP JSON request line is absent".to_owned())?;
     let mut request_line = request_line.split_whitespace();
-    let method = request_line.next().unwrap_or_default().to_owned();
-    let path = request_line.next().unwrap_or_default().to_owned();
-    if method.is_empty() || path.is_empty() || request_line.next() != Some("HTTP/1.1") {
+    let method = request_line
+        .next()
+        .ok_or_else(|| "HTTP JSON request method is absent".to_owned())?
+        .to_owned();
+    let path = request_line
+        .next()
+        .ok_or_else(|| "HTTP JSON request path is absent".to_owned())?
+        .to_owned();
+    if request_line.next() != Some("HTTP/1.1") {
         return Err("HTTP JSON request line is invalid".to_owned());
     }
     let content_length = lines

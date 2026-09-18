@@ -161,7 +161,7 @@ fn redundant_workspace_wrapper_findings(
                 .filter_map(move |item| {
                     let function_name = item.function_name.as_deref()?;
                     if !item.is_public
-                        || !is_redundant_member_build_gate_alias(function_name)
+                        || !is_redundant_member_dev_gate_alias(function_name)
                         || !item_range_contains_harness_alias_target(module, item.line, item.end_line)
                     {
                         return None;
@@ -169,7 +169,7 @@ fn redundant_workspace_wrapper_findings(
                     Some(AspRustFinding::from_rule(
                         rule,
                         format!(
-                            "{} exposes redundant public build-gate alias `{function_name}`.",
+                            "{} exposes redundant public dev-gate alias `{function_name}`.",
                             display_project_path(project_root, &module.report.path)
                         ),
                         path_line_location(&module.report.path, item.line),
@@ -181,9 +181,9 @@ fn redundant_workspace_wrapper_findings(
         .collect()
 }
 
-fn is_redundant_member_build_gate_alias(function_name: &str) -> bool {
+fn is_redundant_member_dev_gate_alias(function_name: &str) -> bool {
     function_name.starts_with("assert_member_")
-        && function_name.contains("build_gate")
+        && function_name.contains("dev_gate")
         && function_name.contains("_from_env")
         && !function_name.contains("harness")
 }
@@ -198,7 +198,7 @@ fn item_range_contains_harness_alias_target(
         .lines()
         .skip(start_line.saturating_sub(1))
         .take(end_line.saturating_sub(start_line).saturating_add(1))
-        .any(|line| line.contains("assert_member_harness_build_gate_from_env"))
+        .any(|line| line.contains("assert_member_harness_dev_gate_from_env"))
 }
 
 fn silent_evidence_default_findings(

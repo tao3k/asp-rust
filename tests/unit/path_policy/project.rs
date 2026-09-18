@@ -5,8 +5,8 @@ use tempfile::TempDir;
 
 use super::support::{findings_for_rule, has_rule, write_manifest};
 
-#[path = "project/build_gate.rs"]
-mod build_gate;
+#[path = "project/dev_gate.rs"]
+mod dev_gate;
 #[path = "project/manifest.rs"]
 mod manifest;
 #[path = "project/quality.rs"]
@@ -161,7 +161,7 @@ fn root_test_target_comment_mentions_do_not_count_as_structure() {
 }
 
 #[test]
-fn harness_dev_dependency_remains_test_layer_only() {
+fn harness_dev_dependency_remains_test_layer_only_but_requires_activation() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_manifest(root, "missing-embedded-lib-gate");
@@ -177,12 +177,17 @@ fn harness_dev_dependency_remains_test_layer_only() {
         .expect("run project harness");
 
     assert!(
-        !has_rule(&report, "RUST-AGENT-PROJECT-012"),
+        has_rule(&report, "RUST-AGENT-PROJECT-012"),
         "{:?}",
         report.findings
     );
     assert!(
         !has_rule(&report, "RUST-AGENT-PROJECT-009"),
+        "{:?}",
+        report.findings
+    );
+    assert!(
+        !has_rule(&report, "RUST-AGENT-PROJECT-006"),
         "{:?}",
         report.findings
     );
@@ -208,7 +213,7 @@ fn library_target_ignores_comment_mentions_of_embedded_cargo_test_gate() {
         .expect("run project harness");
 
     assert!(
-        !has_rule(&report, "RUST-AGENT-PROJECT-012"),
+        has_rule(&report, "RUST-AGENT-PROJECT-012"),
         "{:?}",
         report.findings
     );
@@ -247,7 +252,7 @@ fn manifest_comment_does_not_enable_library_harness_policy() {
 }
 
 #[test]
-fn manifest_package_field_dev_dependency_remains_test_layer_only() {
+fn manifest_package_field_dev_dependency_requires_activation() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     fs::write(
@@ -262,7 +267,7 @@ fn manifest_package_field_dev_dependency_remains_test_layer_only() {
         .expect("run project harness");
 
     assert!(
-        !has_rule(&report, "RUST-AGENT-PROJECT-012"),
+        has_rule(&report, "RUST-AGENT-PROJECT-012"),
         "{:?}",
         report.findings
     );
@@ -274,7 +279,7 @@ fn manifest_package_field_dev_dependency_remains_test_layer_only() {
 }
 
 #[test]
-fn target_dev_dependency_table_remains_test_layer_only() {
+fn target_dev_dependency_table_requires_activation() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     fs::write(
@@ -289,7 +294,7 @@ fn target_dev_dependency_table_remains_test_layer_only() {
         .expect("run project harness");
 
     assert!(
-        !has_rule(&report, "RUST-AGENT-PROJECT-012"),
+        has_rule(&report, "RUST-AGENT-PROJECT-012"),
         "{:?}",
         report.findings
     );

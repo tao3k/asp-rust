@@ -1,4 +1,4 @@
-//! Downstream and workspace build-gate policy configuration.
+//! Downstream and workspace dev-gate policy configuration.
 
 use std::path::{Path, PathBuf};
 
@@ -6,18 +6,18 @@ use crate::model::AspRustConfig;
 
 use super::AspRustDependencyBaseline;
 
-/// Explicit authority supplied by a downstream build-support package.
+/// Explicit authority supplied by a downstream Build Support package.
 ///
 /// The harness deliberately does not infer ASP state, Cargo output, or policy
 /// registry locations. The downstream owner chooses the cache lifecycle and
 /// binds the declarative policy digest used by the cache key.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AspRustBuildGateAuthority {
+pub struct AspRustDevGateAuthority {
     cache_root: PathBuf,
     policy_digest: String,
 }
 
-impl AspRustBuildGateAuthority {
+impl AspRustDevGateAuthority {
     /// Bind one downstream policy to an explicit cache owner.
     ///
     /// # Errors
@@ -31,10 +31,10 @@ impl AspRustBuildGateAuthority {
         let cache_root = cache_root.into();
         let policy_digest = policy_digest.into();
         if cache_root.as_os_str().is_empty() {
-            return Err("build-gate cache root must not be empty".to_string());
+            return Err("dev-gate cache root must not be empty".to_string());
         }
         if !policy_digest.starts_with("blake3-256:") || policy_digest.len() <= "blake3-256:".len() {
-            return Err("build-gate policy digest must use blake3-256 identity".to_string());
+            return Err("dev-gate policy digest must use blake3-256 identity".to_string());
         }
         Ok(Self {
             cache_root,
@@ -55,7 +55,7 @@ impl AspRustBuildGateAuthority {
     }
 }
 
-/// Downstream crate-owned policy consumed by a thin `build.rs`.
+/// Downstream crate-owned policy consumed by a test-only Build Support gate.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AspRustDownstreamPolicy {
     gate_label: String,
@@ -65,7 +65,7 @@ pub struct AspRustDownstreamPolicy {
 
 impl AspRustDownstreamPolicy {
     /// Create a downstream policy around a complete harness config.
-    /// Return the build-gate label.
+    /// Return the dev-gate label.
     #[must_use]
     pub fn new(gate_label: impl Into<String>, config: AspRustConfig) -> Self {
         Self {

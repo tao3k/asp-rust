@@ -1,15 +1,15 @@
-//! Semantic verification coverage required by build gates.
+//! Semantic verification coverage required by dev gates.
 
 use std::path::Path;
 
 use crate::model::AspRustConfig;
 use crate::verification::{RustVerificationTaskKind, plan_rust_project_verification_with_config};
 
-use super::guidance::downstream_build_gate_agent_guidance;
+use super::guidance::downstream_dev_gate_agent_guidance;
 use super::receipt::has_report_obligation;
 use super::support::cargo_manifest_dir;
 
-/// Assert that a cargo-check build gate has active semantic verification tasks.
+/// Assert that a cargo-test dev gate has active semantic verification tasks.
 ///
 /// # Panics
 ///
@@ -21,7 +21,7 @@ pub fn assert_asp_rust_verification_from_env_with_config(config: &AspRustConfig,
     assert_asp_rust_verification_with_config(&root, config, gate_label);
 }
 
-/// Assert that a cargo-check build gate has active semantic verification tasks.
+/// Assert that a cargo-test dev gate has active semantic verification tasks.
 ///
 /// This mirrors a Clippy-style build-script gate: downstream crates pass their
 /// harness config through `build.rs`, and Cargo surfaces missing semantic
@@ -52,7 +52,7 @@ pub fn assert_asp_rust_verification_with_config(
         plan_rust_project_verification_with_config(project_root, config).unwrap_or_else(|error| {
             panic!(
                 "{gate_label} verification plan: {error}\n{}",
-                downstream_build_gate_agent_guidance(gate_label)
+                downstream_dev_gate_agent_guidance(gate_label)
             )
         });
     assert_asp_rust_verification_plan(&plan, &config.verification_policy, gate_label);
@@ -107,8 +107,8 @@ fn assert_active_verification_task(
         .any(|task| task.kind == kind && task.is_active())
     {
         panic!(
-            "{gate_label} build gate must configure active {kind:?} verification tasks\n{}",
-            downstream_build_gate_agent_guidance(gate_label)
+            "{gate_label} dev gate must configure active {kind:?} verification tasks\n{}",
+            downstream_dev_gate_agent_guidance(gate_label)
         );
     }
 }
@@ -120,8 +120,8 @@ fn assert_verification_report_obligation(
 ) {
     if !has_report_obligation(plan, key) {
         panic!(
-            "{gate_label} build gate must require a {key} report\n{}",
-            downstream_build_gate_agent_guidance(gate_label)
+            "{gate_label} dev gate must require a {key} report\n{}",
+            downstream_dev_gate_agent_guidance(gate_label)
         );
     }
 }

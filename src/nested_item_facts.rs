@@ -445,8 +445,8 @@ fn nested_item_identity_digest(
         update_identity_field(&mut hasher, scope.kind.as_str().as_bytes());
         update_identity_field(&mut hasher, scope.symbol.as_str().as_bytes());
     }
-    update_identity_field(&mut hasher, impl_owner.unwrap_or_default().as_bytes());
-    update_identity_field(&mut hasher, trait_owner.unwrap_or_default().as_bytes());
+    update_optional_identity_field(&mut hasher, impl_owner);
+    update_optional_identity_field(&mut hasher, trait_owner);
     hasher
         .finalize()
         .iter()
@@ -457,4 +457,14 @@ fn nested_item_identity_digest(
 fn update_identity_field(hasher: &mut Sha256, field: &[u8]) {
     hasher.update((field.len() as u64).to_le_bytes());
     hasher.update(field);
+}
+
+fn update_optional_identity_field(hasher: &mut Sha256, field: Option<&str>) {
+    match field {
+        Some(field) => {
+            hasher.update([1]);
+            update_identity_field(hasher, field.as_bytes());
+        }
+        None => hasher.update([0]),
+    }
 }

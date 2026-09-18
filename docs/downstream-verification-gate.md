@@ -1,9 +1,8 @@
 # Downstream Verification Gate
 
 This guide is the agent-facing contract for crates that consume
-`asp-rust` as a library. It separates build-script semantic
-gates from command-line quick checks so downstream agents can generate an
-adapted policy without reading harness internals.
+`asp-rust` as a library. The policy provider is test tooling: it belongs in the
+dev dependency graph and executes only when Cargo runs tests.
 
 ## Crate Layout
 
@@ -13,7 +12,6 @@ expects the policy to grow:
 ```text
 my-crate/
   Cargo.toml
-  build.rs
   harness/
     mod.rs
     owners.rs
@@ -31,22 +29,19 @@ my-crate/
     ...
 ```
 
-`Cargo.toml` owns the dependency edge. Add the harness under
-`[build-dependencies]`, not only `[dev-dependencies]`, because the semantic gate
-runs from `build.rs` during `cargo check`, `cargo test`, and workspace builds.
+`Cargo.toml` owns the dependency edge. Add `asp-rust` under
+`[dev-dependencies]`. Do not add it to `[dependencies]` or
+`[build-dependencies]`: ordinary builds and downstream consumers must not
+compile the policy provider.
 
-`build.rs` owns only the thin gate entrypoint. It should import the crate-local
-policy module and call the harness assertion API:
+`src/lib.rs` may own the thin test-only gate entrypoint:
 
 ```rust
-#[path = "harness/mod.rs"]
-mod harness;
-
-use asp_rust::assert_asp_rust_downstream_policy_from_env;
-
-fn main() {
-    assert_asp_rust_downstream_policy_from_env(&harness::policy());
-}
+#[cfg(test)]
+asp_rust::asp_rust_cargo_test_gate!(
+    mode = deny,
+    config = harness::config()
+);
 ```
 
 `harness/mod.rs` owns policy assembly. It should call into smaller modules and
@@ -63,13 +58,9 @@ mod reports;
 mod rules;
 mod verification;
 
-pub fn policy() -> AspRustDownstreamPolicy {
-    AspRustDownstreamPolicy::new("my crate", config())
-}
-
-fn config() -> AspRustConfig {
+pub fn config() -> AspRustConfig {
     let config = default_asp_rust_config()
-        .with_cargo_check_advice_allow_explanation(
+        .with_cargo_test_advice_allow_explanation(
             "crate keeps advisory findings visible while blocking policy drift",
         );
 
@@ -120,8 +111,8 @@ and artifact path.
 
 ## Workspace Layout
 
-A workspace should own common policy once, then derive member crate policy from
-that shared baseline. Do not copy the same `owners.rs`, `verification.rs`,
+A workspace should own common policy once in its existing Build Support crate,
+then derive member crate policy from that shared baseline. Do not copy the same `owners.rs`, `verification.rs`,
 `receipts.rs`, `reports.rs`, and `rules.rs` into every crate when the workspace
 can centralize them.
 
@@ -130,7 +121,6 @@ Use this minimum layout for a Cargo workspace with several member crates:
 ```text
 my-workspace/
   Cargo.toml
-  build.rs
   harness/
     mod.rs
     members.rs
@@ -203,26 +193,39 @@ pub fn member_policy(member: WorkspaceMember) -> AspRustDownstreamPolicy {
 }
 ```
 
-The shared Build Support dependency keeps one thin `build.rs`. Cargo builds
-that dependency as one shared unit, and ASP Rust derives the complete owning
-workspace from Cargo manifest membership and path dependencies. It orders local
-dependencies before consumers and executes each unique package policy once:
+Each governed member declares the workspace Build Support crate under
+`[dev-dependencies]`; it must not appear under `[build-dependencies]`. A thin
+Cargo test target invokes the Build Support policy macro. ASP Rust derives
+the complete owning workspace from Cargo manifest membership and path
+dependencies, orders local dependencies before consumers, and executes each
+unique package policy once:
 
 ```rust
-#[path = "harness/mod.rs"]
-mod harness;
+workspace_build_support::asp_workspace_policy_gate!();
+```
 
-use asp_rust::assert_asp_rust_workspace_policy_from_env;
+Build Support defines the wrapper once and selects whether findings warn or
+deny the Cargo test:
 
-fn main() {
-    assert_asp_rust_workspace_policy_from_env(&harness::workspace_policy());
+```rust
+#[doc(hidden)]
+pub use asp_rust;
+
+#[macro_export]
+macro_rules! asp_workspace_policy_gate {
+    () => {
+        $crate::asp_rust::asp_rust_workspace_dev_gate!(
+            mode = deny,
+            policy = $crate::workspace_policy()
+        );
+    };
 }
 ```
 
-For a virtual workspace, every governed member declares the same lightweight
-Build Support crate as a build-dependency. Cargo deduplicates that dependency
-unit; members do not keep policy-only build scripts and do not nominate a
-product root. Workspace members/excludes, external path-dependency leaves,
+The Build Support crate can depend on `asp-rust` normally; that transitive graph
+is still test-only from every governed member because the member's edge to
+Build Support is a dev-dependency. Members do not keep policy-only build
+scripts. Workspace members/excludes, external path-dependency leaves,
 duplicate package names, and local member cycles are resolved or rejected
 before any package policy runs. The emitted stable V1
 Build DAG records the deterministic dependency-first execution order.
@@ -235,15 +238,15 @@ workspace baseline.
 
 `AspRustDependencyBaseline` should be attached once to the workspace
 policy when every member crate must resolve the same harness version or git rev.
-Derived member policies inherit that baseline, and the shared Build Support
-gate searches upward for the workspace `Cargo.lock`.
+Derived member policies inherit that baseline, and the test gate searches
+upward for the workspace `Cargo.lock`.
 
-When governed packages declare the same Build Support build-dependency,
-`cargo test` automatically triggers that shared Cargo unit before tests run.
+When the governed workspace runs `cargo test`, the policy target runs with the
+dev dependency graph.
 Failing gates print a stable `[asp-rust-agent-guidance]` block that points back
 to the workspace policy.
-In short: Cargo triggers one shared Build Support gate; ASP Rust derives the
-package Build DAG, and the package cache prevents repeated policy scans.
+In short: Cargo triggers one test-only policy gate; ASP Rust derives the package
+Build DAG, and the package cache prevents repeated policy scans.
 
 If a dependency baseline drifts, failing gates print a stable
 `[asp-rust-dependency-guidance]` block. The repair path is to update the
@@ -253,14 +256,16 @@ lockfile entries or keep a downstream-specific `Cargo.lock` parser.
 
 ## Classification
 
-Library/build.rs semantic gate:
+Library/Cargo-test semantic gate:
 
 - thin downstream policy object:
   `AspRustDownstreamPolicy`.
 - thin downstream policy assertion:
   `assert_asp_rust_downstream_policy_from_env`.
-- cargo-check policy gate:
-  `assert_asp_rust_cargo_check_clean_from_env_with_config`.
+- cargo-test policy gate:
+  `asp_rust_cargo_test_gate!`.
+- workspace Dev Gate assertion owned by Build Support:
+  `assert_asp_rust_workspace_policy_from_env`.
 - full verification gate:
   `assert_asp_rust_verification_from_env_with_config`.
 - owner classification helpers:
@@ -283,16 +288,15 @@ Agent observation surface:
 
 Do not expose policy or full verification as a standalone downstream CLI
 command. Both are workspace semantic contracts owned by the ASP Rust dependency
-API. The shared build script only publishes the Cargo-derived Build DAG and
-policy-catalog identity.
+API. The test target owns policy admission.
 
 ## Agent Inference
 
 When adapting a downstream crate, an agent should:
 
 1. Inspect Cargo package boundaries and source owners.
-2. Declare the workspace Build Support crate as the common build-dependency and
-   keep policy assembly in that package.
+2. Keep policy assembly in the workspace Build Support crate and declare that
+   crate under each governed member's `[dev-dependencies]`.
 3. Split policy into `owners.rs`, `verification.rs`, `receipts.rs`,
    `reports.rs`, and `rules.rs` once more than one responsibility is configured.
 4. Put shared dependency baselines in `dependencies.rs` or the workspace
@@ -309,8 +313,7 @@ When adapting a downstream crate, an agent should:
 9. Keep quick CLI checks as developer feedback, not as the source of truth for
    full verification.
 
-The output should be a thin `build.rs`, a `harness/` module tree, and a small
-set of owner profiles that explain why each selected source path needs
+The output should be a thin Cargo-test entrypoint, a `harness/` module tree, and
+a small set of owner profiles that explain why each selected source path needs
 performance or stability verification. If a crate is tiny, an agent may inline
-the policy in `build.rs`, but the default recommendation is the modular layout
-above because policy tends to grow.
+the policy in its test-only macro invocation.

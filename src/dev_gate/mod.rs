@@ -1,4 +1,4 @@
-//! Build-script entrypoints for Cargo-check project harness gates.
+//! Test-only Dev Gate entrypoints for downstream and workspace policy.
 
 mod cache;
 mod dependency_baseline;
@@ -20,7 +20,7 @@ pub use downstream::{
     assert_asp_rust_downstream_policy, assert_asp_rust_downstream_policy_from_env,
     assert_asp_rust_downstream_policy_with_authority, evaluate_asp_rust_downstream_policy,
 };
-pub use policy::{AspRustBuildGateAuthority, AspRustDownstreamPolicy, AspRustWorkspacePolicy};
+pub use policy::{AspRustDevGateAuthority, AspRustDownstreamPolicy, AspRustWorkspacePolicy};
 pub use receipt::{
     ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID,
     ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION, AspRustDependencyBaselinePackageReceipt,

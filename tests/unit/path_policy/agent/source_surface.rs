@@ -170,7 +170,11 @@ fn module_intent_policy_uses_native_inner_doc_attributes() {
 fn repeated_namespace_policy_covers_default_test_roots() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
-    write_manifest(root, "repeated-test-root");
+    fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname = \"repeated-test-root\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dev-dependencies]\nasp-rust = { path = \".\" }\n",
+    )
+    .expect("write manifest");
     fs::create_dir_all(root.join("tests/unit/unit")).expect("create repeated test namespace");
     fs::write(
         root.join("tests/unit_test.rs"),

@@ -77,7 +77,7 @@ fn harness_scope_policy_requires_explanations_for_custom_source_paths() {
     let config = AspRustConfig::default()
         .with_source_path(
             "src/lib.rs",
-            "cargo-check build gate keeps the crate facade inside harness policy",
+            "cargo-test dev gate keeps the crate facade inside harness policy",
         )
         .with_source_path(
             "src/integration_support/search_strategy_flow.rs",
@@ -134,7 +134,7 @@ fn harness_scope_policy_requires_explanations_for_default_source_reduction() {
     }
     .with_source_path(
         "src/lib.rs",
-        "cargo-check build gate keeps the crate facade inside harness policy",
+        "cargo-test dev gate keeps the crate facade inside harness policy",
     );
     let report =
         run_asp_rust_with_config_for_scope(root, &config, asp_rust::AspRustRunScope::Package)
@@ -153,7 +153,7 @@ fn harness_scope_policy_requires_explanations_for_default_source_reduction() {
     }
     .with_source_path(
         "src/lib.rs",
-        "cargo-check build gate keeps the crate facade inside harness policy",
+        "cargo-test dev gate keeps the crate facade inside harness policy",
     )
     .with_source_path_excluded(
         "src",

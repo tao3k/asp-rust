@@ -6,26 +6,22 @@ use std::sync::atomic::Ordering;
 use crate::{AspRustConfig, AspRustDownstreamPolicyReceipt, AspRustReport, RustVerificationPlan};
 
 use super::{
-    ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID, ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
-    AspRustBuildGateCacheRecord, AspRustBuildGateSnapshot, BuildGateCacheContract,
-    TEMP_FILE_SEQUENCE, build_gate_cache_payload_digest, build_gate_cache_root, cache_path,
-    content_digest, load_build_gate_cache, reset_snapshot_file_read_count,
-    snapshot_build_gate_inputs, snapshot_build_gate_inputs_with_cache, snapshot_file_read_count,
-    store_build_gate_cache,
+    ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID, ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION,
+    AspRustDevGateCacheRecord, AspRustDevGateSnapshot, DevGateCacheContract, TEMP_FILE_SEQUENCE,
+    cache_path, content_digest, dev_gate_cache_payload_digest, dev_gate_cache_root,
+    load_dev_gate_cache, reset_snapshot_file_read_count, snapshot_dev_gate_inputs,
+    snapshot_dev_gate_inputs_with_cache, snapshot_file_read_count, store_dev_gate_cache,
 };
 
 fn temp_root(name: &str) -> PathBuf {
     let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "asp-rust-build-gate-cache-{name}-{}-{sequence}",
+        "asp-rust-dev-gate-cache-{name}-{}-{sequence}",
         std::process::id()
     ))
 }
 
-fn empty_record(
-    cache_key: String,
-    snapshot: AspRustBuildGateSnapshot,
-) -> AspRustBuildGateCacheRecord {
+fn empty_record(cache_key: String, snapshot: AspRustDevGateSnapshot) -> AspRustDevGateCacheRecord {
     let receipt = AspRustDownstreamPolicyReceipt {
         schema_id: "test.receipt".to_string(),
         schema_version: "1".to_string(),
@@ -38,12 +34,12 @@ fn empty_record(
         stability_report_obligation: false,
         report_obligations: Vec::new(),
     };
-    AspRustBuildGateCacheRecord {
-        schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID.to_string(),
-        schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION.to_string(),
+    AspRustDevGateCacheRecord {
+        schema_id: ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID.to_string(),
+        schema_version: ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION.to_string(),
         cache_key,
         snapshot,
-        payload_digest: build_gate_cache_payload_digest(
+        payload_digest: dev_gate_cache_payload_digest(
             &AspRustReport {
                 modules: Vec::new(),
                 findings: Vec::new(),
@@ -80,9 +76,9 @@ fn snapshot_hashes_complete_content_before_parse() {
     fs::write(root.join("Cargo.toml"), "[package]\nname='fixture'\n").expect("write manifest");
     fs::write(root.join("src/lib.rs"), "pub fn old() {}\n").expect("write source");
     let config = AspRustConfig::default();
-    let first = snapshot_build_gate_inputs(&root, &config).expect("first snapshot");
+    let first = snapshot_dev_gate_inputs(&root, &config).expect("first snapshot");
     fs::write(root.join("src/lib.rs"), "pub fn new() {}\n").expect("change source");
-    let second = snapshot_build_gate_inputs(&root, &config).expect("second snapshot");
+    let second = snapshot_dev_gate_inputs(&root, &config).expect("second snapshot");
     assert_ne!(first.digest, second.digest);
     assert_eq!(first.file_count, 2);
     assert_eq!(second.file_count, 2);
@@ -110,9 +106,9 @@ fn package_snapshot_excludes_nested_workspace_member_inputs() {
     fs::write(nested.join("src/lib.rs"), "pub fn before() {}\n").expect("write nested source");
     let config = AspRustConfig::default();
 
-    let before = snapshot_build_gate_inputs(&root, &config).expect("snapshot before");
+    let before = snapshot_dev_gate_inputs(&root, &config).expect("snapshot before");
     fs::write(nested.join("src/lib.rs"), "pub fn after() {}\n").expect("change nested source");
-    let after = snapshot_build_gate_inputs(&root, &config).expect("snapshot after");
+    let after = snapshot_dev_gate_inputs(&root, &config).expect("snapshot after");
 
     assert_eq!(before, after, "nested member invalidated package cache");
     assert_eq!(
@@ -127,16 +123,16 @@ fn package_snapshot_excludes_nested_workspace_member_inputs() {
 }
 
 #[test]
-fn generic_build_gate_cache_requires_explicit_state_home() {
+fn generic_dev_gate_cache_requires_explicit_state_home() {
     let root = temp_root("state-home");
     let state_home = root.join("state");
     let project = root.join("project");
     fs::create_dir_all(&project).expect("create project root");
 
-    assert_eq!(build_gate_cache_root(&project, None), None);
-    let cache_root = build_gate_cache_root(&project, Some(state_home.clone().into_os_string()))
-        .expect("resolve State Home build-gate cache");
-    assert!(cache_root.starts_with(state_home.join("runtime/build-gates/rph/bg/v1")));
+    assert_eq!(dev_gate_cache_root(&project, None), None);
+    let cache_root = dev_gate_cache_root(&project, Some(state_home.clone().into_os_string()))
+        .expect("resolve State Home dev-gate cache");
+    assert!(cache_root.starts_with(state_home.join("runtime/dev-gates/rph/bg/v1")));
     assert!(!cache_root.starts_with(root.join(".agent-semantic-protocols/cache")));
 
     let _ = fs::remove_dir_all(root);
@@ -155,12 +151,12 @@ fn cached_snapshot_reads_only_changed_files() {
 
     reset_snapshot_file_read_count();
     let cold =
-        snapshot_build_gate_inputs_with_cache(&root, &config, Some(&cache)).expect("cold snapshot");
+        snapshot_dev_gate_inputs_with_cache(&root, &config, Some(&cache)).expect("cold snapshot");
     assert_eq!(snapshot_file_read_count(), 3);
 
     reset_snapshot_file_read_count();
     let warm =
-        snapshot_build_gate_inputs_with_cache(&root, &config, Some(&cache)).expect("warm snapshot");
+        snapshot_dev_gate_inputs_with_cache(&root, &config, Some(&cache)).expect("warm snapshot");
     assert_eq!(warm, cold);
     assert_eq!(
         snapshot_file_read_count(),
@@ -174,7 +170,7 @@ fn cached_snapshot_reads_only_changed_files() {
     )
     .expect("change one implementation");
     reset_snapshot_file_read_count();
-    let changed = snapshot_build_gate_inputs_with_cache(&root, &config, Some(&cache))
+    let changed = snapshot_dev_gate_inputs_with_cache(&root, &config, Some(&cache))
         .expect("changed snapshot");
     assert_ne!(changed.digest, cold.digest);
     assert_eq!(
@@ -190,7 +186,7 @@ fn cached_snapshot_reads_only_changed_files() {
 fn corrupt_cache_is_a_cold_miss_and_atomic_record_round_trips() {
     let root = temp_root("round-trip");
     fs::create_dir_all(&root).expect("create cache root");
-    let snapshot = AspRustBuildGateSnapshot {
+    let snapshot = AspRustDevGateSnapshot {
         digest: content_digest(b"[]"),
         file_count: 0,
         byte_count: 0,
@@ -198,8 +194,8 @@ fn corrupt_cache_is_a_cold_miss_and_atomic_record_round_trips() {
     };
     let key = "stable-key".to_string();
     let record = empty_record(key.clone(), snapshot);
-    store_build_gate_cache(&root, &record).expect("store cache record");
-    assert_eq!(load_build_gate_cache(&root, &key), Some(record.clone()));
+    store_dev_gate_cache(&root, &record).expect("store cache record");
+    assert_eq!(load_dev_gate_cache(&root, &key), Some(record.clone()));
     for rejected in [
         {
             let mut record = record.clone();
@@ -232,7 +228,7 @@ fn corrupt_cache_is_a_cold_miss_and_atomic_record_round_trips() {
             serde_json::to_vec(&rejected).expect("serialize rejected cache record"),
         )
         .expect("write rejected cache record");
-        assert_eq!(load_build_gate_cache(&root, &key), None);
+        assert_eq!(load_dev_gate_cache(&root, &key), None);
     }
     let mut tampered = record;
     tampered.report.root_paths.push(PathBuf::from("tampered"));
@@ -241,9 +237,9 @@ fn corrupt_cache_is_a_cold_miss_and_atomic_record_round_trips() {
         serde_json::to_vec(&tampered).expect("serialize tampered cache record"),
     )
     .expect("write parseable tampered cache record");
-    assert_eq!(load_build_gate_cache(&root, &key), None);
+    assert_eq!(load_dev_gate_cache(&root, &key), None);
     fs::write(cache_path(&root, &key), b"{not-json").expect("corrupt cache record");
-    assert_eq!(load_build_gate_cache(&root, &key), None);
+    assert_eq!(load_dev_gate_cache(&root, &key), None);
     let _ = fs::remove_dir_all(root);
 }
 
@@ -259,9 +255,9 @@ fn symlinked_file_is_not_a_snapshot_input() {
     std::os::unix::fs::symlink(&target, root.join("src/external.rs"))
         .expect("create source symlink");
     let config = AspRustConfig::default();
-    let first = snapshot_build_gate_inputs(&root, &config).expect("first snapshot");
+    let first = snapshot_dev_gate_inputs(&root, &config).expect("first snapshot");
     fs::write(&target, "pub fn second() {}\n").expect("change external source");
-    let second = snapshot_build_gate_inputs(&root, &config).expect("second snapshot");
+    let second = snapshot_dev_gate_inputs(&root, &config).expect("second snapshot");
     assert_eq!(first, second);
     assert!(
         first
@@ -283,9 +279,9 @@ fn symlinked_directory_is_not_a_snapshot_input() {
     fs::write(target.join("generated.rs"), "pub fn first() {}\n").expect("write external source");
     std::os::unix::fs::symlink(&target, root.join("linked")).expect("create directory symlink");
     let config = AspRustConfig::default();
-    let first = snapshot_build_gate_inputs(&root, &config).expect("first snapshot");
+    let first = snapshot_dev_gate_inputs(&root, &config).expect("first snapshot");
     fs::write(target.join("generated.rs"), "pub fn second() {}\n").expect("change external source");
-    let second = snapshot_build_gate_inputs(&root, &config).expect("second snapshot");
+    let second = snapshot_dev_gate_inputs(&root, &config).expect("second snapshot");
     assert_eq!(first, second);
     assert!(first.files.is_empty());
     let _ = fs::remove_dir_all(base);
@@ -298,13 +294,13 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
     fs::write(root.join("Cargo.toml"), "[package]\nname='fixture'\n").expect("write manifest");
     fs::write(root.join("src/lib.rs"), "pub fn value() -> usize { 1 }\n").expect("write source");
     let config = AspRustConfig::default();
-    let snapshot = snapshot_build_gate_inputs(&root, &config).expect("snapshot");
+    let snapshot = snapshot_dev_gate_inputs(&root, &config).expect("snapshot");
     let baseline = vec![AspRustDependencyBaselinePackageReceipt {
         name: "dependency".to_string(),
         version: "1.0.0".to_string(),
         source_contains: "rev=one".to_string(),
     }];
-    let key = build_gate_cache_key(
+    let key = dev_gate_cache_key(
         &config,
         AspRustRunScope::ProjectWorkspace,
         &baseline,
@@ -319,7 +315,7 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
         .verification_policy
         .disabled_task_kinds
         .insert(crate::RustVerificationTaskKind::Performance);
-    let nested_key = build_gate_cache_key(
+    let nested_key = dev_gate_cache_key(
         &nested_policy,
         AspRustRunScope::ProjectWorkspace,
         &baseline,
@@ -328,36 +324,36 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
     .expect("nested policy key");
     let mut changed_baseline = baseline.clone();
     changed_baseline[0].source_contains = "rev=two".to_string();
-    let baseline_key = build_gate_cache_key(
+    let baseline_key = dev_gate_cache_key(
         &config,
         AspRustRunScope::ProjectWorkspace,
         &changed_baseline,
         &snapshot,
     )
     .expect("changed baseline key");
-    let scope_key = build_gate_cache_key(&config, AspRustRunScope::Package, &baseline, &snapshot)
+    let scope_key = dev_gate_cache_key(&config, AspRustRunScope::Package, &baseline, &snapshot)
         .expect("changed scope key");
-    let schema_key = build_gate_cache_key_with_contract(
+    let schema_key = dev_gate_cache_key_with_contract(
         &config,
         AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
-        BuildGateCacheContract {
+        DevGateCacheContract {
             schema_id: "changed.schema",
-            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
+            schema_version: ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION,
             harness_version: env!("CARGO_PKG_VERSION"),
             harness_provider_digest: &harness_provider_digest,
             policy_authority_digest: "blake3-256:test-policy-authority",
         },
     )
     .expect("changed schema key");
-    let schema_version_key = build_gate_cache_key_with_contract(
+    let schema_version_key = dev_gate_cache_key_with_contract(
         &config,
         AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
-        BuildGateCacheContract {
-            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
+        DevGateCacheContract {
+            schema_id: ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID,
             schema_version: "changed-schema-version",
             harness_version: env!("CARGO_PKG_VERSION"),
             harness_provider_digest: &harness_provider_digest,
@@ -365,42 +361,42 @@ fn cache_key_invalidates_config_policy_scope_contract_and_baseline() {
         },
     )
     .expect("changed schema version key");
-    let harness_key = build_gate_cache_key_with_contract(
+    let harness_key = dev_gate_cache_key_with_contract(
         &config,
         AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
-        BuildGateCacheContract {
-            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
-            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
+        DevGateCacheContract {
+            schema_id: ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID,
+            schema_version: ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION,
             harness_version: "changed-harness",
             harness_provider_digest: &harness_provider_digest,
             policy_authority_digest: "blake3-256:test-policy-authority",
         },
     )
     .expect("changed harness key");
-    let provider_key = build_gate_cache_key_with_contract(
+    let provider_key = dev_gate_cache_key_with_contract(
         &config,
         AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
-        BuildGateCacheContract {
-            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
-            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
+        DevGateCacheContract {
+            schema_id: ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID,
+            schema_version: ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION,
             harness_version: env!("CARGO_PKG_VERSION"),
             harness_provider_digest: "changed-provider-digest",
             policy_authority_digest: "blake3-256:test-policy-authority",
         },
     )
     .expect("changed provider key");
-    let policy_authority_key = build_gate_cache_key_with_contract(
+    let policy_authority_key = dev_gate_cache_key_with_contract(
         &config,
         AspRustRunScope::ProjectWorkspace,
         &baseline,
         &snapshot,
-        BuildGateCacheContract {
-            schema_id: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_ID,
-            schema_version: ASP_RUST_BUILD_GATE_CACHE_SCHEMA_VERSION,
+        DevGateCacheContract {
+            schema_id: ASP_RUST_DEV_GATE_CACHE_SCHEMA_ID,
+            schema_version: ASP_RUST_DEV_GATE_CACHE_SCHEMA_VERSION,
             harness_version: env!("CARGO_PKG_VERSION"),
             harness_provider_digest: &harness_provider_digest,
             policy_authority_digest: "blake3-256:changed-policy-authority",
@@ -457,9 +453,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     crate::runner::reset_analyze_rust_project_call_count();
     let policy = crate::AspRustDownstreamPolicy::new("cache-fixture", AspRustConfig::default());
     let initial_snapshot =
-        crate::build_gate::cache::snapshot_build_gate_inputs(&project, policy.config())
+        crate::dev_gate::cache::snapshot_dev_gate_inputs(&project, policy.config())
             .expect("snapshot initial cache inputs");
-    let initial_key = crate::build_gate::cache::build_gate_cache_key(
+    let initial_key = crate::dev_gate::cache::dev_gate_cache_key(
         policy.config(),
         AspRustRunScope::Package,
         &[],
@@ -472,27 +468,23 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         "snapshot and cache-key construction must not run the analyzer"
     );
 
-    let cold = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+    let cold = crate::dev_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 1);
-    let resolved_cache_root = crate::build_gate::cache::build_gate_cache_root(
-        &project,
-        Some(cache.clone().into_os_string()),
-    )
-    .expect("resolve test cache root");
+    let resolved_cache_root =
+        crate::dev_gate::cache::dev_gate_cache_root(&project, Some(cache.clone().into_os_string()))
+            .expect("resolve test cache root");
     let initial_cache_path = cache_path(&resolved_cache_root, &initial_key);
     assert!(
-        crate::build_gate::cache::load_build_gate_cache(&resolved_cache_root, &initial_key)
-            .is_some(),
-        "cold build-gate run must publish a loadable cache record at {:?} (display-len={})",
+        crate::dev_gate::cache::load_dev_gate_cache(&resolved_cache_root, &initial_key).is_some(),
+        "cold dev-gate run must publish a loadable cache record at {:?} (display-len={})",
         initial_cache_path,
         initial_cache_path.display().to_string().len()
     );
-    let warm_snapshot =
-        crate::build_gate::cache::snapshot_build_gate_inputs(&project, policy.config())
-            .expect("snapshot warm cache inputs");
-    let warm_key = crate::build_gate::cache::build_gate_cache_key(
+    let warm_snapshot = crate::dev_gate::cache::snapshot_dev_gate_inputs(&project, policy.config())
+        .expect("snapshot warm cache inputs");
+    let warm_key = crate::dev_gate::cache::dev_gate_cache_key(
         policy.config(),
         AspRustRunScope::Package,
         &[],
@@ -503,7 +495,7 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
         warm_key, initial_key,
         "warm cache key drifted after cold run"
     );
-    let warm = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+    let warm = crate::dev_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 1);
@@ -515,9 +507,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("change downstream source");
     let changed_snapshot =
-        crate::build_gate::cache::snapshot_build_gate_inputs(&project, policy.config())
+        crate::dev_gate::cache::snapshot_dev_gate_inputs(&project, policy.config())
             .expect("snapshot changed cache inputs");
-    let changed_key = crate::build_gate::cache::build_gate_cache_key(
+    let changed_key = crate::dev_gate::cache::dev_gate_cache_key(
         policy.config(),
         AspRustRunScope::Package,
         &[],
@@ -525,18 +517,17 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("build changed cache key");
     assert_ne!(changed_key, initial_key);
-    let changed = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+    let changed = crate::dev_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 2);
     assert_eq!(changed, cold);
     assert!(
-        crate::build_gate::cache::load_build_gate_cache(&resolved_cache_root, &changed_key)
-            .is_some(),
+        crate::dev_gate::cache::load_dev_gate_cache(&resolved_cache_root, &changed_key).is_some(),
         "changed source must publish a new cache record"
     );
 
-    let changed_warm = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+    let changed_warm = crate::dev_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 2);
@@ -553,9 +544,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("point facade at renamed source");
     let renamed_snapshot =
-        crate::build_gate::cache::snapshot_build_gate_inputs(&project, policy.config())
+        crate::dev_gate::cache::snapshot_dev_gate_inputs(&project, policy.config())
             .expect("snapshot renamed cache inputs");
-    let renamed_key = crate::build_gate::cache::build_gate_cache_key(
+    let renamed_key = crate::dev_gate::cache::dev_gate_cache_key(
         policy.config(),
         AspRustRunScope::Package,
         &[],
@@ -563,16 +554,15 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("build renamed cache key");
     assert_ne!(renamed_key, changed_key);
-    let renamed = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+    let renamed = crate::dev_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 3);
     assert!(
-        crate::build_gate::cache::load_build_gate_cache(&resolved_cache_root, &renamed_key)
-            .is_some(),
+        crate::dev_gate::cache::load_dev_gate_cache(&resolved_cache_root, &renamed_key).is_some(),
         "renamed source must publish a new cache record"
     );
-    let renamed_warm = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+    let renamed_warm = crate::dev_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 3);
@@ -585,9 +575,9 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("remove deleted module from facade");
     let deleted_snapshot =
-        crate::build_gate::cache::snapshot_build_gate_inputs(&project, policy.config())
+        crate::dev_gate::cache::snapshot_dev_gate_inputs(&project, policy.config())
             .expect("snapshot deleted cache inputs");
-    let deleted_key = crate::build_gate::cache::build_gate_cache_key(
+    let deleted_key = crate::dev_gate::cache::dev_gate_cache_key(
         policy.config(),
         AspRustRunScope::Package,
         &[],
@@ -595,16 +585,15 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
     )
     .expect("build deleted cache key");
     assert_ne!(deleted_key, renamed_key);
-    let deleted = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+    let deleted = crate::dev_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 4);
     assert!(
-        crate::build_gate::cache::load_build_gate_cache(&resolved_cache_root, &deleted_key)
-            .is_some(),
+        crate::dev_gate::cache::load_dev_gate_cache(&resolved_cache_root, &deleted_key).is_some(),
         "deleted source must publish a new cache record"
     );
-    let deleted_warm = crate::build_gate::assert_asp_rust_downstream_policy_with_state_home(
+    let deleted_warm = crate::dev_gate::assert_asp_rust_downstream_policy_with_state_home(
         &project, &policy, &cache,
     );
     assert_eq!(crate::runner::analyze_rust_project_call_count(), 4);
@@ -617,7 +606,7 @@ fn downstream_cold_publish_then_warm_hit_parses_once() {
 fn same_key_concurrent_publish_is_valid_and_leaves_no_temporary_files() {
     let root = std::sync::Arc::new(temp_root("concurrent-publish"));
     fs::create_dir_all(root.as_ref()).expect("create cache root");
-    let snapshot = AspRustBuildGateSnapshot {
+    let snapshot = AspRustDevGateSnapshot {
         digest: content_digest(b"[]"),
         file_count: 0,
         byte_count: 0,
@@ -629,7 +618,7 @@ fn same_key_concurrent_publish_is_valid_and_leaves_no_temporary_files() {
             let root = std::sync::Arc::clone(&root);
             let record = std::sync::Arc::clone(&record);
             std::thread::spawn(move || {
-                store_build_gate_cache(root.as_ref(), record.as_ref())
+                store_dev_gate_cache(root.as_ref(), record.as_ref())
                     .expect("publish concurrent cache record");
             })
         })
@@ -639,7 +628,7 @@ fn same_key_concurrent_publish_is_valid_and_leaves_no_temporary_files() {
     }
 
     assert_eq!(
-        load_build_gate_cache(root.as_ref(), &record.cache_key),
+        load_dev_gate_cache(root.as_ref(), &record.cache_key),
         Some(record.as_ref().clone())
     );
     assert!(
@@ -653,5 +642,5 @@ fn same_key_concurrent_publish_is_valid_and_leaves_no_temporary_files() {
     );
     let _ = fs::remove_dir_all(root.as_ref());
 }
-use crate::build_gate::cache::{build_gate_cache_key, build_gate_cache_key_with_contract};
+use crate::dev_gate::cache::{dev_gate_cache_key, dev_gate_cache_key_with_contract};
 use crate::{AspRustDependencyBaselinePackageReceipt, AspRustRunScope};

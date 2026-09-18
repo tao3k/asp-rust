@@ -38,13 +38,13 @@ project ownership context.
 
 `cargo check` is the primary downstream gate for parser-native policy: syntax,
 Cargo manifest facts, module and owner graph, import clarity, scope coverage,
-build-gate closure, and verification planning obligations. Cargo-test gates
+dev-gate closure, and verification planning obligations. Cargo-test gates
 remain a compatibility surface for retired crates and for this crate's self-apply
 path, but they are not the preferred downstream entrypoint.
 
 ## Where Details Live
 
-- Build gate, cargo-test compatibility, and configuration: [Runner Modes](03_features/202_runner_modes.md)
+- Dev gate, cargo-test compatibility, and configuration: [Runner Modes](03_features/202_runner_modes.md)
 - Default rule packs and diagnostic rendering: [Rule Catalog](03_features/201_rule_catalog.md)
 - Runtime-owned search/query and the language package boundary: [Provider Server](03_features/203_provider_server.md)
 - Verification planning, receipts, waivers, and report artifacts: [Verification Policy](03_features/204_verification_policy.md)

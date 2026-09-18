@@ -1,4 +1,4 @@
-//! Shared, dependency-free support for build-gate owners.
+//! Shared, dependency-free support for dev-gate owners.
 
 use std::path::PathBuf;
 

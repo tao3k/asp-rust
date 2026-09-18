@@ -5,18 +5,15 @@ use crate::parser::{
 };
 use crate::{AspRustConfig, AspRustFinding, AspRustRule, AspRustScope};
 
-use super::build_gate::build_gate_findings;
 use super::catalog::rules_by_id;
+use super::dev_gate::cargo_test_gate_findings;
 use super::manifest::manifest_findings;
 use super::quality::quality_findings;
 use super::source_scope::source_scope_findings;
 use super::source_tests::source_test_mount_findings;
 use super::test_bloat::test_bloat_findings;
 use super::test_layout::test_layout_findings;
-use super::test_targets::{
-    retired_test_target_gate_findings, test_target_aggregate_findings,
-    test_target_module_mount_findings,
-};
+use super::test_targets::{test_target_aggregate_findings, test_target_module_mount_findings};
 use super::verification_integration::verification_integration_findings;
 
 pub(crate) const PACK_ID: &str = "rust.project_policy";
@@ -113,18 +110,11 @@ pub(crate) fn evaluate(
         &cargo_test_targets,
         &rules,
     ));
-    findings.extend(retired_test_target_gate_findings(
-        &scope.project_root,
-        &cargo_manifest,
-        &cargo_test_targets,
-        &rules,
-    ));
     findings.extend(verification_integration_findings(
         &scope.project_root,
         &reasoning_tree,
         config,
         modules,
-        &cargo_manifest,
         &rules,
     ));
     findings.extend(quality_findings(
@@ -133,10 +123,11 @@ pub(crate) fn evaluate(
         modules,
         &rules,
     ));
-    findings.extend(build_gate_findings(
+    findings.extend(cargo_test_gate_findings(
         &scope.project_root,
         &cargo_manifest,
         modules,
+        &cargo_test_targets,
         &rules,
     ));
     findings

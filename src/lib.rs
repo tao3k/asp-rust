@@ -9,8 +9,8 @@
 
 mod agent_snapshot;
 mod asp_rust_rules;
-mod build_gate;
 pub mod content_identity;
+mod dev_gate;
 mod discovery;
 mod downstream_gate_guide;
 #[cfg(feature = "provider-server")]
@@ -165,15 +165,14 @@ mod enhanced_query_capability_tests;
 pub use agent_snapshot::{
     render_asp_rust_agent_snapshot, render_asp_rust_agent_snapshot_with_config,
 };
-pub use build_gate::{
+pub use dev_gate::{
     ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_ID,
-    ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION, AspRustBuildGateAuthority,
-    AspRustDependencyBaseline, AspRustDependencyBaselinePackage,
-    AspRustDependencyBaselinePackageReceipt, AspRustDownstreamPolicy,
-    AspRustDownstreamPolicyReceipt, AspRustReportObligationReceipt, AspRustWorkspacePolicy,
-    asp_rust_downstream_policy_receipt, assert_asp_rust_dependency_baseline,
-    assert_asp_rust_downstream_policy, assert_asp_rust_downstream_policy_from_env,
-    assert_asp_rust_downstream_policy_with_authority,
+    ASP_RUST_DOWNSTREAM_POLICY_RECEIPT_SCHEMA_VERSION, AspRustDependencyBaseline,
+    AspRustDependencyBaselinePackage, AspRustDependencyBaselinePackageReceipt,
+    AspRustDevGateAuthority, AspRustDownstreamPolicy, AspRustDownstreamPolicyReceipt,
+    AspRustReportObligationReceipt, AspRustWorkspacePolicy, asp_rust_downstream_policy_receipt,
+    assert_asp_rust_dependency_baseline, assert_asp_rust_downstream_policy,
+    assert_asp_rust_downstream_policy_from_env, assert_asp_rust_downstream_policy_with_authority,
     assert_asp_rust_verification_from_env_with_config, assert_asp_rust_verification_with_config,
     evaluate_asp_rust_downstream_policy, render_asp_rust_downstream_policy_receipt_json,
 };
@@ -295,4 +294,6 @@ pub use workspace_policy::{
     AspRustWorkspaceMemberRunReport, AspRustWorkspaceRunReport,
     assert_asp_rust_workspace_build_dag_policy_with, assert_asp_rust_workspace_policy,
     assert_asp_rust_workspace_policy_from_env, assert_asp_rust_workspace_policy_with,
+    evaluate_asp_rust_workspace_build_dag_policy_with, evaluate_asp_rust_workspace_policy,
+    evaluate_asp_rust_workspace_policy_from_env, evaluate_asp_rust_workspace_policy_with,
 };
