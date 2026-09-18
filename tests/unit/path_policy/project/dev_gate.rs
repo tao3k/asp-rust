@@ -97,6 +97,27 @@ fn normal_dependency_is_rejected_even_with_a_test_gate() {
 }
 
 #[test]
+fn build_support_may_own_a_normal_asp_rust_dependency() {
+    let temp = fixture(
+        "workspace-build-support",
+        "[dependencies]\nasp-rust = { path = \".\" }\n",
+        "//! Workspace Build Support policy owner.\n",
+    );
+    let report = run(temp.path());
+
+    assert!(
+        !has_rule(&report, "RUST-AGENT-PROJECT-006"),
+        "{:?}",
+        report.findings
+    );
+    assert!(
+        !has_rule(&report, "RUST-AGENT-PROJECT-012"),
+        "{:?}",
+        report.findings
+    );
+}
+
+#[test]
 fn build_dependency_and_build_script_gate_are_rejected() {
     let temp = fixture(
         "build-dependency",

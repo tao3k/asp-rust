@@ -39,7 +39,8 @@ pub(super) fn cargo_test_gate_findings(
 
     let mut findings = Vec::new();
     if cargo_manifest.references_harness_build_dependency
-        || cargo_manifest.references_harness_non_optional_normal_dependency
+        || (cargo_manifest.references_harness_non_optional_normal_dependency
+            && !cargo_manifest.is_build_support_package)
     {
         findings.push(AspRustFinding::from_rule(
             &rules[RUST_PROJ_R006],
@@ -66,10 +67,11 @@ pub(super) fn cargo_test_gate_findings(
         ));
     }
 
-    if (!cargo_manifest.references_harness_dev_dependency
-        && !cargo_manifest.is_asp_rust_package
-        && !has_build_support_test_gate)
-        || !has_cargo_test_gate
+    if !cargo_manifest.is_build_support_package
+        && ((!cargo_manifest.references_harness_dev_dependency
+            && !cargo_manifest.is_asp_rust_package
+            && !has_build_support_test_gate)
+            || !has_cargo_test_gate)
     {
         findings.push(AspRustFinding::from_rule(
             &rules[RUST_PROJ_R012],

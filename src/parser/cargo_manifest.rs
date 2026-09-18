@@ -15,6 +15,7 @@ use cargo_toml::{Dependency, DepsSet, Manifest, Product};
 pub(crate) struct CargoManifestFacts {
     pub(crate) has_package: bool,
     pub(crate) is_asp_rust_package: bool,
+    pub(crate) is_build_support_package: bool,
     #[cfg(feature = "provider-server")]
     pub(crate) package_name: Option<String>,
     pub(crate) package_edition: Option<String>,
@@ -152,6 +153,9 @@ fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManife
         .as_deref()
         .is_some_and(|name| !name.trim().is_empty());
     let is_asp_rust_package = package_name.as_deref() == Some("asp-rust");
+    let is_build_support_package = package_name
+        .as_deref()
+        .is_some_and(|name| name.contains("build-support"));
     let (workspace_members, workspace_excludes) = manifest
         .workspace
         .as_ref()
@@ -167,6 +171,7 @@ fn cargo_manifest_facts(project_root: &Path, manifest: &Manifest) -> CargoManife
     CargoManifestFacts {
         has_package,
         is_asp_rust_package,
+        is_build_support_package,
         #[cfg(feature = "provider-server")]
         package_name,
         package_edition,
