@@ -25,7 +25,13 @@ pub(crate) fn rust_source_path_facts(
     package_paths: &[PathBuf],
     path: &Path,
 ) -> RustSourcePathFacts {
-    let namespace_components = namespace_components(project_root, path).unwrap_or_default();
+    let namespace_components = namespace_components(project_root, path).unwrap_or_else(|| {
+        let fallback = match path.file_stem().and_then(|stem| stem.to_str()) {
+            Some(stem) => stem.to_owned(),
+            None => "unknown-source".to_owned(),
+        };
+        vec![fallback]
+    });
     let repeated_namespace_segments = repeated_segments(&namespace_components);
     let repeated_namespace_branch = (!repeated_namespace_segments.is_empty())
         .then(|| offending_branch(&namespace_components, &repeated_namespace_segments));

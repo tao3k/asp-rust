@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::{findings_for_rule, write_manifest};
@@ -20,11 +20,8 @@ fn public_multiple_flag_params_are_agent_advice() {
     )
     .expect("write api");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-API-FLAGS-018");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -49,11 +46,8 @@ fn documented_public_multiple_flag_params_clear_agent_advice() {
     )
     .expect("write api");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-API-FLAGS-018").is_empty());
     assert!(report.is_clean(), "{:?}", report.findings);
@@ -76,11 +70,8 @@ fn single_public_flag_param_is_not_agent_advice() {
     )
     .expect("write api");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-API-FLAGS-018").is_empty());
     assert!(report.is_clean(), "{:?}", report.findings);
@@ -105,11 +96,8 @@ fn public_many_constructor_params_are_agent_advice() {
     )
     .expect("write api");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-API-PARAMETERS-019");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -138,11 +126,8 @@ fn documented_public_many_constructor_params_clear_agent_advice() {
     )
     .expect("write api");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-API-PARAMETERS-019").is_empty());
     assert!(report.is_clean(), "{:?}", report.findings);
@@ -171,11 +156,8 @@ fn public_config_object_clears_many_param_advice() {
     )
     .expect("write api");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-API-PARAMETERS-019").is_empty());
     assert!(report.is_clean(), "{:?}", report.findings);

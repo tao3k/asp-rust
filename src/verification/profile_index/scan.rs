@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::model::RustHarnessConfig;
+use crate::model::AspRustConfig;
 use crate::verification::RustVerificationPolicy;
 use crate::verification::analysis::{
     RustVerificationCargoDependencyAnalysis, analyze_rust_verification_project,
@@ -19,7 +19,7 @@ use super::model::RustVerificationProfileIndex;
 pub fn build_rust_verification_profile_index(
     project_root: &Path,
 ) -> Result<RustVerificationProfileIndex, String> {
-    build_rust_verification_profile_index_with_config(project_root, &RustHarnessConfig::default())
+    build_rust_verification_profile_index_with_config(project_root, &AspRustConfig::default())
 }
 
 /// Build parser-suggested responsibility profile candidates with config.
@@ -29,7 +29,7 @@ pub fn build_rust_verification_profile_index(
 /// Returns an error when the project root does not exist.
 pub fn build_rust_verification_profile_index_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
 ) -> Result<RustVerificationProfileIndex, String> {
     build_rust_verification_profile_index_with_policy(
         project_root,
@@ -45,7 +45,7 @@ pub fn build_rust_verification_profile_index_with_config(
 /// Returns an error when the project root does not exist.
 pub fn build_rust_verification_profile_index_with_policy(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     policy: &RustVerificationPolicy,
 ) -> Result<RustVerificationProfileIndex, String> {
     let analysis = analyze_rust_verification_project(

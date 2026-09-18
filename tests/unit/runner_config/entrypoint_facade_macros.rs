@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use super::support::{has_rule, write_manifest};
@@ -18,11 +18,8 @@ fn crate_facade_policy_accepts_cfg_contract_macros() {
     .expect("write lib");
     fs::write(root.join("src/owned.rs"), "//! Owned module.\n").expect("write owned module");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(!has_rule(&report, "RUST-MOD-R004"), "{:?}", report.findings);
 }
@@ -40,11 +37,8 @@ fn crate_facade_policy_rejects_macro_wrapped_implementation() {
     .expect("write lib");
     fs::write(root.join("src/owned.rs"), "//! Owned module.\n").expect("write owned module");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-MOD-R004"), "{:?}", report.findings);
 }
@@ -62,11 +56,8 @@ fn crate_facade_policy_still_rejects_macro_rules_implementation() {
     .expect("write lib");
     fs::write(root.join("src/owned.rs"), "//! Owned module.\n").expect("write owned module");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(has_rule(&report, "RUST-MOD-R004"), "{:?}", report.findings);
 }

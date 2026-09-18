@@ -1,4 +1,4 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustInvariantId, RustVerificationExecutionExitCode, RustVerificationExecutionReceipt,
     RustVerificationExecutionReceiptId, RustVerificationExecutionStatus,
     RustVerificationExecutionSummary, RustVerificationExecutionTaskFingerprint,

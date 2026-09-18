@@ -1,4 +1,4 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     build_rust_verification_profile_index, build_rust_verification_profile_index_with_config,
     render_rust_verification_profile_index, render_rust_verification_profile_index_json,
 };

@@ -61,6 +61,7 @@ pub(crate) struct RustTopLevelItemSyntax {
     pub kind: &'static str,
     pub name: Option<String>,
     pub impl_target_name: Option<String>,
+    pub trait_owner_name: Option<String>,
     pub has_doc: bool,
     pub is_public: bool,
     pub is_public_use: bool,
@@ -76,6 +77,7 @@ pub(crate) struct RustTopLevelItemSyntax {
     pub macro_body_is_facade_boundary: bool,
     pub include_target: Option<String>,
     pub module: Option<RustModuleDeclarationSyntax>,
+    pub cfg_predicates: Vec<String>,
     pub projection_responsibilities: Vec<&'static str>,
     pub projection_nodes: Vec<RustItemProjectionNodeSyntax>,
 }

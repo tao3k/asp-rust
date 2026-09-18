@@ -1,10 +1,9 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationProfileHint, RustVerificationReceipt,
     RustVerificationSkillBinding, RustVerificationSkillDescriptor, RustVerificationTaskKind,
-    RustVerificationTaskState, build_rust_verification_performance_index,
-    default_rust_harness_config, plan_rust_project_verification_with_config,
-    render_rust_verification_performance_index, render_rust_verification_performance_index_json,
-    render_rust_verification_plan,
+    RustVerificationTaskState, build_rust_verification_performance_index, default_asp_rust_config,
+    plan_rust_project_verification_with_config, render_rust_verification_performance_index,
+    render_rust_verification_performance_index_json, render_rust_verification_plan,
 };
 use tempfile::TempDir;
 
@@ -188,7 +187,7 @@ fn performance_index_workspace_package_queries_snapshot() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_workspace_with_api_members(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],
@@ -230,8 +229,8 @@ fn performance_index_omits_non_performance_tasks() {
     assert_eq!(render_rust_verification_performance_index(&index), "");
 }
 
-fn rust_native_performance_config() -> rust_lang_project_harness::RustHarnessConfig {
-    default_rust_harness_config()
+fn rust_native_performance_config() -> asp_rust::AspRustConfig {
+    default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],

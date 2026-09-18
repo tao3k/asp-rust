@@ -3,16 +3,16 @@
 use std::collections::BTreeMap;
 
 use crate::rules::labels;
-use crate::{RustDiagnosticSeverity, RustHarnessRule};
+use crate::{AspRustRule, RustDiagnosticSeverity};
 
 use super::{
     PACK_ID, RUST_MOD_R001, RUST_MOD_R002, RUST_MOD_R003, RUST_MOD_R004, RUST_MOD_R005,
     RUST_MOD_R006, RUST_MOD_R007, RUST_MOD_R008, RUST_MOD_R009, RUST_MOD_R010, RUST_MOD_R011,
 };
 
-pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
+pub(super) fn rules_by_id() -> BTreeMap<&'static str, AspRustRule> {
     [
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R001,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -20,7 +20,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Keep mod.rs as an interface file with module declarations and re-exports only.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R002,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -28,7 +28,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Split oversized source files into smaller owner modules with clear public boundaries.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R003,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -36,7 +36,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Replace super::super imports with crate::... owner/facade imports; if the target is a leaf implementation, expose the needed API through an owner facade first.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R004,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -44,7 +44,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Keep lib.rs as a crate facade with external module declarations, re-exports, and parser-proven boundary macros only.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R005,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -52,7 +52,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Keep src/main.rs and src/bin entrypoints as thin adapters with use declarations and fn main only.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R006,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -60,7 +60,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Keep root build.rs as a thin Cargo build-script entrypoint with use declarations and fn main only.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R007,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -68,7 +68,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Do not keep both foo.rs and foo/mod.rs for the same Rust module owner; choose one source layout.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R008,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -76,7 +76,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Keep reasoning-tree branches file-backed; move inline source modules into external module files.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R009,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -84,7 +84,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Every scanned source file must be reachable from a crate or binary root through external mod declarations.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R010,
             PACK_ID,
             RustDiagnosticSeverity::Warning,
@@ -92,7 +92,7 @@ pub(super) fn rules_by_id() -> BTreeMap<&'static str, RustHarnessRule> {
             "Avoid every Rust glob import, including absolute crate globs; import owner names explicitly so module dependencies stay visible.",
             labels("modularity"),
         ),
-        RustHarnessRule::new(
+        AspRustRule::new(
             RUST_MOD_R011,
             PACK_ID,
             RustDiagnosticSeverity::Warning,

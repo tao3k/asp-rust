@@ -7,7 +7,7 @@ use super::types::{
     RustScenarioBenchmarkError, RustScenarioBenchmarkManifestKind, RustScenarioBenchmarkRequirement,
 };
 
-/// Discover every Rust harness scenario root that must carry `benchmark.toml`.
+/// Discover every ASP Rust scenario root that must carry `benchmark.toml`.
 pub fn discover_required_rust_scenario_benchmarks(
     crate_root: impl AsRef<Path>,
 ) -> Result<Vec<RustScenarioBenchmarkRequirement>, RustScenarioBenchmarkError> {

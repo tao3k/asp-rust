@@ -3,21 +3,17 @@
 use crate::parser::{
     ParsedRustModule, parse_cargo_manifest, parse_cargo_test_targets, rust_reasoning_tree_facts,
 };
-use crate::{RustHarnessConfig, RustHarnessFinding, RustHarnessRule, RustProjectHarnessScope};
+use crate::{AspRustConfig, AspRustFinding, AspRustRule, AspRustScope};
 
-use super::build_gate::build_gate_findings;
 use super::catalog::rules_by_id;
-use super::config::load_layout_policy;
+use super::dev_gate::cargo_test_gate_findings;
 use super::manifest::manifest_findings;
 use super::quality::quality_findings;
 use super::source_scope::source_scope_findings;
 use super::source_tests::source_test_mount_findings;
 use super::test_bloat::test_bloat_findings;
 use super::test_layout::test_layout_findings;
-use super::test_targets::{
-    retired_test_target_gate_findings, test_target_aggregate_findings,
-    test_target_module_mount_findings,
-};
+use super::test_targets::{test_target_aggregate_findings, test_target_module_mount_findings};
 use super::verification_integration::verification_integration_findings;
 
 pub(crate) const PACK_ID: &str = "rust.project_policy";
@@ -54,15 +50,15 @@ pub(crate) const MAX_TEST_SUPPORT_EFFECTIVE_LINES: usize = 1000;
 
 /// Return compact metadata for Rust project-policy rules.
 #[must_use]
-pub fn rust_project_policy_rules() -> Vec<RustHarnessRule> {
+pub fn rust_project_policy_rules() -> Vec<AspRustRule> {
     rules_by_id().into_values().collect()
 }
 
 pub(crate) fn evaluate_workspace(
     workspace_root: &std::path::Path,
-    package_scopes: &[RustProjectHarnessScope],
-    config: &RustHarnessConfig,
-) -> Vec<RustHarnessFinding> {
+    package_scopes: &[AspRustScope],
+    config: &AspRustConfig,
+) -> Vec<AspRustFinding> {
     let rules = rules_by_id();
     super::verification_integration::workspace_performance_verification_findings(
         workspace_root,
@@ -73,20 +69,19 @@ pub(crate) fn evaluate_workspace(
 }
 
 pub(crate) fn evaluate(
-    scope: Option<&RustProjectHarnessScope>,
+    scope: Option<&AspRustScope>,
     modules: &[ParsedRustModule],
-    config: &RustHarnessConfig,
-) -> Vec<RustHarnessFinding> {
+    config: &AspRustConfig,
+) -> Vec<AspRustFinding> {
     let Some(scope) = scope else {
         return Vec::new();
     };
     let rules = rules_by_id();
     let mut findings = Vec::new();
-    let policy = load_layout_policy(&scope.project_root);
     let cargo_manifest = parse_cargo_manifest(&scope.project_root);
     let cargo_test_targets = parse_cargo_test_targets(&scope.project_root, &cargo_manifest);
     let reasoning_tree = rust_reasoning_tree_facts(scope, modules);
-    findings.extend(test_layout_findings(&scope.project_root, &policy, &rules));
+    findings.extend(test_layout_findings(&scope.project_root, &rules));
     findings.extend(manifest_findings(
         &scope.project_root,
         &cargo_manifest,
@@ -113,13 +108,6 @@ pub(crate) fn evaluate(
     findings.extend(test_target_module_mount_findings(
         &scope.project_root,
         &cargo_test_targets,
-        &policy,
-        &rules,
-    ));
-    findings.extend(retired_test_target_gate_findings(
-        &scope.project_root,
-        &cargo_manifest,
-        &cargo_test_targets,
         &rules,
     ));
     findings.extend(verification_integration_findings(
@@ -127,7 +115,6 @@ pub(crate) fn evaluate(
         &reasoning_tree,
         config,
         modules,
-        &cargo_manifest,
         &rules,
     ));
     findings.extend(quality_findings(
@@ -136,10 +123,11 @@ pub(crate) fn evaluate(
         modules,
         &rules,
     ));
-    findings.extend(build_gate_findings(
+    findings.extend(cargo_test_gate_findings(
         &scope.project_root,
         &cargo_manifest,
         modules,
+        &cargo_test_targets,
         &rules,
     ));
     findings

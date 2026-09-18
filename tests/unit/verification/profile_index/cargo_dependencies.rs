@@ -1,7 +1,7 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationDependencySignal,
     build_rust_verification_profile_index, build_rust_verification_profile_index_with_config,
-    default_rust_harness_config, render_rust_verification_profile_index,
+    default_asp_rust_config, render_rust_verification_profile_index,
     render_rust_verification_profile_index_json,
 };
 use tempfile::TempDir;
@@ -30,7 +30,7 @@ fn third_party_dependency_signals_are_cargo_configured() {
         "{default_rendered}"
     );
 
-    let config = default_rust_harness_config().with_verification_dependency_signal(
+    let config = default_asp_rust_config().with_verification_dependency_signal(
         RustVerificationDependencySignal::new(
             "duckdb",
             [
@@ -68,7 +68,7 @@ fn cargo_dependency_signal_matches_renamed_package() {
     let root = temp.path();
     write_renamed_dependency_fixture(root);
 
-    let config = default_rust_harness_config().with_verification_dependency_signal(
+    let config = default_asp_rust_config().with_verification_dependency_signal(
         RustVerificationDependencySignal::new(
             "arrow-flight",
             [

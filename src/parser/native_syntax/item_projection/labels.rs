@@ -28,7 +28,7 @@ pub(super) fn item_projection_header(item: &syn::Item) -> String {
 }
 
 pub(super) fn impl_projection_header(item: &syn::ItemImpl) -> String {
-    if let Some((_, trait_path, _)) = &item.trait_ {
+    if let Some((trait_path, _)) = &item.trait_ {
         format!(
             "impl {} for {} {{",
             compact_tokens(trait_path),

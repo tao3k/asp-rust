@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::{findings_for_rule, has_rule, write_manifest};
@@ -18,11 +18,8 @@ fn deep_relative_import_policy_uses_native_use_trees() {
     )
     .expect("write domain");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R003");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -49,11 +46,8 @@ fn deep_relative_import_policy_reports_pub_super_prefix_group_without_crate_sugg
     )
     .expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R003");
     assert_eq!(findings.len(), 2, "{:?}", report.findings);
@@ -90,11 +84,8 @@ fn deep_relative_import_policy_ignores_comments_and_strings() {
     )
     .expect("write domain");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(!has_rule(&report, "RUST-MOD-R003"), "{:?}", report.findings);
 }

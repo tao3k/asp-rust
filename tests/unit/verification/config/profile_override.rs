@@ -1,6 +1,6 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationProfileHint, RustVerificationTaskKind,
-    default_rust_harness_config, plan_rust_project_verification_with_config,
+    default_asp_rust_config, plan_rust_project_verification_with_config,
     render_rust_verification_plan,
 };
 use tempfile::TempDir;
@@ -12,7 +12,7 @@ fn verification_profile_can_request_owner_local_task_kinds() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_profile_hint(
+    let config = default_asp_rust_config().with_verification_profile_hint(
         RustVerificationProfileHint::new("src/api.rs", [RustOwnerResponsibility::PublicApi])
             .with_task_kinds([RustVerificationTaskKind::Security])
             .with_rationale("this slice changes route authorization"),
@@ -35,7 +35,7 @@ fn verification_profile_can_suppress_only_that_owner() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_profile_hint(
+    let config = default_asp_rust_config().with_verification_profile_hint(
         RustVerificationProfileHint::new("src/api.rs", [RustOwnerResponsibility::PublicApi])
             .without_verification_tasks()
             .with_rationale("covered by upstream gateway verification for this slice"),

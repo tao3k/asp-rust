@@ -7,20 +7,20 @@ use crate::parser::{
     path_line_location, source_line,
 };
 use crate::rules::display_path;
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use super::{RUST_MOD_R007, RUST_MOD_R008, RUST_MOD_R009};
 
 pub(super) fn module_source_shadow_findings(
     reasoning_tree: &RustReasoningTreeFacts,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_MOD_R007];
     reasoning_tree
         .shadowed_module_sources
         .iter()
         .map(|shadow| {
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} and {} both define the same Rust module source.",
@@ -37,14 +37,14 @@ pub(super) fn module_source_shadow_findings(
 
 pub(super) fn orphan_source_module_findings(
     reasoning_tree: &RustReasoningTreeFacts,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_MOD_R009];
     reasoning_tree
         .unreachable_source_files
         .iter()
         .map(|path| {
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} is not reachable from a crate or binary module tree.",
@@ -61,8 +61,8 @@ pub(super) fn orphan_source_module_findings(
 pub(super) fn inline_source_module_findings(
     module_facts: &RustReasoningModuleFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if module_facts.source_path.is_special_entrypoint {
         return Vec::new();
     }
@@ -74,7 +74,7 @@ pub(super) fn inline_source_module_findings(
         .filter_map(|item| item.module.as_ref())
         .filter(|item_mod| item_mod.is_inline && !item_mod.is_cfg_test)
         .map(|item_mod| {
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} contains inline module `{}`.",

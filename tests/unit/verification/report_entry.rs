@@ -1,12 +1,12 @@
 use std::path::Path;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustVerificationReportEntryAction, RustVerificationReportOptions,
     RustVerificationReportSidecarRole, RustVerificationReportWriteConfig,
     build_rust_verification_analysis_profile_with_config,
     build_rust_verification_report_bundle_with_options,
     build_rust_verification_report_entry_advice,
-    build_rust_verification_report_entry_advice_with_receipt, default_rust_harness_config,
+    build_rust_verification_report_entry_advice_with_receipt, default_asp_rust_config,
     plan_rust_project_verification_with_config, render_rust_verification_report_entry_advice,
     render_rust_verification_report_entry_advice_json,
     write_rust_verification_reports_with_options,
@@ -138,8 +138,8 @@ fn report_entry_reports_empty_supported_bundles_without_payload_action() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let plan = plan_rust_project_verification_with_config(root, &default_rust_harness_config())
-        .expect("plan");
+    let plan =
+        plan_rust_project_verification_with_config(root, &default_asp_rust_config()).expect("plan");
     let bundle = build_rust_verification_report_bundle_with_options(
         &plan,
         &RustVerificationReportOptions::default(),

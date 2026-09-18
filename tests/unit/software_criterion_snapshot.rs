@@ -1,9 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rust_lang_project_harness::{
-    RustHarnessFinding, render_rust_project_harness, run_rust_project_harness_for_scope,
-};
+use asp_rust::{AspRustFinding, render_asp_rust, run_asp_rust_for_scope};
 use serde::Serialize;
 use tempfile::TempDir;
 
@@ -74,11 +72,8 @@ fn rule_snapshot(rule_id: &str, scenario: &str) -> String {
     let root = temp.path();
     copy_inputs(Path::new(scenario).join("inputs"), root);
 
-    let mut report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let mut report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
     report.findings.retain(|finding| finding.rule_id == rule_id);
     let findings = report
         .findings
@@ -89,14 +84,14 @@ fn rule_snapshot(rule_id: &str, scenario: &str) -> String {
         !findings.is_empty(),
         "expected {rule_id} finding in {scenario} scenario"
     );
-    let rendered = normalize_temp_root(&render_rust_project_harness(&report), root);
+    let rendered = normalize_temp_root(&render_asp_rust(&report), root);
 
     let findings_json =
         serde_json::to_string_pretty(&findings).expect("serialize findings snapshot");
     format!("{findings_json}\n\n--- rendered ---\n{rendered}")
 }
 
-fn finding_snapshot(finding: &RustHarnessFinding, root: &Path) -> FindingSnapshot {
+fn finding_snapshot(finding: &AspRustFinding, root: &Path) -> FindingSnapshot {
     FindingSnapshot {
         rule_id: finding.rule_id.clone(),
         summary: normalize_temp_root(&finding.summary, root),

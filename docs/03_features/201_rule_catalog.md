@@ -34,13 +34,13 @@ version labels, searchable domains, and default modes. The first three packs are
 - `RUST-AGENT-PROJECT-003`: source tests must be externalized instead of inline
 - `RUST-AGENT-PROJECT-004`: external test mount must point to an existing `tests/unit` file
 - `RUST-AGENT-PROJECT-005`: large test leaf should split into a folder-first suite
-- `RUST-AGENT-PROJECT-006`: retired root Cargo test target harness gate should migrate to the cargo-check build gate
+- `RUST-AGENT-PROJECT-006`: ASP Rust must stay in the test dependency graph
 - `RUST-AGENT-PROJECT-007`: root Cargo test target should stay a thin harness aggregate
 - `RUST-AGENT-PROJECT-008`: root Cargo test target modules should use explicit suite `#[path]` mounts
-- `RUST-AGENT-PROJECT-009`: retired source cargo-test harness gate should migrate to the cargo-check build gate
+- `RUST-AGENT-PROJECT-009`: build-script ASP Rust gates must migrate to cargo test
 - `RUST-AGENT-PROJECT-010`: Rust-native performance verification bindings must have a runnable `harness = false` Cargo bench target
-- `RUST-AGENT-PROJECT-011`: cargo-check build gates must run with explicit verification config
-- `RUST-AGENT-PROJECT-012`: harness-enabled packages must mount the build-time harness gate for `cargo check`
+- `RUST-AGENT-PROJECT-011`: reserved legacy cargo-check gate rule
+- `RUST-AGENT-PROJECT-012`: activated packages must mount a dev-dependency cargo-test policy gate
 - `RUST-AGENT-PROJECT-013`: custom harness source/test scope paths must carry an explicit explanation
 - `RUST-AGENT-PROJECT-014`: Cargo-backed harness scopes must not be silently removed
 - `RUST-AGENT-PROJECT-015`: retired cargo-test advice allowance must carry an explicit explanation
@@ -76,52 +76,33 @@ directory. Module mounts from those root targets must use explicit
 `#[path = "suite/file.rs"]` attributes so Rust's implicit module lookup does not
 create unclear root-level test structure.
 
-The primary downstream harness gate is the build-time gate. Current policy is
-parser-native: it needs Cargo manifest facts and Rust syntax facts, not runtime
-test evaluation. A complete build gate has both a Cargo build-dependency on
-`rust-lang-project-harness` and a root `build.rs` call to
-`assert_rust_project_harness_cargo_check_clean_from_env_with_config(...)` or another
-build-gate assertion:
+The primary downstream harness gate is a Cargo test. A complete gate has a
+dev-dependency on `asp-rust` and a test-only macro mount:
 
 ```toml
-[build-dependencies]
-rust-lang-project-harness = { git = "https://github.com/tao3k/rust-lang-project-harness", branch = "main" }
+[dev-dependencies]
+asp-rust = { git = "https://github.com/tao3k/asp-rust", branch = "main" }
 ```
 
 ```rust
-fn main() {
-    let config = rust_lang_project_harness::default_rust_harness_config()
-        .with_verification_profile_hint(
-            rust_lang_project_harness::RustVerificationProfileHint::new(
-                "src/lib.rs",
-                [rust_lang_project_harness::RustOwnerResponsibility::PublicApi],
-            ),
-        );
-    rust_lang_project_harness::assert_rust_project_harness_cargo_check_clean_from_env_with_config(
-        &config,
-    );
-}
+#[cfg(test)]
+asp_rust::asp_rust_cargo_test_gate!(
+    mode = deny,
+    config = asp_rust::default_asp_rust_config()
+);
 ```
 
-`RUST-AGENT-PROJECT-011` keeps the cargo-check gate from silently running the default
-empty verification policy: use the configured form to declare profile hints,
-explicit suppressions, receipts, waivers, or skill bindings for the
-Agent-facing verification surface. `RUST-AGENT-PROJECT-012` is the Agent-facing closure rule: when a
-harness-enabled package lacks the build-dependency, lacks root `build.rs`, has a
-root `build.rs` that omits the harness call, or calls the gate without the build
-dependency, `cargo check` prints a compact finding that tells the next Agent
-exactly which configuration surface to add. `RUST-AGENT-PROJECT-006` and
-`RUST-AGENT-PROJECT-009` are migration warnings: if a harness-enabled package still
-mounts parser-native policy through a root test target or source cargo-test
-macro, the compact finding tells the next Agent to move that policy to
-`[build-dependencies]` plus root `build.rs`.
+`RUST-AGENT-PROJECT-012` closes activation: a mounted test gate must be backed by
+an `asp-rust` dev-dependency or a workspace Build Support dev-dependency.
+`RUST-AGENT-PROJECT-006` rejects normal and build
+dependency placement, and `RUST-AGENT-PROJECT-009` reports legacy policy calls
+from `build.rs`. `mode = warn` renders findings while allowing the test to pass;
+`mode = deny` enforces the configured blocking severities.
 
-Cargo-test policy is intentionally narrower. Use it only for behavior that is
-about the test layer itself: retired source gate configuration, explicit advice
-allowance, or future checks that consume runtime test/verification receipts.
-`RUST-AGENT-PROJECT-015` and `RUST-AGENT-PROJECT-016` are therefore cargo-test compatibility
-rules. Parser-native structure, module ownership, import clarity, scope
-coverage, and verification planning reminders belong to cargo check.
+Cargo-test policy owns the full downstream package gate. It covers parser-native
+structure as well as test-layer verification receipts. `RUST-AGENT-PROJECT-015`
+and `RUST-AGENT-PROJECT-016` govern explicit advice allowance and verification
+configuration on that gate.
 
 Verification policy wiring also has a physical Cargo target check. When a
 project configures an active Rust-native performance binding such as
@@ -138,7 +119,7 @@ conventional Cargo layout form the baseline coverage: `src`, explicit
 targets, and root `build.rs`. A build-script gate therefore cannot shrink the
 scan surface just by passing a smaller config. `RUST-AGENT-PROJECT-013` requires every
 custom source or test scope path to have a non-empty explanation, preferably by
-using `RustHarnessConfig::with_source_path(path, explanation)` or
+using `AspRustConfig::with_source_path(path, explanation)` or
 `with_test_path(path, explanation)`. `RUST-AGENT-PROJECT-014` catches attempts to
 remove Cargo-backed `src`, `tests`, or manifest-declared test coverage without
 a matching explanation through `with_source_path_excluded(path, explanation)`,
@@ -150,7 +131,7 @@ a matching explanation through `with_source_path_excluded(path, explanation)`,
 `AGENT-*` rules are `Info` findings. They are designed as repair hints for LLMs
 and are not blocking by default.
 Build-script gates add one Agent-facing layer on top of that library policy:
-the default `assert_rust_project_harness_cargo_check_clean_from_env_with_config(...)`
+the default `assert_asp_rust_cargo_check_clean_from_env_with_config(...)`
 assertion fails on compact agent advice so the repair contract is visible during
 `cargo check`. This does not change rule severity or JSON metadata. Use
 `with_cargo_check_advice_allow_explanation(...)` for an explicit cargo-check
@@ -216,13 +197,13 @@ locator instead of human-oriented code frames that wrap poorly and obscure the
 repair action. The `fix:` line names the intended edit, `Help:` explains the
 concrete parser fact, and `Contract:` states the stable rule expectation.
 
-`render_rust_project_harness()` includes advice by default. A report with only
+`render_asp_rust()` includes advice by default. A report with only
 `Info` findings is still clean, but its advice remains visible as ordinary
-finding blocks. Use `render_rust_project_harness_advice()` when a caller wants
+finding blocks. Use `render_asp_rust_advice()` when a caller wants
 only the non-blocking repair hints.
 
-Structured consumers should use `render_rust_project_harness_json()` or the
-serializable `RustHarnessReport` for JSON output instead of parsing the compact
+Structured consumers should use `render_asp_rust_json()` or the
+serializable `AspRustReport` for JSON output instead of parsing the compact
 text render.
 
 The compact text and JSON render contracts are covered by repository snapshots

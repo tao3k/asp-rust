@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_ID, RUST_VERIFICATION_REPORT_MANIFEST_SCHEMA_VERSION,
     RustVerificationReportArtifactRole, RustVerificationReportOptions,
     RustVerificationReportPersistence, RustVerificationReportSidecarRole,
@@ -355,7 +355,7 @@ fn verification_report_write_receipt_renders_agent_paths() {
     let compact = render_rust_verification_report_write_receipt(&receipt);
     let json = render_rust_verification_report_write_receipt_json(&receipt).expect("json");
     let value: serde_json::Value = serde_json::from_str(&json).expect("parse json");
-    let decoded: rust_lang_project_harness::RustVerificationReportWriteReceipt =
+    let decoded: asp_rust::RustVerificationReportWriteReceipt =
         serde_json::from_str(&json).expect("decode receipt");
 
     assert_eq!(decoded, receipt);

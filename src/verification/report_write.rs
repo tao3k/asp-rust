@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::model::RustHarnessConfig;
+use crate::model::AspRustConfig;
 
 use super::analysis::{
     RustVerificationAnalysisProfile, build_rust_verification_analysis_profile_with_config,
@@ -249,7 +249,7 @@ pub fn write_rust_verification_reports(
 ) -> Result<RustVerificationReportWriteReceipt, RustVerificationReportWriteError> {
     write_rust_verification_reports_with_options(
         plan,
-        &RustHarnessConfig::default(),
+        &AspRustConfig::default(),
         config,
         &RustVerificationReportOptions::default(),
     )
@@ -266,7 +266,7 @@ pub fn write_rust_verification_reports(
 /// rendered, serialized, or files cannot be written.
 pub fn write_rust_verification_reports_with_options(
     plan: &RustVerificationPlan,
-    harness_config: &RustHarnessConfig,
+    harness_config: &AspRustConfig,
     config: &RustVerificationReportWriteConfig,
     options: &RustVerificationReportOptions,
 ) -> Result<RustVerificationReportWriteReceipt, RustVerificationReportWriteError> {
@@ -392,7 +392,7 @@ pub fn render_rust_verification_report_write_receipt(
 
 fn build_selection_advice_profile(
     plan: &RustVerificationPlan,
-    harness_config: &RustHarnessConfig,
+    harness_config: &AspRustConfig,
     options: &RustVerificationReportOptions,
 ) -> Result<Option<RustVerificationAnalysisProfile>, RustVerificationReportWriteError> {
     if !options.include_selection_advice || !options.include_analysis_profile {
@@ -612,7 +612,7 @@ fn write_report_manifest(
 
 fn write_report_artifacts(
     plan: &RustVerificationPlan,
-    harness_config: &RustHarnessConfig,
+    harness_config: &AspRustConfig,
     artifacts: Vec<RustVerificationReportArtifact>,
     directory: &Path,
     config: &RustVerificationReportWriteConfig,
@@ -632,7 +632,7 @@ fn write_report_artifacts(
 
 fn write_artifact(
     plan: &RustVerificationPlan,
-    harness_config: &RustHarnessConfig,
+    harness_config: &AspRustConfig,
     artifact: &RustVerificationReportArtifact,
     directory: &Path,
     config: &RustVerificationReportWriteConfig,

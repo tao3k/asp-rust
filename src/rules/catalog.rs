@@ -2,7 +2,7 @@
 
 use crate::RulePackDescriptor;
 
-/// Return stable metadata for the default Rust harness rule packs.
+/// Return stable metadata for the default ASP Rust rule packs.
 #[must_use]
 pub fn rust_rule_pack_descriptors() -> Vec<RulePackDescriptor> {
     vec![

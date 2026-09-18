@@ -3,11 +3,10 @@ use std::fs;
 
 use tempfile::TempDir;
 
-use crate::RustProjectHarnessScope;
+use crate::AspRustScope;
 use crate::parser::{
     RustModuleChildEdgeKind, RustReasoningOwnerBranchRole, RustUseImportRootKind,
-    parse_cargo_cfg_facts, parse_cargo_dependency_facts, parse_cargo_manifest, parse_rust_file,
-    rust_reasoning_tree_facts,
+    parse_cargo_dependency_facts, parse_cargo_manifest, parse_rust_file, rust_reasoning_tree_facts,
 };
 
 type DependencyEdge = (
@@ -71,47 +70,6 @@ fn cargo_manifest_parser_records_dependency_facts() {
             "flight|flight|arrow-flight|>=0.1, <0.3|Normal|-|true|flight-sql+tls",
             "tokio|tokio|tokio|^1|Dev|-|false|rt",
             "winapi|winapi|winapi|^0.3|Normal|cfg(windows)|false|",
-        ]
-        .into_iter()
-        .map(ToOwned::to_owned)
-        .collect::<BTreeSet<_>>()
-    );
-}
-
-#[test]
-fn cargo_manifest_parser_records_cfg_facts() {
-    let temp = TempDir::new().expect("temp dir");
-    let root = temp.path();
-    fs::write(
-        root.join("Cargo.toml"),
-        "[package]\n\
-         name = \"cargo-cfg-facts\"\n\
-         version = \"0.1.0\"\n\
-         edition = \"2024\"\n\n\
-         [features]\n\
-         json = []\n\n\
-         [lints.rust]\n\
-         unexpected_cfgs = { level = \"warn\", check-cfg = ['cfg(loom)'] }\n\n\
-         [workspace.lints.rust]\n\
-         unexpected_cfgs = { level = \"warn\", check-cfg = ['cfg(tokio_unstable)'] }\n\n\
-         [target.'cfg(all(tokio_unstable, target_os = \"linux\"))'.dependencies]\n\
-         mio = \"1\"\n",
-    )
-    .expect("write manifest");
-
-    let cfg_facts = parse_cargo_cfg_facts(root)
-        .iter()
-        .map(|cfg| format!("{}|{}|{}", cfg.cfg, cfg.declared_in, cfg.expression))
-        .collect::<BTreeSet<_>>();
-
-    assert_eq!(
-        cfg_facts,
-        [
-            "feature:json|features|cfg(feature=\"json\")",
-            "loom|lints.rust.unexpected_cfgs|cfg(loom)",
-            "target_os|target.dependencies|cfg(all(tokio_unstable,target_os=\"linux\"))",
-            "tokio_unstable|target.dependencies|cfg(all(tokio_unstable,target_os=\"linux\"))",
-            "tokio_unstable|workspace.lints.rust.unexpected_cfgs|cfg(tokio_unstable)",
         ]
         .into_iter()
         .map(ToOwned::to_owned)
@@ -276,7 +234,7 @@ fn reasoning_tree_interprets_modules_owners_and_child_edges() {
         parse_rust_file(&src.join("alt/custom.rs")),
         parse_rust_file(&src.join("shard.rs")),
     ];
-    let scope = RustProjectHarnessScope {
+    let scope = AspRustScope {
         project_root: root.to_path_buf(),
         source_paths: vec![src.clone()],
         test_paths: Vec::new(),
@@ -492,7 +450,7 @@ fn reasoning_tree_deduplicates_owner_dependencies_by_context_and_keeps_earliest_
         parse_rust_file(&src.join("lib.rs")),
         parse_rust_file(&src.join("domain.rs")),
     ];
-    let scope = RustProjectHarnessScope {
+    let scope = AspRustScope {
         project_root: root.to_path_buf(),
         source_paths: vec![src.clone()],
         test_paths: Vec::new(),
@@ -557,7 +515,7 @@ fn reasoning_tree_derives_crate_repairs_for_deep_relative_imports() {
         parse_rust_file(&src.join("gateway.rs")),
         parse_rust_file(&src.join("gateway/studio/support.rs")),
     ];
-    let scope = RustProjectHarnessScope {
+    let scope = AspRustScope {
         project_root: root.to_path_buf(),
         source_paths: vec![src.clone()],
         test_paths: Vec::new(),
@@ -613,7 +571,7 @@ fn reasoning_tree_marks_test_root_modules_as_test_sources() {
         parse_rust_file(&src.join("lib.rs")),
         parse_rust_file(&tests.join("integration.rs")),
     ];
-    let scope = RustProjectHarnessScope {
+    let scope = AspRustScope {
         project_root: root.to_path_buf(),
         source_paths: vec![src],
         test_paths: vec![tests.clone()],
