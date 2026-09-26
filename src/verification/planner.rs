@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use crate::model::RustHarnessConfig;
+use crate::model::AspRustConfig;
 use crate::parser::{
     RustReasoningImportFacts, RustReasoningModuleFacts, RustReasoningOwnerBranchFacts,
     RustReasoningOwnerBranchRole,
@@ -88,7 +88,7 @@ impl ReportObligationFacts {
 ///
 /// Returns an error when the project root does not exist.
 pub fn plan_rust_project_verification(project_root: &Path) -> Result<RustVerificationPlan, String> {
-    plan_rust_project_verification_with_config(project_root, &RustHarnessConfig::default())
+    plan_rust_project_verification_with_config(project_root, &AspRustConfig::default())
 }
 
 /// Plan parser-native verification tasks with the verification policy embedded
@@ -99,7 +99,7 @@ pub fn plan_rust_project_verification(project_root: &Path) -> Result<RustVerific
 /// Returns an error when the project root does not exist.
 pub fn plan_rust_project_verification_with_config(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
 ) -> Result<RustVerificationPlan, String> {
     plan_rust_project_verification_with_policy(project_root, config, &config.verification_policy)
 }
@@ -111,7 +111,7 @@ pub fn plan_rust_project_verification_with_config(
 /// Returns an error when the project root does not exist.
 pub fn plan_rust_project_verification_with_policy(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     policy: &RustVerificationPolicy,
 ) -> Result<RustVerificationPlan, String> {
     let analysis = analyze_rust_verification_project(
@@ -129,7 +129,7 @@ pub fn plan_rust_project_verification_with_policy(
 /// Plan verification tasks from an existing parser-owned harness analysis.
 #[must_use]
 pub fn plan_rust_verification_from_harness_analysis(
-    analysis: crate::runner::RustHarnessAnalysis,
+    analysis: crate::runner::AspRustAnalysis,
     policy: &RustVerificationPolicy,
 ) -> RustVerificationPlan {
     let project_root = analysis.project_root.clone();

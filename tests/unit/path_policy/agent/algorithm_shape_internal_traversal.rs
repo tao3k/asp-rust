@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::{findings_for_rule, write_manifest};
@@ -14,11 +14,8 @@ fn private_nested_receipt_traversal_is_agent_advice() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\nmod receipt;\n").expect("write lib");
     fs::write(root.join("src/receipt.rs"), receipt_traversal_source()).expect("write receipt");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-CFG-IMPL-025");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -46,11 +43,8 @@ fn named_receipt_traversal_helper_clears_private_nesting_advice() {
     )
     .expect("write receipt");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-CFG-IMPL-025").is_empty());
     assert!(report.is_clean(), "{:?}", report.findings);
@@ -65,11 +59,8 @@ fn private_manual_iterator_boilerplate_is_agent_advice() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\nmod receipt;\n").expect("write lib");
     fs::write(root.join("src/receipt.rs"), manual_iterator_source()).expect("write receipt");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-ITER-IMPL-026");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -98,11 +89,8 @@ fn named_private_iterator_helper_clears_boilerplate_advice() {
     fs::write(root.join("src/lib.rs"), "//! Test crate.\nmod receipt;\n").expect("write lib");
     fs::write(root.join("src/receipt.rs"), named_iterator_source()).expect("write receipt");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-ITER-IMPL-026").is_empty());
     assert!(findings_for_rule(&report, "RUST-AGENT-CFG-IMPL-025").is_empty());

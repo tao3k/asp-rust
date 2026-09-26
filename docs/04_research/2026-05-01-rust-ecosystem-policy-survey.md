@@ -4,7 +4,7 @@ Date: 2026-05-01
 
 This note records a focused survey of official Rust guidance and mature Rust
 repositories. Its purpose is to separate native Rust/Cargo facts from
-`rust-lang-project-harness` policy choices, especially where our LLM-oriented
+`asp-rust` policy choices, especially where our LLM-oriented
 defaults are stricter than common Rust practice.
 
 ## Sources

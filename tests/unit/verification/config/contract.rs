@@ -1,7 +1,7 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationPhase, RustVerificationProfileHint,
     RustVerificationRequirement, RustVerificationTaskContract, RustVerificationTaskKind,
-    default_rust_harness_config, plan_rust_project_verification_with_config,
+    default_asp_rust_config, plan_rust_project_verification_with_config,
     render_rust_verification_plan,
 };
 use tempfile::TempDir;
@@ -69,7 +69,7 @@ fn verification_profile_task_contract_beats_global_contract() {
             "route-level authorization matrix",
         )],
     );
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_task_contract(RustVerificationTaskKind::Security, global_contract)
         .with_verification_profile_hint(
             RustVerificationProfileHint::new("src/api.rs", [RustOwnerResponsibility::PublicApi])

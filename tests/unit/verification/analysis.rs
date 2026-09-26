@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{
-    build_rust_verification_analysis_profile_with_config, default_rust_harness_config,
+use asp_rust::{
+    build_rust_verification_analysis_profile_with_config, default_asp_rust_config,
     render_rust_verification_analysis_profile, render_rust_verification_analysis_profile_json,
 };
 use tempfile::TempDir;
@@ -16,7 +16,7 @@ fn verification_analysis_profile_reports_project_scale_and_json() {
     write_analysis_fixture(root);
 
     let profile =
-        build_rust_verification_analysis_profile_with_config(root, &default_rust_harness_config())
+        build_rust_verification_analysis_profile_with_config(root, &default_asp_rust_config())
             .expect("analysis profile");
     let rendered = render_rust_verification_analysis_profile(&profile);
     let json = render_rust_verification_analysis_profile_json(&profile).expect("json");
@@ -44,7 +44,7 @@ fn verification_analysis_profile_reports_workspace_member_scale() {
     write_workspace_with_api_members(root);
 
     let profile =
-        build_rust_verification_analysis_profile_with_config(root, &default_rust_harness_config())
+        build_rust_verification_analysis_profile_with_config(root, &default_asp_rust_config())
             .expect("analysis profile");
     let rendered = render_rust_verification_analysis_profile(&profile);
 

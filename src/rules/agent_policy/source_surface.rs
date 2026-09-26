@@ -7,7 +7,7 @@ use crate::parser::{
     ParsedRustModule, RustReasoningTreeFacts, RustTopLevelItemSyntax, RustUseImportRootKind,
     file_location, path_line_location, source_line,
 };
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use crate::rules::display_path;
 
@@ -33,8 +33,8 @@ const GENERIC_MODULE_NAMES: &[&str] = &[
 pub(super) fn source_module_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut findings = Vec::new();
     findings.extend(module_intent_findings(module, rules));
     findings.extend(public_doc_findings(module, rules));
@@ -51,8 +51,8 @@ pub(super) fn source_module_findings(
 pub(super) fn repeated_namespace_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_SOURCE_NAMESPACE_REPEAT_V1];
     let mut branches = BTreeMap::<PathBuf, (PathBuf, BTreeSet<String>)>::new();
     for module in modules {
@@ -78,7 +78,7 @@ pub(super) fn repeated_namespace_findings(
         .into_iter()
         .map(|(branch, (path, repeated))| {
             let repeated = repeated.into_iter().collect::<Vec<_>>().join(", ");
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} repeats namespace segment(s): {repeated}.",
@@ -95,8 +95,8 @@ pub(super) fn repeated_namespace_findings(
 pub(super) fn generic_module_path_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     modules: &[&ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_SOURCE_MODULE_PATH_NAME_V1];
     modules
         .iter()
@@ -113,7 +113,7 @@ pub(super) fn generic_module_path_findings(
             ) {
                 return None;
             }
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} uses generic module path segment `{generic_segment}`.",
@@ -129,8 +129,8 @@ pub(super) fn generic_module_path_findings(
 
 pub(super) fn public_name_conflict_findings(
     modules: &[&ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut names = BTreeMap::<String, Vec<(&ParsedRustModule, usize)>>::new();
     for module in modules {
         if !module.report.is_valid {
@@ -160,7 +160,7 @@ pub(super) fn public_name_conflict_findings(
             continue;
         }
         for (module, line) in locations {
-            findings.push(RustHarnessFinding::from_rule(
+            findings.push(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "Public item `{name}` appears in multiple Rust modules and may be ambiguous for agents."
@@ -177,8 +177,8 @@ pub(super) fn public_name_conflict_findings(
 pub(super) fn test_support_reexport_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     modules: &[ParsedRustModule],
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let support_modules = test_support_modules(reasoning_tree);
     let consumed_support_names =
         consumed_test_support_names(reasoning_tree, modules, &support_modules);
@@ -202,13 +202,13 @@ pub(super) fn test_support_reexport_findings(
 
 fn module_intent_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if module.syntax_facts.has_module_doc || !has_public_surface(module) {
         return Vec::new();
     }
     let rule = &rules[RUST_AGENT_POLICY_DOCS_MODULE_INTENT_V1];
-    vec![RustHarnessFinding::from_rule(
+    vec![AspRustFinding::from_rule(
         rule,
         format!(
             "{} has public Rust surface without a module intent doc.",
@@ -222,8 +222,8 @@ fn module_intent_findings(
 
 fn public_doc_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_DOCS_PUBLIC_ITEM_V1];
     module
         .syntax_facts
@@ -235,7 +235,7 @@ fn public_doc_findings(
                 return None;
             }
             let line = item.line;
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public item `{public_name}` without a doc comment.",
@@ -252,8 +252,8 @@ fn public_doc_findings(
 fn facade_reexport_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if !reasoning_tree
         .module(&module.report.path)
         .is_some_and(|module_facts| module_facts.source_path.is_crate_facade)
@@ -270,7 +270,7 @@ fn facade_reexport_findings(
         return Vec::new();
     }
     let rule = &rules[RUST_AGENT_POLICY_API_FACADE_EXPORT_GROUPS_V1];
-    vec![RustHarnessFinding::from_rule(
+    vec![AspRustFinding::from_rule(
         rule,
         format!(
             "{} re-exports {reexport_count} public use groups from the crate facade.",
@@ -284,8 +284,8 @@ fn facade_reexport_findings(
 
 fn generic_public_module_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_SOURCE_PUBLIC_MODULE_NAME_V1];
     module
         .syntax_facts
@@ -300,7 +300,7 @@ fn generic_public_module_findings(
             if !is_generic_module_name(module_name.as_str()) {
                 return None;
             }
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes generic public module `{module_name}`.",
@@ -317,8 +317,8 @@ fn generic_public_module_findings(
 fn branch_module_intent_findings(
     reasoning_tree: &RustReasoningTreeFacts,
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     if module.syntax_facts.has_module_doc {
         return Vec::new();
     }
@@ -329,7 +329,7 @@ fn branch_module_intent_findings(
         return Vec::new();
     }
     let rule = &rules[RUST_AGENT_POLICY_DOCS_BRANCH_INTENT_V1];
-    vec![RustHarnessFinding::from_rule(
+    vec![AspRustFinding::from_rule(
         rule,
         format!(
             "{} owns {child_modules} resolved child edges without a reasoning-tree intent doc.",
@@ -343,8 +343,8 @@ fn branch_module_intent_findings(
 
 fn public_primitive_identifier_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_API_SEMANTIC_IDENTIFIER_TYPE_V1];
     module
         .syntax_facts
@@ -362,7 +362,7 @@ fn public_primitive_identifier_findings(
             ) {
                 return None;
             }
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public function `{}` parameter `{}` as primitive `{primitive_type}`.",
@@ -380,8 +380,8 @@ fn public_primitive_identifier_findings(
 
 fn public_flag_parameter_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut params_by_function = BTreeMap::<String, Vec<usize>>::new();
     for (index, param) in module
         .syntax_facts
@@ -427,7 +427,7 @@ fn public_flag_parameter_findings(
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public function `{function_name}` with multiple flag parameters: {flag_list}.",
@@ -443,8 +443,8 @@ fn public_flag_parameter_findings(
 
 fn public_broad_parameter_surface_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let mut params_by_function = BTreeMap::<(usize, String), Vec<usize>>::new();
     for (index, param) in module
         .syntax_facts
@@ -484,7 +484,7 @@ fn public_broad_parameter_surface_findings(
                 .map(|param| param.param_name.as_str())
                 .collect::<Vec<_>>()
                 .join(", ");
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public function `{function_name}` with {} positional parameters: {param_names}.",
@@ -501,8 +501,8 @@ fn public_broad_parameter_surface_findings(
 
 fn public_application_error_boundary_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_API_ERROR_BOUNDARY_V1];
     module
         .syntax_facts
@@ -513,7 +513,7 @@ fn public_application_error_boundary_findings(
                 return None;
             }
             let boundary = function_return.application_error_boundary.as_ref()?;
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} exposes public function `{}` with application error boundary `{boundary}`.",
@@ -531,8 +531,8 @@ fn public_application_error_boundary_findings(
 fn test_support_module_reexport_findings(
     module: &ParsedRustModule,
     consumed_support_names: Option<&BTreeSet<String>>,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let local_references = local_path_reference_lines_by_name(module);
     let mut unused_names_by_line = BTreeMap::<usize, Vec<String>>::new();
     for use_statement in &module.syntax_facts.use_statements {
@@ -565,7 +565,7 @@ fn test_support_module_reexport_findings(
                 .map(|name| format!("`{name}`"))
                 .collect::<Vec<_>>()
                 .join(", ");
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} re-exports unused test support scope name(s): {names}.",

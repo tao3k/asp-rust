@@ -1,8 +1,8 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationPhase, RustVerificationPolicy,
     RustVerificationProfileHint, RustVerificationRequirement, RustVerificationTaskContract,
-    RustVerificationTaskKind, default_rust_harness_config,
-    plan_rust_project_verification_with_config, render_rust_verification_plan,
+    RustVerificationTaskKind, default_asp_rust_config, plan_rust_project_verification_with_config,
+    render_rust_verification_plan,
 };
 use tempfile::TempDir;
 
@@ -13,7 +13,7 @@ fn verification_profile_override_without_rationale_requests_review() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_profile_hint(
+    let config = default_asp_rust_config().with_verification_profile_hint(
         RustVerificationProfileHint::new("src/api.rs", [RustOwnerResponsibility::PublicApi])
             .with_task_kinds([RustVerificationTaskKind::Security]),
     );
@@ -36,7 +36,7 @@ fn verification_profile_suppression_without_rationale_requests_review() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_profile_hint(
+    let config = default_asp_rust_config().with_verification_profile_hint(
         RustVerificationProfileHint::new("src/api.rs", [RustOwnerResponsibility::PublicApi])
             .without_verification_tasks(),
     );
@@ -61,7 +61,7 @@ fn verification_profile_empty_responsibilities_request_review() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_profile_hint(
+    let config = default_asp_rust_config().with_verification_profile_hint(
         RustVerificationProfileHint::new("src/api.rs", Vec::<RustOwnerResponsibility>::new()),
     );
 
@@ -88,7 +88,7 @@ fn verification_profile_disabled_owner_task_requests_review() {
                 .with_rationale("route load test is expected for this owner"),
         )
         .with_disabled_task_kind(RustVerificationTaskKind::Stress);
-    let config = default_rust_harness_config().with_verification_policy(policy);
+    let config = default_asp_rust_config().with_verification_policy(policy);
 
     let plan = plan_rust_project_verification_with_config(root, &config).expect("plan");
     let rendered = normalize_temp_root(&render_rust_verification_plan(&plan), root);
@@ -115,7 +115,7 @@ fn verification_profile_unused_owner_contract_requests_review() {
             "authorization result",
         )],
     );
-    let config = default_rust_harness_config().with_verification_profile_hint(
+    let config = default_asp_rust_config().with_verification_profile_hint(
         RustVerificationProfileHint::new("src/api.rs", [RustOwnerResponsibility::PublicApi])
             .with_task_contract(RustVerificationTaskKind::Security, unused_contract),
     );

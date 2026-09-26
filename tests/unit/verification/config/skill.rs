@@ -1,8 +1,8 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationPhase, RustVerificationPlan,
     RustVerificationProfileHint, RustVerificationReceipt, RustVerificationSkillBinding,
     RustVerificationSkillDescriptor, RustVerificationTaskKind, RustVerificationTaskState,
-    default_rust_harness_config, plan_rust_project_verification_with_config,
+    default_asp_rust_config, plan_rust_project_verification_with_config,
     render_rust_verification_plan, render_rust_verification_plan_json,
     render_rust_verification_skill_contracts,
 };
@@ -177,7 +177,7 @@ fn verification_performance_skill_binding_uses_rust_native_descriptor_snapshot()
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],
@@ -217,7 +217,7 @@ fn verification_performance_convenience_config_uses_library_api() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_criterion_performance_verification()
         .with_latency_sensitive_performance_owner(
             "src/api.rs",

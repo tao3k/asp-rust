@@ -1,9 +1,0 @@
----
-source: tests/unit/cli/basics.rs
-assertion_line: 65
-expression: stdout
----
-Modules: source=3 branches=2
-OwnerBranches:
- - src/lib.rs [root, facade] owner=src -> mod:src/domain/mod.rs
- - src/domain/mod.rs [interface] owner=src/domain -> mod:src/domain/leaf.rs

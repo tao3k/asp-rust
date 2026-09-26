@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::parser::{CargoManifestFacts, file_location};
-use crate::{RustHarnessConfig, RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustConfig, AspRustFinding, AspRustRule};
 
 use super::support::display_project_path;
 use super::{RUST_PROJ_R013, RUST_PROJ_R014};
@@ -14,10 +14,10 @@ const DEFAULT_TEST_PATHS: &[&str] = &["tests"];
 
 pub(super) fn source_scope_findings(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     cargo_manifest: &CargoManifestFacts,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let custom_rule = &rules[RUST_PROJ_R013];
     let reduction_rule = &rules[RUST_PROJ_R014];
     let mut findings = Vec::new();
@@ -74,11 +74,11 @@ fn custom_scope_path_finding(
     project_root: &Path,
     path: &str,
     scope_kind: &str,
-    rule: &RustHarnessRule,
-) -> RustHarnessFinding {
+    rule: &AspRustRule,
+) -> AspRustFinding {
     let normalized = normalize_scope_path(path);
     let absolute_path = project_root.join(&normalized);
-    RustHarnessFinding::from_rule(
+    AspRustFinding::from_rule(
         rule,
         format!(
             "Config adds custom {scope_kind} scope path `{}` without a non-empty explanation.",
@@ -96,10 +96,10 @@ fn custom_scope_path_finding(
 
 fn default_scope_reduction_findings(
     project_root: &Path,
-    config: &RustHarnessConfig,
+    config: &AspRustConfig,
     cargo_manifest: &CargoManifestFacts,
-    rule: &RustHarnessRule,
-) -> Vec<RustHarnessFinding> {
+    rule: &AspRustRule,
+) -> Vec<AspRustFinding> {
     let source_paths = normalized_paths(&config.source_dir_names);
     let test_paths = normalized_paths(&config.test_dir_names);
     let mut findings = Vec::new();
@@ -180,9 +180,9 @@ fn default_scope_reduction_finding(
     path: &Path,
     scope_kind: &str,
     fix: &str,
-    rule: &RustHarnessRule,
-) -> RustHarnessFinding {
-    RustHarnessFinding::from_rule(
+    rule: &AspRustRule,
+) -> AspRustFinding {
+    AspRustFinding::from_rule(
         rule,
         format!(
             "Config excludes Cargo-backed {scope_kind} scope path `{}` without a non-empty explanation.",

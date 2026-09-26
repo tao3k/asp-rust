@@ -8,6 +8,36 @@ use super::labels::{
 use super::token_compact::compact_tokens;
 use syn::spanned::Spanned;
 
+fn append_trait_projection_nodes(
+    nodes: &mut Vec<RustItemProjectionNodeSyntax>,
+    item_trait: &syn::ItemTrait,
+    depth: usize,
+) {
+    let trait_owner = item_trait.ident.to_string();
+    for trait_item in &item_trait.items {
+        if let syn::TraitItem::Fn(method) = trait_item {
+            let identity = crate::content_identity::CanonicalItemIdentity::new(
+                "rust",
+                "trait-function",
+                method.sig.ident.to_string(),
+            )
+            .with_scope("trait-owner", "trait", trait_owner.clone());
+            push_canonical_projection_node(
+                nodes,
+                method,
+                "fn",
+                "declaration",
+                fn_signature_projection_label(&method.sig),
+                depth,
+                identity,
+            );
+            if let Some(block) = method.default.as_ref() {
+                append_block_projection_nodes(nodes, block, depth + 1);
+            }
+        }
+    }
+}
+
 pub(super) fn item_projection_nodes(item: &syn::Item) -> Vec<RustItemProjectionNodeSyntax> {
     fn append_child_nodes(
         nodes: &mut Vec<RustItemProjectionNodeSyntax>,
@@ -20,6 +50,9 @@ pub(super) fn item_projection_nodes(item: &syn::Item) -> Vec<RustItemProjectionN
             }
             syn::Item::Impl(item_impl) => {
                 append_impl_projection_nodes(nodes, item_impl, depth);
+            }
+            syn::Item::Trait(item_trait) => {
+                append_trait_projection_nodes(nodes, item_trait, depth);
             }
             syn::Item::Struct(item_struct) => {
                 append_struct_field_projection_nodes(nodes, &item_struct.fields, depth);
@@ -58,6 +91,7 @@ pub(super) fn item_projection_nodes(item: &syn::Item) -> Vec<RustItemProjectionN
         role: "declaration",
         label: item_projection_header(item),
         depth: 0,
+        canonical_item_identity: None,
     }];
     append_child_nodes(&mut nodes, item, 1);
     nodes
@@ -106,16 +140,38 @@ fn append_impl_projection_nodes(
     item_impl: &syn::ItemImpl,
     depth: usize,
 ) {
+    let implementation_owner = quote::ToTokens::to_token_stream(item_impl.self_ty.as_ref())
+        .to_string()
+        .replace(' ', "");
+    let trait_owner = item_impl.trait_.as_ref().map(|(path, _)| {
+        quote::ToTokens::to_token_stream(path)
+            .to_string()
+            .replace(' ', "")
+    });
     for impl_item in &item_impl.items {
         match impl_item {
             syn::ImplItem::Fn(method) => {
-                push_projection_node(
+                let mut identity = crate::content_identity::CanonicalItemIdentity::new(
+                    "rust",
+                    "method",
+                    method.sig.ident.to_string(),
+                )
+                .with_scope(
+                    "implementation-owner",
+                    "type",
+                    implementation_owner.clone(),
+                );
+                if let Some(trait_owner) = trait_owner.as_deref() {
+                    identity = identity.with_scope("trait-owner", "trait", trait_owner);
+                }
+                push_canonical_projection_node(
                     nodes,
                     method,
                     "fn",
                     "declaration",
                     fn_signature_projection_label(&method.sig),
                     depth,
+                    identity,
                 );
                 append_block_projection_nodes(nodes, &method.block, depth + 1);
             }
@@ -260,8 +316,8 @@ fn append_expression_projection_nodes(
             for arm in &match_expr.arms {
                 push_projection_node(
                     nodes,
-                    &arm.pat,
-                    "case",
+                    arm,
+                    "match-arm",
                     "control-flow",
                     format!("{} => {{", compact_tokens(&arm.pat)),
                     depth + 1,
@@ -448,7 +504,24 @@ fn push_projection_node(
         role,
         label: label.into(),
         depth,
+        canonical_item_identity: None,
     });
+}
+
+fn push_canonical_projection_node(
+    nodes: &mut Vec<RustItemProjectionNodeSyntax>,
+    syntax: &impl Spanned,
+    kind: &'static str,
+    role: &'static str,
+    label: impl Into<String>,
+    depth: usize,
+    canonical_item_identity: crate::content_identity::CanonicalItemIdentity,
+) {
+    push_projection_node(nodes, syntax, kind, role, label, depth);
+    nodes
+        .last_mut()
+        .expect("projection node was just pushed")
+        .canonical_item_identity = Some(canonical_item_identity);
 }
 
 fn is_low_value_local(local: &syn::Local) -> bool {

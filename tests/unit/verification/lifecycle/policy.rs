@@ -1,7 +1,7 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationPolicy, RustVerificationProfileHint,
-    RustVerificationTaskKind, default_rust_harness_config,
-    plan_rust_project_verification_with_config, render_rust_verification_plan_json,
+    RustVerificationTaskKind, default_asp_rust_config, plan_rust_project_verification_with_config,
+    render_rust_verification_plan_json,
 };
 use tempfile::TempDir;
 
@@ -18,7 +18,7 @@ fn verification_policy_can_disable_task_kind() {
             [RustOwnerResponsibility::PublicApi],
         ))
         .with_disabled_task_kind(RustVerificationTaskKind::Stress);
-    let config = default_rust_harness_config().with_verification_policy(policy);
+    let config = default_asp_rust_config().with_verification_policy(policy);
 
     let plan = plan_rust_project_verification_with_config(root, &config).expect("plan");
 

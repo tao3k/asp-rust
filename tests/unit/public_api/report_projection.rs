@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationAnalysisProfile, RustVerificationProfileHint,
     RustVerificationReportBundle, RustVerificationReportEntryAction,
     RustVerificationReportEntryAdvice, RustVerificationReportEntryArtifact,
@@ -11,7 +11,7 @@ use rust_lang_project_harness::{
     build_rust_verification_analysis_profile_with_config,
     build_rust_verification_report_bundle_with_options,
     build_rust_verification_report_entry_advice_with_receipt,
-    build_rust_verification_report_selection_advice, default_rust_harness_config,
+    build_rust_verification_report_selection_advice, default_asp_rust_config,
     plan_rust_project_verification_with_config, render_rust_verification_report_entry_advice,
     render_rust_verification_report_entry_advice_json,
     render_rust_verification_report_selection_advice,
@@ -27,7 +27,7 @@ fn report_projection_public_api_surface_smoke() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],

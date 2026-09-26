@@ -1,9 +1,9 @@
 use std::fs;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationProfileHint, RustVerificationSkillBinding,
-    RustVerificationSkillDescriptor, RustVerificationTaskKind, default_rust_harness_config,
-    run_rust_project_harness_with_config_for_scope,
+    RustVerificationSkillDescriptor, RustVerificationTaskKind, default_asp_rust_config,
+    run_asp_rust_with_config_for_scope,
 };
 use tempfile::TempDir;
 
@@ -17,15 +17,15 @@ fn performance_verification_binding_requires_cargo_bench_target() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!();\nmod api;\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!();\nmod api;\n",
     )
     .expect("write lib");
     fs::write(root.join("src/api.rs"), "//! API.\npub fn load() {}\n").expect("write api");
 
-    let report = run_rust_project_harness_with_config_for_scope(
+    let report = run_asp_rust_with_config_for_scope(
         root,
         &performance_config(),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
+        asp_rust::AspRustRunScope::Package,
     )
     .expect("run project harness");
 
@@ -50,7 +50,7 @@ fn performance_verification_binding_accepts_cargo_bench_target() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!();\nmod api;\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!();\nmod api;\n",
     )
     .expect("write lib");
     fs::write(root.join("src/api.rs"), "//! API.\npub fn load() {}\n").expect("write api");
@@ -61,10 +61,10 @@ fn performance_verification_binding_accepts_cargo_bench_target() {
     )
     .expect("write bench");
 
-    let report = run_rust_project_harness_with_config_for_scope(
+    let report = run_asp_rust_with_config_for_scope(
         root,
         &performance_config(),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
+        asp_rust::AspRustRunScope::Package,
     )
     .expect("run project harness");
 
@@ -94,7 +94,7 @@ fn performance_verification_binding_accepts_workspace_inherited_cargo_bench_targ
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!();\nmod api;\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!();\nmod api;\n",
     )
     .expect("write lib");
     fs::write(root.join("src/api.rs"), "//! API.\npub fn load() {}\n").expect("write api");
@@ -105,10 +105,10 @@ fn performance_verification_binding_accepts_workspace_inherited_cargo_bench_targ
     )
     .expect("write bench");
 
-    let report = run_rust_project_harness_with_config_for_scope(
+    let report = run_asp_rust_with_config_for_scope(
         &root,
         &performance_config(),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
+        asp_rust::AspRustRunScope::Package,
     )
     .expect("run project harness");
 
@@ -131,7 +131,7 @@ fn performance_verification_binding_accepts_manual_criterion_main_bench_target()
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!();\nmod api;\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!();\nmod api;\n",
     )
     .expect("write lib");
     fs::write(root.join("src/api.rs"), "//! API.\npub fn load() {}\n").expect("write api");
@@ -142,10 +142,10 @@ fn performance_verification_binding_accepts_manual_criterion_main_bench_target()
     )
     .expect("write bench");
 
-    let report = run_rust_project_harness_with_config_for_scope(
+    let report = run_asp_rust_with_config_for_scope(
         root,
         &performance_config(),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
+        asp_rust::AspRustRunScope::Package,
     )
     .expect("run project harness");
 
@@ -168,17 +168,17 @@ fn performance_verification_binding_rejects_raw_harness_false_bench() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(
         root.join("src/lib.rs"),
-        "//! Test crate.\n#[cfg(test)]\nrust_lang_project_harness::rust_project_harness_cargo_test_gate!();\nmod api;\n",
+        "//! Test crate.\n#[cfg(test)]\nasp_rust::asp_rust_cargo_test_gate!();\nmod api;\n",
     )
     .expect("write lib");
     fs::write(root.join("src/api.rs"), "//! API.\npub fn load() {}\n").expect("write api");
     fs::create_dir(root.join("benches")).expect("create benches");
     fs::write(root.join("benches/api_perf.rs"), "fn main() {}\n").expect("write bench");
 
-    let report = run_rust_project_harness_with_config_for_scope(
+    let report = run_asp_rust_with_config_for_scope(
         root,
         &performance_config(),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
+        asp_rust::AspRustRunScope::Package,
     )
     .expect("run project harness");
 
@@ -193,8 +193,8 @@ fn performance_verification_binding_rejects_raw_harness_false_bench() {
     );
 }
 
-fn performance_config() -> rust_lang_project_harness::RustHarnessConfig {
-    default_rust_harness_config()
+fn performance_config() -> asp_rust::AspRustConfig {
+    default_asp_rust_config()
         .with_verification_profile_hint(RustVerificationProfileHint::new(
             "src/api.rs",
             [RustOwnerResponsibility::LatencySensitive],

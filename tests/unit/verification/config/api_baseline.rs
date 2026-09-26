@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustOwnerResponsibility, RustVerificationApiPathBaseline, RustVerificationReceipt,
-    RustVerificationSkillBinding, RustVerificationTaskKind, default_rust_harness_config,
+    RustVerificationSkillBinding, RustVerificationTaskKind, default_asp_rust_config,
     plan_rust_project_verification_with_config, render_rust_verification_plan,
 };
 use tempfile::TempDir;
@@ -14,7 +14,7 @@ fn verification_api_path_baseline_requests_path_scoped_tasks() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_api_path_baseline(
+    let config = default_asp_rust_config().with_verification_api_path_baseline(
         RustVerificationApiPathBaseline::new("src/api.rs", "get", "/v1/search")
             .with_responsibility(RustOwnerResponsibility::LatencySensitive)
             .with_responsibility(RustOwnerResponsibility::SecurityBoundary)
@@ -47,7 +47,7 @@ fn verification_api_path_baseline_receipt_clears_only_matching_path() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_api_path_baseline(
             RustVerificationApiPathBaseline::new("src/api.rs", "post", "/v1/orders")
                 .with_task_kinds([RustVerificationTaskKind::Security])
@@ -94,7 +94,7 @@ fn verification_api_path_baseline_with_skill_binding_stays_compact() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config()
+    let config = default_asp_rust_config()
         .with_verification_api_path_baseline(
             RustVerificationApiPathBaseline::new("src/api.rs", "post", "/v1/orders")
                 .with_task_kinds([RustVerificationTaskKind::Security])
@@ -124,7 +124,7 @@ fn verification_api_path_baseline_can_be_suppressed_with_rationale() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_api_path_baseline(
+    let config = default_asp_rust_config().with_verification_api_path_baseline(
         RustVerificationApiPathBaseline::new("src/api.rs", "get", "/internal/health")
             .without_verification_tasks()
             .with_rationale("covered by platform health-check verification"),
@@ -140,7 +140,7 @@ fn verification_api_path_baseline_override_without_rationale_requests_review() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_api_path_baseline(
+    let config = default_asp_rust_config().with_verification_api_path_baseline(
         RustVerificationApiPathBaseline::new("src/api.rs", "delete", "/v1/orders/{id}")
             .with_task_kinds([RustVerificationTaskKind::Security]),
     );
@@ -166,7 +166,7 @@ fn verification_api_path_baseline_unmatched_owner_requests_review() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();
     write_api_project(root);
-    let config = default_rust_harness_config().with_verification_api_path_baseline(
+    let config = default_asp_rust_config().with_verification_api_path_baseline(
         RustVerificationApiPathBaseline::new("src/missing.rs", "get", "/v1/missing")
             .with_task_kinds([RustVerificationTaskKind::Security])
             .with_rationale("route config should point at the parser-known owner"),

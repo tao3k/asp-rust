@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rust_lang_project_harness::{render_rust_project_harness, run_rust_project_harness_for_scope};
+use asp_rust::{render_asp_rust, run_asp_rust_for_scope};
 use tempfile::TempDir;
 
 #[test]
@@ -178,11 +178,8 @@ fn mod_r010_absolute_owner_glob_import_snapshot() {
 }
 
 fn assert_mod_snapshot(root: &Path, rule_id: &str, snapshot_name: &'static str) {
-    let mut report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let mut report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
     report.findings.retain(|finding| finding.rule_id == rule_id);
     assert_eq!(
         report.findings.len(),
@@ -190,7 +187,7 @@ fn assert_mod_snapshot(root: &Path, rule_id: &str, snapshot_name: &'static str) 
         "expected one {rule_id} finding, got {:?}",
         report.findings
     );
-    let rendered = normalize_temp_root(&render_rust_project_harness(&report), root);
+    let rendered = normalize_temp_root(&render_asp_rust(&report), root);
     insta::assert_snapshot!(snapshot_name, rendered);
 }
 

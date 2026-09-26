@@ -132,6 +132,14 @@ pub(in crate::parser) fn external_child_module_edges(
     module: &ParsedRustModule,
     source_files: &BTreeSet<PathBuf>,
 ) -> Vec<RustModuleChildEdge> {
+    external_child_module_edges_with_test_cfg(module, source_files, false)
+}
+
+pub(in crate::parser) fn external_child_module_edges_with_test_cfg(
+    module: &ParsedRustModule,
+    source_files: &BTreeSet<PathBuf>,
+    include_cfg_test: bool,
+) -> Vec<RustModuleChildEdge> {
     let module_path = &module.report.path;
     let mut edges = Vec::new();
     for item in &module.syntax_facts.top_level_items {
@@ -147,7 +155,7 @@ pub(in crate::parser) fn external_child_module_edges(
         let Some(item_mod) = &item.module else {
             continue;
         };
-        if item_mod.is_inline || item_mod.is_cfg_test {
+        if item_mod.is_inline || (item_mod.is_cfg_test && !include_cfg_test) {
             continue;
         }
         if let Some(resolved) = &item_mod.resolved_path_attr {

@@ -1,6 +1,6 @@
 ---
 name: rust-verification-performance
-description: "Use when a rust-lang-project-harness task touches latency, throughput, allocation behavior, parser/render loops, or Rust performance verification contracts."
+description: "Use when a asp-rust task touches latency, throughput, allocation behavior, parser/render loops, or Rust performance verification contracts."
 ---
 
 # Rust Performance Verification

@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::has_rule;
@@ -17,11 +17,8 @@ fn stale_rust_edition_is_project_policy_advice() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(root.join("src/lib.rs"), "//! Edition fixture.\n").expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         has_rule(&report, "RUST-AGENT-PROJECT-MANIFEST-023"),
@@ -42,11 +39,8 @@ fn rust_2024_edition_clears_project_policy_advice() {
     fs::create_dir(root.join("src")).expect("create src");
     fs::write(root.join("src/lib.rs"), "//! Edition fixture.\n").expect("write lib");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(
         !has_rule(&report, "RUST-AGENT-PROJECT-MANIFEST-023"),

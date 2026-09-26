@@ -1,4 +1,4 @@
-//! Scenario benchmark contracts for Rust harness fixtures.
+//! Scenario benchmark contracts for ASP Rust fixtures.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -55,7 +55,7 @@ pub fn validate_rust_scenario_benchmark(
     })
 }
 
-/// Validate every required Rust harness scenario benchmark contract.
+/// Validate every required ASP Rust scenario benchmark contract.
 pub fn validate_required_rust_scenario_benchmarks(
     crate_root: impl AsRef<Path>,
 ) -> Result<RustScenarioBenchmarkSuiteReceipt, RustScenarioBenchmarkError> {
@@ -428,6 +428,7 @@ fn scenario_benchmark_violations(
             "at least one timing phase is required",
         ));
     }
+    require_measurement_provenance(&mut violations, benchmark);
     if benchmark.target_total > benchmark.max_total {
         violations.push(contract_violation(
             "benchmark.target_total",
@@ -462,7 +463,161 @@ fn scenario_benchmark_violations(
             ),
         });
     }
+    require_custom_metrics(&mut violations, benchmark);
     violations
+}
+
+fn require_custom_metrics(
+    violations: &mut Vec<RustScenarioBenchmarkViolation>,
+    benchmark: &RustScenarioBenchmarkContract,
+) {
+    for (name, metric) in &benchmark.metrics {
+        let field = format!("benchmark.metrics.{name}");
+        require_non_empty(violations, &format!("{field}.name"), name);
+        require_non_empty(violations, &format!("{field}.unit"), &metric.unit);
+        let passes = match (metric.kind, metric.target) {
+            (super::contract::RustScenarioBenchmarkMetricKind::Stable, None) => true,
+            (super::contract::RustScenarioBenchmarkMetricKind::Exact, Some(target)) => {
+                metric.observed == target
+            }
+            (super::contract::RustScenarioBenchmarkMetricKind::Maximum, Some(target)) => {
+                metric.observed <= target
+            }
+            (super::contract::RustScenarioBenchmarkMetricKind::Minimum, Some(target)) => {
+                metric.observed >= target
+            }
+            (super::contract::RustScenarioBenchmarkMetricKind::Stable, Some(_)) => {
+                violations.push(contract_violation(
+                    &format!("{field}.target"),
+                    "stable observations must not duplicate a fixture value as a target",
+                ));
+                continue;
+            }
+            (_, None) => {
+                violations.push(contract_violation(
+                    &format!("{field}.target"),
+                    "exact, maximum, and minimum metrics require a declared target",
+                ));
+                continue;
+            }
+        };
+        if !passes {
+            violations.push(RustScenarioBenchmarkViolation {
+                kind: RustScenarioBenchmarkViolationKind::Performance,
+                field,
+                message: format!(
+                    "observed {} does not satisfy {:?} target {} {}",
+                    metric.observed,
+                    metric.kind,
+                    metric.target.expect("validated constrained metric target"),
+                    metric.unit
+                ),
+            });
+        }
+    }
+}
+
+fn require_measurement_provenance(
+    violations: &mut Vec<RustScenarioBenchmarkViolation>,
+    benchmark: &RustScenarioBenchmarkContract,
+) {
+    if benchmark.metrics.is_empty() && benchmark.measurement.is_none() {
+        return;
+    }
+    let Some(measurement) = &benchmark.measurement else {
+        violations.push(contract_violation(
+            "benchmark.measurement",
+            "generated metrics require monotonic-clock measurement provenance",
+        ));
+        return;
+    };
+    if measurement.clock != "std::time::Instant" {
+        violations.push(contract_violation(
+            "benchmark.measurement.clock",
+            "generated Scenario observations must use std::time::Instant",
+        ));
+    }
+    if measurement.statistic != "p95" {
+        violations.push(contract_violation(
+            "benchmark.measurement.statistic",
+            "observed_total must be the measured p95 sample",
+        ));
+    }
+    if measurement.measure_iterations == 0 {
+        violations.push(contract_violation(
+            "benchmark.measurement.measure_iterations",
+            "measurement must contain at least one real sample",
+        ));
+    }
+    if measurement.total_p50 > measurement.total_p95
+        || measurement.total_p95 > measurement.total_p99
+        || measurement.total_p99 > measurement.total_max
+    {
+        violations.push(contract_violation(
+            "benchmark.measurement",
+            "measured distribution must satisfy p50 <= p95 <= p99 <= max",
+        ));
+    }
+    if benchmark.observed_total != measurement.total_p95 {
+        violations.push(contract_violation(
+            "benchmark.observed_total",
+            "observed_total must equal the runner-generated p95 measurement",
+        ));
+    }
+    if measurement.total_p95.is_zero() {
+        violations.push(contract_violation(
+            "benchmark.measurement.total_p95",
+            "measured p95 is zero; clock resolution or sample workload is insufficient, rerun the Scenario instead of inventing a duration",
+        ));
+    }
+    for (name, timing) in &benchmark.observed_timings {
+        if name.ends_with("_count") {
+            violations.push(contract_violation(
+                &format!("benchmark.observed_timings.{name}"),
+                "counts are typed metrics, not durations",
+            ));
+        }
+        if timing.is_zero() {
+            violations.push(contract_violation(
+                &format!("benchmark.observed_timings.{name}"),
+                "measured phase resolved to zero; increase the sample workload and remeasure",
+            ));
+        }
+        let Some(distribution) = benchmark.phase_distributions.get(name) else {
+            continue;
+        };
+        if distribution.p50 > distribution.p95
+            || distribution.p95 > distribution.p99
+            || distribution.p99 > distribution.max
+        {
+            violations.push(contract_violation(
+                &format!("benchmark.phase_distributions.{name}"),
+                "measured phase distribution must satisfy p50 <= p95 <= p99 <= max",
+            ));
+        }
+        if *timing != distribution.p95 {
+            violations.push(contract_violation(
+                &format!("benchmark.observed_timings.{name}"),
+                "observed phase timing must equal its runner-generated p95 measurement",
+            ));
+        }
+    }
+    for name in benchmark.phase_distributions.keys() {
+        if !benchmark.observed_timings.contains_key(name) {
+            violations.push(contract_violation(
+                &format!("benchmark.phase_distributions.{name}"),
+                "phase distribution must have a corresponding observed timing",
+            ));
+        }
+    }
+    if !benchmark.phase_distributions.is_empty()
+        && benchmark.phase_distributions.len() != benchmark.observed_timings.len()
+    {
+        violations.push(contract_violation(
+            "benchmark.phase_distributions",
+            "runner-generated phase distributions must cover every observed timing",
+        ));
+    }
 }
 
 fn require_input_expected_comparison(

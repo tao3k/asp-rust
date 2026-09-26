@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::{findings_for_rule, write_manifest};
@@ -12,11 +12,8 @@ fn owner_dependency_cycle_is_agent_advice() {
     write_manifest(root, "owner-cycle");
     write_owner_cycle_fixture(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-OWNER-GRAPH-009");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -32,11 +29,8 @@ fn cross_owner_leaf_import_is_agent_advice() {
     write_manifest(root, "cross-owner-leaf");
     write_cross_owner_leaf_fixture(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-OWNER-BOUNDARY-010");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -52,11 +46,8 @@ fn owner_fan_out_without_intent_doc_is_agent_advice() {
     write_manifest(root, "owner-fan-out");
     write_owner_fan_out_fixture(root);
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-AGENT-DOCS-OWNER-FANOUT-011");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -116,11 +107,8 @@ fn cfg_test_owner_dependencies_do_not_trigger_structural_agent_policies() {
     .expect("write gamma core");
     fs::write(root.join("src/orchestrator/task.rs"), "//! Task.\n").expect("write task");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(findings_for_rule(&report, "RUST-AGENT-OWNER-GRAPH-009").is_empty());
     assert!(findings_for_rule(&report, "RUST-AGENT-DOCS-OWNER-FANOUT-011").is_empty());

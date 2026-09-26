@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::fs;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustDeterminismReadinessCategory, RustDeterminismReadinessInput,
     RustDeterminismReadinessStatus, build_rust_determinism_readiness,
 };

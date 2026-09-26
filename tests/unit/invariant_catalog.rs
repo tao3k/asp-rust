@@ -1,8 +1,8 @@
 use std::fs;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustInvariantCandidateStatus, RustInvariantKind, RustInvariantReceiptKind,
-    run_rust_project_harness_for_scope,
+    run_asp_rust_for_scope,
 };
 
 #[test]
@@ -41,11 +41,8 @@ pub fn load_user(user_id: String) -> (String, u64) {
     )
     .expect("write source");
 
-    let report = run_rust_project_harness_for_scope(
-        temp.path(),
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run harness");
+    let report = run_asp_rust_for_scope(temp.path(), asp_rust::AspRustRunScope::Package)
+        .expect("run harness");
     let candidates = report.invariant_candidates;
     let kinds = candidates
         .iter()

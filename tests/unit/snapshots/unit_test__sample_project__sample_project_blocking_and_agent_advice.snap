@@ -7,7 +7,7 @@ expression: rendered
 @ $TEMP/tests/test_root.rs:1:1
 fix: move this file under tests/unit or tests/integration
 Help: tests/test_root.rs is a root-level test file without an explicit harness role.
-Contract: Move root-level test files under tests/unit or tests/integration, or justify an explicit harness entry point in tests/rust-project-harness-rules.toml.
+Contract: Move root-level test files under tests/unit or tests/integration and declare nonstandard isolated targets directly in Cargo.toml.
 
 [RUST-AGENT-PROJECT-003] Warning: Inline source test module
 @ $TEMP/src/lib.rs:2:1

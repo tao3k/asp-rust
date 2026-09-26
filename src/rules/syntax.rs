@@ -1,7 +1,7 @@
 //! Rust syntax rule pack.
 
 use crate::parser::{ParsedRustModule, source_line, span_location};
-use crate::{RustDiagnosticSeverity, RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule, RustDiagnosticSeverity};
 
 use super::{display_path, labels};
 
@@ -10,11 +10,11 @@ const RUST_SYN_R001: &str = "RUST-SYN-R001";
 
 /// Return compact metadata for Rust syntax rules.
 #[must_use]
-pub fn rust_syntax_rules() -> Vec<RustHarnessRule> {
+pub fn rust_syntax_rules() -> Vec<AspRustRule> {
     vec![rule()]
 }
 
-pub(crate) fn evaluate(modules: &[ParsedRustModule]) -> Vec<RustHarnessFinding> {
+pub(crate) fn evaluate(modules: &[ParsedRustModule]) -> Vec<AspRustFinding> {
     let rule = rule();
     modules
         .iter()
@@ -25,7 +25,7 @@ pub(crate) fn evaluate(modules: &[ParsedRustModule]) -> Vec<RustHarnessFinding> 
                 |span| span_location(Some(module.report.path.clone()), span),
             );
             let line = source_line(&module.source, location.line);
-            RustHarnessFinding::from_rule(
+            AspRustFinding::from_rule(
                 &rule,
                 format!(
                     "{} could not be parsed as Rust syntax: {}",
@@ -44,8 +44,8 @@ pub(crate) fn evaluate(modules: &[ParsedRustModule]) -> Vec<RustHarnessFinding> 
         .collect()
 }
 
-fn rule() -> RustHarnessRule {
-    RustHarnessRule::new(
+fn rule() -> AspRustRule {
+    AspRustRule::new(
         RUST_SYN_R001,
         PACK_ID,
         RustDiagnosticSeverity::Error,

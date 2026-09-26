@@ -6,6 +6,6 @@ expression: rendered
 [RUST-AGENT-PROJECT-015] Warning: Retired cargo-test advice allowance lacks explanation
 @ $TEMP/src/lib.rs:3:1
 fix: use with_cargo_test_advice_allow_explanation(...) to explain why advisory findings may pass this retired cargo-test gate
-line: 3 | rust_lang_project_harness::rust_project_harness_cargo_test_gate!(advice = allow, config = {
+line: 3 | asp_rust::asp_rust_cargo_test_gate!(advice = allow, config = {
 Help: src/lib.rs mounts the cargo-test harness gate with advice allowance but no explicit allow explanation.
 Contract: Retired cargo-test advice allowance must include an explicit explanation so agents cannot silence advisory policy just to pass the test layer.

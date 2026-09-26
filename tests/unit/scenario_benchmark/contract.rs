@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustScenarioBenchmarkStatus, RustScenarioBenchmarkViolationKind,
     validate_rust_scenario_benchmark,
 };
@@ -75,6 +75,51 @@ workspace_metadata = "750us"
 
     assert_eq!(receipt.status, RustScenarioBenchmarkStatus::Pass);
     assert!(receipt.violations.is_empty(), "{:?}", receipt.violations);
+}
+
+#[test]
+fn scenario_benchmark_contract_accepts_runner_p99_and_phase_distributions() {
+    let temp = TempDir::new().expect("temp dir");
+    write_scenario(temp.path());
+    write_benchmark(
+        temp.path(),
+        r#"
+harness = "libtest"
+test = "runner_generated_distribution"
+target_total = "100ms"
+max_total = "500ms"
+observed_total = "90ms"
+regression_budget = "25ms"
+memory_budget_bytes = 8388608
+observed_memory_bytes = 4194304
+target_rationale = "The runner owns percentile evidence for the whole sample and every phase."
+
+[measurement]
+clock = "std::time::Instant"
+statistic = "p95"
+warmup_iterations = 2
+measure_iterations = 11
+total_p50 = "70ms"
+total_p95 = "90ms"
+total_p99 = "95ms"
+total_max = "98ms"
+
+[observed_timings]
+semantic_read = "85ms"
+
+[phase_distributions.semantic_read]
+p50 = "65ms"
+p95 = "85ms"
+p99 = "90ms"
+max = "92ms"
+"#,
+    );
+
+    let receipt = validate_rust_scenario_benchmark(temp.path()).expect("validate scenario");
+
+    assert_eq!(receipt.status, RustScenarioBenchmarkStatus::Pass);
+    assert!(receipt.violations.is_empty(), "{:?}", receipt.violations);
+    assert_eq!(receipt.benchmark.phase_distributions.len(), 1);
 }
 
 #[test]

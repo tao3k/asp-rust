@@ -1,6 +1,6 @@
 use std::fs;
 
-use rust_lang_project_harness::run_rust_project_harness_for_scope;
+use asp_rust::run_asp_rust_for_scope;
 use tempfile::TempDir;
 
 use crate::path_policy::support::{findings_for_rule, has_rule, write_manifest};
@@ -18,11 +18,8 @@ fn glob_import_policy_flags_native_use_tree_globs() {
     )
     .expect("write domain");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R010");
     assert_eq!(findings.len(), 2, "{:?}", report.findings);
@@ -46,11 +43,8 @@ fn glob_import_policy_reports_cfg_test_context_from_parser_stack() {
     )
     .expect("write domain");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R010");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -78,11 +72,8 @@ fn glob_import_policy_flags_absolute_crate_owner_glob() {
     )
     .expect("write domain");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R010");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -113,11 +104,8 @@ fn glob_import_policy_scans_tests_root_with_test_context() {
     )
     .expect("write integration test");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     let findings = findings_for_rule(&report, "RUST-MOD-R010");
     assert_eq!(findings.len(), 1, "{:?}", report.findings);
@@ -141,11 +129,8 @@ fn glob_import_policy_ignores_comments_and_strings() {
     )
     .expect("write domain");
 
-    let report = run_rust_project_harness_for_scope(
-        root,
-        rust_lang_project_harness::RustHarnessRunScope::Package,
-    )
-    .expect("run project harness");
+    let report = run_asp_rust_for_scope(root, asp_rust::AspRustRunScope::Package)
+        .expect("run project harness");
 
     assert!(!has_rule(&report, "RUST-MOD-R010"), "{:?}", report.findings);
 }

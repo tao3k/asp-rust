@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rust_lang_project_harness::{
+use asp_rust::{
     RustBehaviorSnapshot, RustBehaviorSnapshotExpectTestInput, RustBehaviorSnapshotId,
     RustBehaviorSnapshotStatus, RustBehaviorSnapshotSymbol, RustBehaviorSnapshotValue,
     RustInvariantId,

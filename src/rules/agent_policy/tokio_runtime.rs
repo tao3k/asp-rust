@@ -4,15 +4,15 @@ use std::collections::BTreeMap;
 
 use crate::parser::{ParsedRustModule, path_line_location, source_line};
 use crate::rules::display_path;
-use crate::{RustHarnessFinding, RustHarnessRule};
+use crate::{AspRustFinding, AspRustRule};
 
 use super::RUST_AGENT_POLICY_TOKIO_RUNTIME_BOUNDARY_V1;
 use super::doc_boundary::documented_agent_boundary;
 
 pub(super) fn tokio_runtime_boundary_findings(
     module: &ParsedRustModule,
-    rules: &BTreeMap<&'static str, RustHarnessRule>,
-) -> Vec<RustHarnessFinding> {
+    rules: &BTreeMap<&'static str, AspRustRule>,
+) -> Vec<AspRustFinding> {
     let rule = &rules[RUST_AGENT_POLICY_TOKIO_RUNTIME_BOUNDARY_V1];
     module
         .syntax_facts
@@ -38,7 +38,7 @@ pub(super) fn tokio_runtime_boundary_findings(
             ) {
                 return None;
             }
-            Some(RustHarnessFinding::from_rule(
+            Some(AspRustFinding::from_rule(
                 rule,
                 format!(
                     "{} calls Tokio runtime operation `{}` in `{}` without a runtime owner boundary.",

@@ -11,7 +11,7 @@ use super::contract::RustScenarioBenchmarkContract;
 /// Scenario manifest format that requires a benchmark contract.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RustScenarioBenchmarkManifestKind {
-    /// Native Rust harness scenario contract stored in `scenario.toml`.
+    /// Native ASP Rust scenario contract stored in `scenario.toml`.
     ScenarioToml,
     /// CLI AST patch scenario contract stored in `scenario.json`.
     AstPatchScenarioJson,

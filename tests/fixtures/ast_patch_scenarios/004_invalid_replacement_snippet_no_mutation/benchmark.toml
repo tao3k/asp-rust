@@ -1,5 +1,5 @@
 harness = "libtest"
-test = "rust_lang_project_harness::ast_patch_scenarios::fixture_contract"
+test = "asp_rust::ast_patch_scenarios::fixture_contract"
 snapshot = "ast_patch_scenarios::fixture_contract"
 target_total = "25ms"
 max_total = "100ms"

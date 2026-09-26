@@ -61,9 +61,9 @@ impl Default for RustBehaviorSnapshotProducer {
     fn default() -> Self {
         Self {
             language_id: RustBehaviorSnapshotLanguageId("rust".to_string()),
-            provider_id: RustBehaviorSnapshotProviderId("rs-harness".to_string()),
+            provider_id: RustBehaviorSnapshotProviderId("asp-rust".to_string()),
             namespace: RustBehaviorSnapshotNamespace(
-                "agent.semantic-protocols.languages.rust.rs-harness".to_string(),
+                "agent.semantic-protocols.languages.rust.asp-rust".to_string(),
             ),
         }
     }

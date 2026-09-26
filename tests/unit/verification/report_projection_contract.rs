@@ -1,4 +1,4 @@
-use rust_lang_project_harness::{
+use asp_rust::{
     RustVerificationReportOptions, RustVerificationReportWriteConfig,
     build_rust_verification_analysis_profile_with_config,
     build_rust_verification_report_bundle_with_options,

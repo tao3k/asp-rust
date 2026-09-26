@@ -1,8 +1,8 @@
 //! Project-level Rust test policy rules.
 
-mod build_gate;
 mod catalog;
 mod config;
+mod dev_gate;
 mod manifest;
 mod pack;
 pub(crate) use pack::evaluate_workspace;
