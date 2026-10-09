@@ -220,3 +220,37 @@ fn write_sensitive_module(root: &Path, source: &str) {
     fs::write(root.join("src/search/mod.rs"), "mod candidates;\n").expect("write search mod");
     fs::write(root.join("src/search/candidates.rs"), source).expect("write candidates");
 }
+
+#[test]
+fn quality_policy_is_invariant_under_checkout_parent_name() {
+    let temp = TempDir::new().expect("temp dir");
+    for checkout in ["ordinary-worktree", "search-worktree", "policy-worktree"] {
+        let root = temp.path().join(checkout);
+        fs::create_dir_all(&root).expect("create checkout");
+        write_minimal_project(&root, "checkout-path-invariance");
+        fs::write(
+            root.join("src/lib.rs"),
+            "pub fn canonical_value(value: Option<String>) -> String { value.unwrap_or_default() }\n",
+        )
+        .expect("write ordinary module");
+        let report = run_asp_rust_for_scope(&root, asp_rust::AspRustRunScope::Package)
+            .expect("run ordinary module policy");
+        assert!(
+            !has_rule(&report, "RUST-AGENT-PROJECT-020"),
+            "{checkout}: {:?}",
+            report.findings
+        );
+        write_sensitive_module(
+            &root,
+            "pub(crate) fn semantic_path(anchor_id: &str) -> Vec<String> {\n    extract_lineage(anchor_id).unwrap_or_default()\n}\nfn extract_lineage(_: &str) -> Option<Vec<String>> { None }\n",
+        );
+        let report = run_asp_rust_for_scope(&root, asp_rust::AspRustRunScope::Package)
+            .expect("run sensitive module policy");
+        assert_eq!(
+            findings_for_rule(&report, "RUST-AGENT-PROJECT-020").len(),
+            1,
+            "{checkout}: {:?}",
+            report.findings
+        );
+    }
+}

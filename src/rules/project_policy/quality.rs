@@ -210,7 +210,7 @@ fn silent_evidence_default_findings(
     modules
         .iter()
         .filter(|module| !is_test_module(module))
-        .filter(|module| is_quality_sensitive_module(module))
+        .filter(|module| is_quality_sensitive_module(project_root, module))
         .filter_map(|module| {
             let line = module
                 .source
@@ -258,7 +258,7 @@ fn source_location_sentinel_findings(
     modules
         .iter()
         .filter(|module| !is_test_module(module))
-        .filter(|module| is_quality_sensitive_module(module))
+        .filter(|module| is_quality_sensitive_module(project_root, module))
         .filter_map(|module| {
             let line = module
                 .source
@@ -351,8 +351,13 @@ fn is_candidate_lookup_module(module: &ParsedRustModule) -> bool {
     path.contains("candidate") || (path.contains("query") && path.contains("lookup"))
 }
 
-fn is_quality_sensitive_module(module: &ParsedRustModule) -> bool {
-    let path = module.report.path.to_string_lossy().to_ascii_lowercase();
+fn is_quality_sensitive_module(project_root: &Path, module: &ParsedRustModule) -> bool {
+    let path = module
+        .report
+        .path
+        .strip_prefix(project_root)
+        .unwrap_or(&module.report.path);
+    let path = path.to_string_lossy().to_ascii_lowercase();
     [
         "candidate",
         "dedup",
