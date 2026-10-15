@@ -154,10 +154,14 @@ async fn read_request(stream: &mut TcpStream) -> Result<HttpJsonRequest, String>
         .transpose()
         .map_err(|error| format!("HTTP JSON content-length is invalid: {error}"))?
         .unwrap_or(0);
-    if header_end + content_length > MAX_REQUEST_BYTES {
+    let frame_end = header_end
+        .checked_add(content_length)
+        .filter(|end| *end <= MAX_REQUEST_BYTES)
+        .ok_or_else(|| "HTTP JSON request exceeds the bounded frame limit".to_owned())?;
+    if bytes.len() > MAX_REQUEST_BYTES {
         return Err("HTTP JSON request exceeds the bounded frame limit".to_owned());
     }
-    while bytes.len() < header_end + content_length {
+    while bytes.len() < frame_end {
         let mut chunk = [0_u8; 4096];
         let read = stream
             .read(&mut chunk)
@@ -171,7 +175,7 @@ async fn read_request(stream: &mut TcpStream) -> Result<HttpJsonRequest, String>
     Ok(HttpJsonRequest {
         method,
         path,
-        body: bytes[header_end..header_end + content_length].to_vec(),
+        body: bytes[header_end..frame_end].to_vec(),
     })
 }
 

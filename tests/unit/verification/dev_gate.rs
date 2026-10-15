@@ -290,6 +290,10 @@ fn downstream_member_policy_does_not_apply_performance_contract_to_siblings() {
 }
 
 #[test]
+#[cfg_attr(
+    not(feature = "dependency-baseline"),
+    should_panic(expected = "requires the ASP Rust `dependency-baseline` feature")
+)]
 fn downstream_policy_asserts_dependency_baseline_from_cargo_lock() {
     let temp = TempDir::new().expect("temp dir");
     let root = temp.path();

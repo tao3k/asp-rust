@@ -88,6 +88,13 @@ fn serve_publishes_v1_bootstrap_health_and_shutdown_over_http_json() {
             .and_then(|value| value.strip_suffix('/'))
             .ok_or_else(|| format!("bootstrap endpoint is not canonical: {endpoint}"))?;
 
+        let mut slow = TcpStream::connect(authority)
+            .map_err(|error| format!("connect slow client: {error}"))?;
+        slow.set_read_timeout(Some(Duration::from_secs(2)))
+            .map_err(|error| format!("set slow client timeout: {error}"))?;
+        slow.write_all(b"GET /health HTTP/1.1\r\nContent-Length: 2\r\n\r\n{")
+            .map_err(|error| format!("write partial request: {error}"))?;
+        // The incomplete body must not serialize independent health requests.
         let health = http_request(
             authority,
             "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
@@ -99,6 +106,30 @@ fn serve_publishes_v1_bootstrap_health_and_shutdown_over_http_json() {
         assert_eq!(health["languageId"], "rust");
         assert_eq!(health["transport"], "http-json");
         assert!(health.get("state").is_none());
+
+        slow.write_all(b"}")
+            .map_err(|error| format!("complete slow request: {error}"))?;
+        let mut slow_response = String::new();
+        slow.read_to_string(&mut slow_response)
+            .map_err(|error| format!("read completed slow request: {error}"))?;
+        assert!(slow_response.starts_with("HTTP/1.1 200 OK"));
+
+        std::thread::scope(|scope| {
+            let requests = (0..8)
+                .map(|_| {
+                    scope.spawn(|| {
+                        http_request(
+                            authority,
+                            "GET /health HTTP/1.1\r\nContent-Length: 0\r\n\r\n",
+                        )
+                    })
+                })
+                .collect::<Vec<_>>();
+            for request in requests {
+                request.join().expect("health client thread")?;
+            }
+            Ok::<(), String>(())
+        })?;
 
         let shutdown = http_request(
             authority,

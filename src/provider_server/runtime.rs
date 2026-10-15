@@ -44,6 +44,12 @@ fn admit_provider_server_argv(args: impl IntoIterator<Item = OsString>) -> Resul
     )
 }
 
+/// Runtime facade for the provider's bounded request workers.
+///
+/// The HTTP owner admits at most 4–16 connections, tracks each connection in a
+/// JoinSet, and drains admitted work on shutdown. Each connection awaits its
+/// blocking worker before writing the response, so parser work cannot stall the
+/// Tokio reactor or outlive the connection's tracked task during normal drain.
 fn run_provider_server() -> Result<ExitCode, String> {
     let artifact_digest = required_env("ASP_PROVIDER_ARTIFACT_DIGEST")?;
     let registration_digest = required_env("ASP_PROVIDER_REGISTRATION_DIGEST")?;
