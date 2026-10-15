@@ -149,3 +149,69 @@ fn representative_generation_projection_produces_the_complete_batch() {
         OWNER_COUNT
     );
 }
+
+#[test]
+fn projection_batch_base64_and_utf8_produce_identical_parser_facts() {
+    use base64::Engine as _;
+    let source = "pub fn café(value: usize) -> usize { value + 1 }\n";
+    let utf8 = request(json!([{
+        "ownerPath": "src/lib.rs", "sourceLeafDigest": "blake3-256:source",
+        "sourceEncoding": "utf8", "sourceText": source
+    }]));
+    let encoded = request(json!([{
+        "ownerPath": "src/lib.rs", "sourceLeafDigest": "blake3-256:source",
+        "sourceEncoding": "base64",
+        "sourceBytesBase64": base64::engine::general_purpose::STANDARD.encode(source)
+    }]));
+    assert_eq!(
+        handle_language_projection_batch_value(&utf8).unwrap(),
+        handle_language_projection_batch_value(&encoded).unwrap()
+    );
+}
+
+#[test]
+#[ignore = "real Rust source projection profile; run explicitly with --ignored --nocapture"]
+fn projection_batch_latency_profile() {
+    let source = include_str!(
+        "../fixtures/ast_patch_scenarios/010_tokio_style_builder_struct_apply/input/src/runtime/builder.rs"
+    );
+    let owners = (0..16)
+        .map(|index| {
+            json!({
+                "ownerPath": format!("src/owner_{index}.rs"),
+                "sourceLeafDigest": format!("blake3-256:{}", blake3::hash(source.as_bytes())),
+                "sourceEncoding": "utf8", "sourceText": source
+            })
+        })
+        .collect::<Vec<_>>();
+    let request = request(Value::Array(owners));
+    let mut samples = Vec::new();
+    let mut response_bytes = 0;
+    for iteration in 0..25 {
+        let started = std::time::Instant::now();
+        let response =
+            handle_language_projection_batch_value(std::hint::black_box(&request)).unwrap();
+        let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let decoded: Value = serde_json::from_slice(&response).unwrap();
+        let owners = decoded["owners"].as_array().unwrap();
+        assert_eq!(owners.len(), 16);
+        for owner in owners {
+            assert_eq!(owner["projectionState"], "ready");
+            assert!(!owner["items"].as_array().unwrap().is_empty());
+        }
+        response_bytes = response.len();
+        if iteration >= 5 {
+            samples.push(elapsed_ms);
+        }
+    }
+    samples.sort_by(f64::total_cmp);
+    println!(
+        "{}",
+        json!({
+            "case": "projection.real-rust-source.16-owners", "warmup": 5, "samples": 20,
+            "sourceBytesPerOwner": source.len(), "responseBytes": response_bytes,
+            "sourceDigest": blake3::hash(source.as_bytes()).to_hex().as_str(),
+            "p50Ms": samples[9], "p95Ms": samples[18], "p99Ms": samples[19]
+        })
+    );
+}

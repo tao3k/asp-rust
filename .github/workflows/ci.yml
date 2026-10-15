@@ -71,22 +71,41 @@ jobs:
           cache-on-failure: true
 
       - name: Fetch cargo dependencies
-        run: cargo fetch
+        run: cargo fetch --locked
 
       - name: Check formatting
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: cargo fmt --all -- --check
 
       - name: Run tests
-        run: cargo test --workspace --all-targets --all-features
+        run: cargo test --workspace --all-targets --all-features --locked
+
+      - name: Verify minimal feature surface
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: cargo test --workspace --no-default-features --locked
+
+      - name: Record transport and parser latency distributions
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --release --all-features --lib latency_profile --locked -- --ignored --nocapture --test-threads=1 2>&1 | tee provider-latency.log
+
+      - name: Upload provider performance receipts
+        if: ${{ always() && matrix.os == 'ubuntu-latest' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-latency
+          path: provider-latency.log
+          if-no-files-found: error
 
       - name: Run clippy
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       - name: Verify provider server process surface
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: cargo test --no-default-features --features provider-server provider_process_surface_admits_only_catalog_declared_serve
+        run: cargo test --no-default-features --features provider-server --locked
 
       - name: Save sccache cache (fallback)
         if: ${{ always() && !cancelled() && env.SCCACHE_GHA_ENABLED != 'true' }}

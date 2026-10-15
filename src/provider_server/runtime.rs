@@ -44,6 +44,12 @@ fn admit_provider_server_argv(args: impl IntoIterator<Item = OsString>) -> Resul
     )
 }
 
+/// Runtime facade for the provider's bounded request workers.
+///
+/// The HTTP owner admits at most 4–16 connections, tracks each connection in a
+/// JoinSet, and drains admitted work on shutdown. Each connection awaits its
+/// blocking worker before writing the response, so parser work cannot stall the
+/// Tokio reactor or outlive the connection's tracked task during normal drain.
 fn run_provider_server() -> Result<ExitCode, String> {
     let artifact_digest = required_env("ASP_PROVIDER_ARTIFACT_DIGEST")?;
     let registration_digest = required_env("ASP_PROVIDER_REGISTRATION_DIGEST")?;
@@ -85,7 +91,13 @@ fn run_provider_server() -> Result<ExitCode, String> {
         serve_asp_client_server(listener, shutdown_rx, move |request| {
             let health = Arc::clone(&health);
             let shutdown_tx = shutdown_tx.clone();
-            async move { handle_http_request(request, health, shutdown_tx) }
+            async move {
+                tokio::task::spawn_blocking(move || {
+                    handle_http_request(request, health, shutdown_tx)
+                })
+                .await
+                .map_err(|error| format!("provider request worker failed: {error}"))?
+            }
         })
         .await
     })?;
@@ -96,7 +108,13 @@ fn run_provider_runtime<F>(server: F) -> Result<(), String>
 where
     F: std::future::Future<Output = Result<(), String>> + Send + 'static,
 {
+    let worker_threads = std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(4)
+        .clamp(4, 16);
     tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(worker_threads)
+        .thread_name("asp-rust-provider")
         .enable_all()
         .build()
         .map_err(|error| format!("build provider Tokio runtime: {error}"))?
