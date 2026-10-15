@@ -1,12 +1,22 @@
 //! Minimal bounded loopback HTTP/JSON server for the provider executable.
 
 use std::future::Future;
+use std::sync::Arc;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 
 const MAX_REQUEST_BYTES: usize = 1024 * 1024;
+const MIN_CONNECTION_PARALLELISM: usize = 4;
+const MAX_CONNECTION_PARALLELISM: usize = 16;
+
+fn connection_parallelism() -> usize {
+    std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(MIN_CONNECTION_PARALLELISM)
+        .clamp(MIN_CONNECTION_PARALLELISM, MAX_CONNECTION_PARALLELISM)
+}
 
 #[derive(Debug)]
 pub(super) struct HttpJsonRequest {
@@ -35,29 +45,55 @@ impl HttpJsonResponse {
 
 pub(super) async fn serve_http_json<H, F>(
     listener: TcpListener,
-    shutdown: watch::Receiver<bool>,
+    mut shutdown: watch::Receiver<bool>,
     handler: H,
 ) -> Result<(), String>
 where
     H: Fn(HttpJsonRequest) -> F + Send + Sync + 'static,
-    F: Future<Output = Result<HttpJsonResponse, String>> + Send,
+    F: Future<Output = Result<HttpJsonResponse, String>> + Send + 'static,
 {
+    let handler = Arc::new(handler);
+    let parallelism = connection_parallelism();
+    let mut connections = tokio::task::JoinSet::new();
     loop {
-        let (stream, _) = listener
-            .accept()
-            .await
-            .map_err(|error| format!("accept HTTP JSON connection: {error}"))?;
-        serve_connection(stream, &handler).await?;
         if *shutdown.borrow() {
-            return Ok(());
+            break;
         }
+        tokio::select! {
+            changed = shutdown.changed() => {
+                changed.map_err(|_| "HTTP JSON shutdown authority closed".to_owned())?;
+            }
+            accepted = listener.accept(), if connections.len() < parallelism => {
+                let (stream, _) = accepted
+                    .map_err(|error| format!("accept HTTP JSON connection: {error}"))?;
+                let handler = Arc::clone(&handler);
+                connections.spawn(async move { serve_connection(stream, handler).await });
+            }
+            completed = connections.join_next(), if !connections.is_empty() => {
+                require_connection_completion(completed)?;
+            }
+        }
+    }
+    while let Some(completed) = connections.join_next().await {
+        require_connection_completion(Some(completed))?;
+    }
+    Ok(())
+}
+
+fn require_connection_completion(
+    completed: Option<Result<Result<(), String>, tokio::task::JoinError>>,
+) -> Result<(), String> {
+    match completed {
+        Some(Ok(result)) => result,
+        Some(Err(error)) => Err(format!("HTTP JSON connection task failed: {error}")),
+        None => Err("HTTP JSON connection task set ended unexpectedly".to_owned()),
     }
 }
 
-async fn serve_connection<H, F>(mut stream: TcpStream, handler: &H) -> Result<(), String>
+async fn serve_connection<H, F>(mut stream: TcpStream, handler: Arc<H>) -> Result<(), String>
 where
-    H: Fn(HttpJsonRequest) -> F,
-    F: Future<Output = Result<HttpJsonResponse, String>>,
+    H: Fn(HttpJsonRequest) -> F + Send + Sync + 'static,
+    F: Future<Output = Result<HttpJsonResponse, String>> + Send + 'static,
 {
     let request = read_request(&mut stream).await?;
     let response = handler(request)
@@ -69,6 +105,10 @@ where
         });
     write_response(&mut stream, response).await
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/provider_server_http_json.rs"]
+mod tests;
 
 async fn read_request(stream: &mut TcpStream) -> Result<HttpJsonRequest, String> {
     let mut bytes = Vec::with_capacity(4096);
