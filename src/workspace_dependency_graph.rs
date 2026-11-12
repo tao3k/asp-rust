@@ -45,7 +45,8 @@ pub struct AspRustWorkspaceBuildDagPackage {
     pub package_name: String,
     /// Normalized Cargo package root.
     pub package_root: PathBuf,
-    /// Direct local dependency package names.
+    /// Direct local normal and build dependency package names. Cargo dev edges
+    /// do not constrain build order and may point back to a runtime dependency.
     pub local_dependencies: Vec<String>,
     /// Dependency-first execution index.
     pub execution_index: usize,

@@ -581,6 +581,28 @@ fn build_dag_rejects_local_cycle_before_policy_execution() {
     assert!(error.contains("contains a cycle"), "{error}");
 }
 
+#[test]
+fn build_dag_accepts_cargo_dev_dependency_cycle() {
+    let temp = TempDir::new().expect("temp dir");
+    let workspace = temp.path();
+    write_dependency_graph_workspace(workspace, false);
+    let shared_manifest = workspace.join("shared/Cargo.toml");
+    let mut manifest = fs::read_to_string(&shared_manifest).expect("shared manifest");
+    manifest.push_str("\n[dev-dependencies]\napp={path='../app'}\n");
+    fs::write(&shared_manifest, manifest).expect("write dev dependency");
+
+    let build_dag = asp_rust_workspace_build_dag(workspace, &default_asp_rust_config())
+        .expect("a dev-only back edge must not create a build-order cycle");
+    assert_eq!(
+        build_dag
+            .packages
+            .iter()
+            .map(|package| package.package_name.as_str())
+            .collect::<Vec<_>>(),
+        ["shared", "left", "right", "app"]
+    );
+}
+
 fn write_dependency_graph_workspace(workspace: &std::path::Path, cycle: bool) {
     fs::write(
         workspace.join("Cargo.toml"),

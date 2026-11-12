@@ -77,6 +77,9 @@ local path dependencies. ASP Rust admits the complete workspace instance in
 deterministic dependency-first order, diamond dependencies occur once, and the
 package content-and-policy cache avoids warm-build rescans. Callers do not
 select package roots or reconstruct Cargo's build graph.
+Normal and build dependencies determine that order. Development dependencies
+remain available to Cargo tests but do not add build-order edges, since a test
+may depend on a crate that normally depends on the package under test.
 
 The binary is started by ASP Runtime using the catalog-declared `serve`
 entrypoint. Direct `search`, `query`, `check`, `projection`, and `agent`
