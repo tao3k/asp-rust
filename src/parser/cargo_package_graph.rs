@@ -151,17 +151,12 @@ fn parse_required_cargo_package_graph_facts(
             )
         })?;
     let mut roots = BTreeSet::new();
+    // Cargo permits dev-only back edges into crates that normally depend on
+    // this package. They do not constrain the package build order.
     collect_graph_dependency_roots(
         package_root,
         workspace_root,
         &manifest.dependencies,
-        workspace_dependencies,
-        &mut roots,
-    );
-    collect_graph_dependency_roots(
-        package_root,
-        workspace_root,
-        &manifest.dev_dependencies,
         workspace_dependencies,
         &mut roots,
     );
@@ -177,13 +172,6 @@ fn parse_required_cargo_package_graph_facts(
             package_root,
             workspace_root,
             &target.dependencies,
-            workspace_dependencies,
-            &mut roots,
-        );
-        collect_graph_dependency_roots(
-            package_root,
-            workspace_root,
-            &target.dev_dependencies,
             workspace_dependencies,
             &mut roots,
         );
