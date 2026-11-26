@@ -4,6 +4,7 @@
 //! Search, query, policy, and projection commands are ASP Server operations;
 //! they are not provider-local command-line authorities.
 
+mod ast_ops;
 mod contract;
 mod http_json;
 mod project_resolution;
