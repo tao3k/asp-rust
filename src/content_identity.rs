@@ -34,18 +34,30 @@ macro_rules! canonical_item_text {
     };
 }
 
-canonical_item_text!(/// Relation between a scope frame and the selected item.
-CanonicalItemScopeRelation);
-canonical_item_text!(/// Language-neutral kind of a scope frame.
-CanonicalItemScopeKind);
-canonical_item_text!(/// Stable source symbol of a scope frame.
-CanonicalItemScopeSymbol);
-canonical_item_text!(/// Language identifier of a canonical item.
-CanonicalItemLanguageId);
-canonical_item_text!(/// Language-neutral kind of a canonical item.
-CanonicalItemKind);
-canonical_item_text!(/// Stable source symbol of a canonical item.
-CanonicalItemSymbol);
+canonical_item_text!(
+    /// Relation between a scope frame and the selected item.
+    CanonicalItemScopeRelation
+);
+canonical_item_text!(
+    /// Language-neutral kind of a scope frame.
+    CanonicalItemScopeKind
+);
+canonical_item_text!(
+    /// Stable source symbol of a scope frame.
+    CanonicalItemScopeSymbol
+);
+canonical_item_text!(
+    /// Language identifier of a canonical item.
+    CanonicalItemLanguageId
+);
+canonical_item_text!(
+    /// Language-neutral kind of a canonical item.
+    CanonicalItemKind
+);
+canonical_item_text!(
+    /// Stable source symbol of a canonical item.
+    CanonicalItemSymbol
+);
 
 /// One typed lexical or implementation scope surrounding an item.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
