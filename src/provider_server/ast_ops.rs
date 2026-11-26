@@ -139,7 +139,7 @@ pub(super) fn handle_ast_verify_value(payload: &Value) -> Result<Vec<u8>, String
 }
 
 fn inspect_rust_source(path: &str, source: &str) -> WireAstInspectResponse {
-    match syn::parse_file(source) {
+    match crate::parser::parse_rust_source_syntax(source) {
         Ok(file) => {
             let mut nodes = Vec::new();
             collect_items(path, source, None, &file.items, &mut nodes);
@@ -160,7 +160,7 @@ fn inspect_rust_source(path: &str, source: &str) -> WireAstInspectResponse {
 }
 
 fn verify_rust_candidate(source: &str) -> Vec<WireAstSyntaxDiagnostic> {
-    match syn::parse_file(source) {
+    match crate::parser::parse_rust_source_syntax(source) {
         Ok(_) => Vec::new(),
         Err(err) => vec![syn_error_to_diagnostic(&err)],
     }
