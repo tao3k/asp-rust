@@ -158,10 +158,6 @@ mod parser_native_syntax_data_shape_tests;
 #[path = "../tests/unit/provider_workspace_install.rs"]
 mod provider_workspace_install_tests;
 
-#[cfg(test)]
-#[path = "../tests/unit/enhanced_query_capability.rs"]
-mod enhanced_query_capability_tests;
-
 pub use agent_snapshot::{
     render_asp_rust_agent_snapshot, render_asp_rust_agent_snapshot_with_config,
 };

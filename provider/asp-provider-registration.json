@@ -19,9 +19,6 @@
     "semanticFacts": true,
     "dependencyTopology": true,
     "dependencyTopologyMetadata": true,
-    "enhancedSyntaxQueryCapability": {
-      "$ref": "../tree-sitter/tree-sitter-rust/enhanced-query-capabilities.v1.json"
-    },
     "sourceSnapshot": {
       "descriptorId": "rust.source-snapshot",
       "descriptorVersion": "1",
@@ -36,57 +33,6 @@
       "exactSelectorResolution": "pinned-live-module-graph",
       "overlayMode": "merkle-delta"
     }
-  },
-  "queryPackDescriptor": {
-    "descriptorId": "rust.query-pack",
-    "descriptorVersion": "1",
-    "languageId": "rust",
-    "semanticFactsDescriptorId": "rust.semantic-facts",
-    "termRoleOverrides": [],
-    "recipes": [
-      {
-        "recipeId": "rust-concurrency-runtime",
-        "trigger": {
-          "terms": ["concurrency", "runtime", "scheduling"],
-          "match": "any"
-        },
-        "clauses": [
-          {
-            "terms": ["concurrency", "runtime", "scheduling"],
-            "roles": ["concept"],
-            "intentAxes": ["concurrency"]
-          }
-        ]
-      },
-      {
-        "recipeId": "rust-resource-lifecycle",
-        "trigger": {
-          "terms": ["scope", "lifecycle", "drop"],
-          "match": "any"
-        },
-        "clauses": [
-          {
-            "terms": ["scope", "lifecycle", "drop"],
-            "roles": ["concept"],
-            "intentAxes": ["resource-lifecycle"]
-          }
-        ]
-      },
-      {
-        "recipeId": "rust-stream-backpressure",
-        "trigger": {
-          "terms": ["queue", "stream", "backpressure"],
-          "match": "any"
-        },
-        "clauses": [
-          {
-            "terms": ["queue", "stream", "backpressure"],
-            "roles": ["concept"],
-            "intentAxes": ["collection", "stream"]
-          }
-        ]
-      }
-    ]
   },
   "runtimeContract": {
     "transport": "http-json",
@@ -103,19 +49,29 @@
     },
     "operations": [
       {
+        "operation": "ast-inspect",
+        "requestSchema": {"schemaId": "agent.semantic-protocols.ast-inspect", "schemaVersion": "1"},
+        "responseSchema": {"schemaId": "agent.semantic-protocols.ast-inspect", "schemaVersion": "1"}
+      },
+      {
+        "operation": "ast-verify",
+        "requestSchema": {"schemaId": "agent.semantic-protocols.ast-verify", "schemaVersion": "1"},
+        "responseSchema": {"schemaId": "agent.semantic-protocols.ast-verify", "schemaVersion": "1"}
+      },
+      {
         "operation": "syntax-query",
-    "requestSchema": {"schemaId": "agent.semantic-protocols.provider-syntax-query-request", "schemaVersion": "1"},
-    "responseSchema": {"schemaId": "agent.semantic-protocols.provider-syntax-query-response", "schemaVersion": "1"}
+        "requestSchema": {"schemaId": "agent.semantic-protocols.provider-syntax-query-request", "schemaVersion": "1"},
+        "responseSchema": {"schemaId": "agent.semantic-protocols.provider-syntax-query-response", "schemaVersion": "1"}
       },
       {
         "operation": "projection-batch",
-    "requestSchema": {"schemaId": "agent.semantic-protocols.provider-language-projection-batch-request", "schemaVersion": "1"},
-    "responseSchema": {"schemaId": "agent.semantic-protocols.provider-language-projection-batch-response", "schemaVersion": "1"}
+        "requestSchema": {"schemaId": "agent.semantic-protocols.provider-language-projection-batch-request", "schemaVersion": "1"},
+        "responseSchema": {"schemaId": "agent.semantic-protocols.provider-language-projection-batch-response", "schemaVersion": "1"}
       },
       {
         "operation": "project-resolution",
-    "requestSchema": {"schemaId": "agent.semantic-protocols.provider-project-resolution-request", "schemaVersion": "1"},
-    "responseSchema": {"schemaId": "agent.semantic-protocols.provider-project-resolution-response", "schemaVersion": "1"}
+        "requestSchema": {"schemaId": "agent.semantic-protocols.provider-project-resolution-request", "schemaVersion": "1"},
+        "responseSchema": {"schemaId": "agent.semantic-protocols.provider-project-resolution-response", "schemaVersion": "1"}
       }
     ]
   },
