@@ -1,9 +1,12 @@
 //! Native Rust `syn` AST inspection (`ast-inspect`) and batched compiler
 //! oracle verification (`ast-verify`) for ASP's `agent-semantic-ast` protocol.
 
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use syn::spanned::Spanned as _;
+use syn::visit::{self, Visit};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,9 +79,19 @@ fn rust_syntax_surface() -> WireSyntaxSurface {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct WireAstSemanticEdge {
+    src: String,
+    dst: String,
+    relation: &'static str,
+    line: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct WireAstInspectResponse {
     accepted: bool,
     nodes: Vec<WireAstNodeSpanRecord>,
+    edges: Vec<WireAstSemanticEdge>,
     diagnostics: Vec<WireAstSyntaxDiagnostic>,
     syntax_surface: WireSyntaxSurface,
 }
@@ -142,10 +155,12 @@ fn inspect_rust_source(path: &str, source: &str) -> WireAstInspectResponse {
     match crate::parser::parse_rust_source_syntax(source) {
         Ok(file) => {
             let mut nodes = Vec::new();
-            collect_items(path, source, None, &file.items, &mut nodes);
+            let mut edges = Vec::new();
+            collect_items(path, source, None, &file.items, &mut nodes, &mut edges);
             WireAstInspectResponse {
                 accepted: true,
                 nodes,
+                edges,
                 diagnostics: Vec::new(),
                 syntax_surface: rust_syntax_surface(),
             }
@@ -153,6 +168,7 @@ fn inspect_rust_source(path: &str, source: &str) -> WireAstInspectResponse {
         Err(err) => WireAstInspectResponse {
             accepted: false,
             nodes: Vec::new(),
+            edges: Vec::new(),
             diagnostics: vec![syn_error_to_diagnostic(&err)],
             syntax_surface: rust_syntax_surface(),
         },
@@ -220,16 +236,114 @@ fn vis_attrs(vis: &syn::Visibility) -> Vec<WireAstNodeAttr> {
     }
 }
 
+struct CallEdgeCollector<'a> {
+    caller_locator: &'a str,
+    source: &'a str,
+    seen: BTreeSet<(String, usize)>,
+    edges: &'a mut Vec<WireAstSemanticEdge>,
+}
+
+impl CallEdgeCollector<'_> {
+    fn record_call(&mut self, callee: String, offset: usize) {
+        if callee.is_empty() {
+            return;
+        }
+        let line = line_of_offset(self.source, offset);
+        if self.seen.insert((callee.clone(), line)) {
+            self.edges.push(WireAstSemanticEdge {
+                src: self.caller_locator.to_owned(),
+                dst: callee,
+                relation: "calls",
+                line,
+            });
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for CallEdgeCollector<'_> {
+    fn visit_expr_call(&mut self, expr: &'ast syn::ExprCall) {
+        if let syn::Expr::Path(ep) = expr.func.as_ref()
+            && let Some(seg) = ep.path.segments.last()
+        {
+            self.record_call(seg.ident.to_string(), expr.span().byte_range().start);
+        }
+        visit::visit_expr_call(self, expr);
+    }
+
+    fn visit_expr_method_call(&mut self, expr: &'ast syn::ExprMethodCall) {
+        self.record_call(
+            expr.method.to_string(),
+            expr.method.span().byte_range().start,
+        );
+        visit::visit_expr_method_call(self, expr);
+    }
+}
+
+fn collect_block_call_edges(
+    caller_locator: &str,
+    source: &str,
+    block: &syn::Block,
+    edges: &mut Vec<WireAstSemanticEdge>,
+) {
+    let mut visitor = CallEdgeCollector {
+        caller_locator,
+        source,
+        seen: BTreeSet::new(),
+        edges,
+    };
+    visitor.visit_block(block);
+}
+
+fn collect_use_tree_targets(prefix: &str, tree: &syn::UseTree, out: &mut Vec<String>) {
+    match tree {
+        syn::UseTree::Path(p) => {
+            let next = if prefix.is_empty() {
+                p.ident.to_string()
+            } else {
+                format!("{prefix}::{}", p.ident)
+            };
+            collect_use_tree_targets(&next, &p.tree, out);
+        }
+        syn::UseTree::Name(n) => {
+            let full = if prefix.is_empty() {
+                n.ident.to_string()
+            } else {
+                format!("{prefix}::{}", n.ident)
+            };
+            out.push(full);
+        }
+        syn::UseTree::Rename(r) => {
+            let full = if prefix.is_empty() {
+                r.ident.to_string()
+            } else {
+                format!("{prefix}::{}", r.ident)
+            };
+            out.push(full);
+        }
+        syn::UseTree::Glob(_) => {
+            if !prefix.is_empty() {
+                out.push(format!("{prefix}::*"));
+            }
+        }
+        syn::UseTree::Group(g) => {
+            for item in &g.items {
+                collect_use_tree_targets(prefix, item, out);
+            }
+        }
+    }
+}
+
 fn collect_items(
     path: &str,
     source: &str,
     parent: Option<&str>,
     items: &[syn::Item],
     out: &mut Vec<WireAstNodeSpanRecord>,
+    edges: &mut Vec<WireAstSemanticEdge>,
 ) {
     for item in items {
         match item {
-            syn::Item::Fn(item_fn) => push_fn_item(path, source, parent, item_fn, out),
+            syn::Item::Fn(item_fn) => push_fn_item(path, source, parent, item_fn, out, edges),
             syn::Item::Struct(item_st) => push_simple_item(
                 path,
                 source,
@@ -286,9 +400,11 @@ fn collect_items(
                 item_ty.type_token.span.byte_range().start,
                 out,
             ),
-            syn::Item::Impl(item_impl) => push_impl_item(path, source, parent, item_impl, out),
-            syn::Item::Use(item_use) => push_use_item(path, source, parent, item_use, out),
-            syn::Item::Mod(item_mod) => push_mod_item(path, source, parent, item_mod, out),
+            syn::Item::Impl(item_impl) => {
+                push_impl_item(path, source, parent, item_impl, out, edges)
+            }
+            syn::Item::Use(item_use) => push_use_item(path, source, parent, item_use, out, edges),
+            syn::Item::Mod(item_mod) => push_mod_item(path, source, parent, item_mod, out, edges),
             syn::Item::Macro(item_mac) => push_macro_item(path, source, parent, item_mac, out),
             _ => {}
         }
@@ -308,6 +424,7 @@ fn push_fn_item(
     parent: Option<&str>,
     item_fn: &syn::ItemFn,
     out: &mut Vec<WireAstNodeSpanRecord>,
+    edges: &mut Vec<WireAstSemanticEdge>,
 ) {
     let outer = item_fn.span().byte_range();
     let vis_start = match &item_fn.vis {
@@ -316,8 +433,10 @@ fn push_fn_item(
     };
     let inner_start = item_inner_start(outer.start, &item_fn.attrs, vis_start);
     let name = item_fn.sig.ident.to_string();
+    let locator = build_locator(path, parent, "fn", &name);
+    collect_block_call_edges(&locator, source, &item_fn.block, edges);
     out.push(WireAstNodeSpanRecord {
-        locator: build_locator(path, parent, "fn", &name),
+        locator,
         kind: "function",
         language_kind: "fn_item",
         name,
@@ -382,6 +501,7 @@ fn push_impl_item(
     parent: Option<&str>,
     item_impl: &syn::ItemImpl,
     out: &mut Vec<WireAstNodeSpanRecord>,
+    edges: &mut Vec<WireAstSemanticEdge>,
 ) {
     let outer = item_impl.span().byte_range();
     let inner_start = item_inner_start(
@@ -398,12 +518,29 @@ fn push_impl_item(
         start: brace.start + 1,
         end: brace.end - 1,
     });
+    let line = line_of_offset(source, inner_start);
+    let mut attrs = Vec::new();
+    if let Some((trait_path, _)) = &item_impl.trait_
+        && let Some(seg) = trait_path.segments.last()
+    {
+        let trait_name = seg.ident.to_string();
+        attrs.push(WireAstNodeAttr {
+            key: "implements".to_owned(),
+            value: trait_name.clone(),
+        });
+        edges.push(WireAstSemanticEdge {
+            src: locator.clone(),
+            dst: trait_name,
+            relation: "implements",
+            line,
+        });
+    }
     out.push(WireAstNodeSpanRecord {
         locator: locator.clone(),
         kind: "item",
         language_kind: "impl_item",
         name: ty_name,
-        line: line_of_offset(source, inner_start),
+        line,
         outer_span: WireByteSpan {
             start: outer.start,
             end: outer.end,
@@ -414,7 +551,7 @@ fn push_impl_item(
         },
         body_span,
         parent: parent.map(str::to_owned),
-        attrs: Vec::new(),
+        attrs,
     });
     for impl_item in &item_impl.items {
         if let syn::ImplItem::Fn(method) = impl_item {
@@ -425,8 +562,10 @@ fn push_impl_item(
             };
             let m_inner = item_inner_start(m_outer.start, &method.attrs, m_vis_start);
             let m_name = method.sig.ident.to_string();
+            let m_locator = format!("{locator}#fn:{m_name}");
+            collect_block_call_edges(&m_locator, source, &method.block, edges);
             out.push(WireAstNodeSpanRecord {
-                locator: format!("{locator}#fn:{m_name}"),
+                locator: m_locator,
                 kind: "method",
                 language_kind: "impl_fn",
                 name: m_name,
@@ -453,10 +592,28 @@ fn push_use_item(
     parent: Option<&str>,
     item_use: &syn::ItemUse,
     out: &mut Vec<WireAstNodeSpanRecord>,
+    edges: &mut Vec<WireAstSemanticEdge>,
 ) {
     let outer = item_use.span().byte_range();
     let line = line_of_offset(source, outer.start);
     let label = format!("use_line_{line}");
+    let mut targets = Vec::new();
+    collect_use_tree_targets("", &item_use.tree, &mut targets);
+    let mut attrs = vis_attrs(&item_use.vis);
+    if let Some(first) = targets.first() {
+        attrs.push(WireAstNodeAttr {
+            key: "import_target".to_owned(),
+            value: first.clone(),
+        });
+    }
+    for target in targets {
+        edges.push(WireAstSemanticEdge {
+            src: path.to_owned(),
+            dst: target,
+            relation: "imports",
+            line,
+        });
+    }
     out.push(WireAstNodeSpanRecord {
         locator: build_locator(path, parent, "use", &label),
         kind: "import",
@@ -473,7 +630,7 @@ fn push_use_item(
         },
         body_span: None,
         parent: parent.map(str::to_owned),
-        attrs: vis_attrs(&item_use.vis),
+        attrs,
     });
 }
 
@@ -483,6 +640,7 @@ fn push_mod_item(
     parent: Option<&str>,
     item_mod: &syn::ItemMod,
     out: &mut Vec<WireAstNodeSpanRecord>,
+    edges: &mut Vec<WireAstSemanticEdge>,
 ) {
     let outer = item_mod.span().byte_range();
     let name = item_mod.ident.to_string();
@@ -511,7 +669,7 @@ fn push_mod_item(
         attrs: vis_attrs(&item_mod.vis),
     });
     if let Some((_, nested)) = &item_mod.content {
-        collect_items(path, source, Some(&locator), nested, out);
+        collect_items(path, source, Some(&locator), nested, out, edges);
     }
 }
 
