@@ -226,14 +226,92 @@ fn block_interior_span(block: &syn::Block) -> Option<WireByteSpan> {
 }
 
 fn vis_attrs(vis: &syn::Visibility) -> Vec<WireAstNodeAttr> {
-    if matches!(vis, syn::Visibility::Public(_)) {
-        vec![WireAstNodeAttr {
-            key: "visibility".to_owned(),
-            value: "pub".to_owned(),
-        }]
-    } else {
-        Vec::new()
+    let label = match vis {
+        syn::Visibility::Public(_) => "pub",
+        syn::Visibility::Restricted(r) => {
+            if r.path.is_ident("crate") {
+                "pub(crate)"
+            } else if r.path.is_ident("super") {
+                "pub(super)"
+            } else {
+                "pub(restricted)"
+            }
+        }
+        syn::Visibility::Inherited => "private",
+    };
+    vec![WireAstNodeAttr {
+        key: "visibility".to_owned(),
+        value: label.to_owned(),
+    }]
+}
+
+fn push_attr(attrs: &mut Vec<WireAstNodeAttr>, key: &str, value: impl Into<String>) {
+    let v = value.into();
+    if !v.is_empty() && !attrs.iter().any(|a| a.key == key && a.value == v) {
+        attrs.push(WireAstNodeAttr {
+            key: key.to_owned(),
+            value: v,
+        });
     }
+}
+
+fn collect_syn_item_meta_attrs(syn_attrs: &[syn::Attribute], out: &mut Vec<WireAstNodeAttr>) {
+    for attr in syn_attrs {
+        let Some(last) = attr.path().segments.last() else {
+            continue;
+        };
+        let ident = last.ident.to_string();
+        if ident == "test" {
+            push_attr(out, "is_test", "true");
+        } else if ident == "derive" {
+            let _ = attr.parse_nested_meta(|meta| {
+                if let Some(seg) = meta.path.segments.last() {
+                    push_attr(out, "derive", seg.ident.to_string());
+                }
+                Ok(())
+            });
+        } else if ident == "error"
+            && let Ok(lit) = attr.parse_args::<syn::LitStr>()
+        {
+            let msg = lit.value();
+            if !msg.is_empty() && msg.len() <= 120 {
+                push_attr(out, "error_literal", msg);
+            }
+        }
+    }
+}
+
+fn fn_sig_attrs(
+    vis: &syn::Visibility,
+    sig: &syn::Signature,
+    syn_attrs: &[syn::Attribute],
+) -> Vec<WireAstNodeAttr> {
+    let mut attrs = vis_attrs(vis);
+    if sig.asyncness.is_some() {
+        push_attr(&mut attrs, "async", "true");
+    }
+    if matches!(sig.safety, syn::Safety::Unsafe(_)) {
+        push_attr(&mut attrs, "unsafe", "true");
+    }
+    if sig.constness.is_some() {
+        push_attr(&mut attrs, "const", "true");
+    }
+    collect_syn_item_meta_attrs(syn_attrs, &mut attrs);
+    attrs
+}
+
+fn extract_first_string_literal_from_tokens(tokens: &proc_macro2::TokenStream) -> Option<String> {
+    for tt in tokens.clone() {
+        if let proc_macro2::TokenTree::Literal(lit) = tt
+            && let Ok(lit_str) = syn::parse2::<syn::LitStr>(proc_macro2::TokenTree::Literal(lit).into())
+        {
+            let value = lit_str.value();
+            if value.len() >= 3 && value.len() <= 120 {
+                return Some(value);
+            }
+        }
+    }
+    None
 }
 
 struct CallEdgeCollector<'a> {
@@ -241,6 +319,7 @@ struct CallEdgeCollector<'a> {
     source: &'a str,
     seen: BTreeSet<(String, usize)>,
     edges: &'a mut Vec<WireAstSemanticEdge>,
+    error_literals: Vec<String>,
 }
 
 impl CallEdgeCollector<'_> {
@@ -258,6 +337,16 @@ impl CallEdgeCollector<'_> {
             });
         }
     }
+
+    fn record_error_literal(&mut self, value: String) {
+        if value.len() >= 3
+            && value.len() <= 120
+            && self.error_literals.len() < 8
+            && !self.error_literals.contains(&value)
+        {
+            self.error_literals.push(value);
+        }
+    }
 }
 
 impl<'ast> Visit<'ast> for CallEdgeCollector<'_> {
@@ -265,7 +354,16 @@ impl<'ast> Visit<'ast> for CallEdgeCollector<'_> {
         if let syn::Expr::Path(ep) = expr.func.as_ref()
             && let Some(seg) = ep.path.segments.last()
         {
-            self.record_call(seg.ident.to_string(), expr.span().byte_range().start);
+            let name = seg.ident.to_string();
+            if name == "Err"
+                && let Some(syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                })) = expr.args.first()
+            {
+                self.record_error_literal(s.value());
+            }
+            self.record_call(name, expr.span().byte_range().start);
         }
         visit::visit_expr_call(self, expr);
     }
@@ -277,6 +375,20 @@ impl<'ast> Visit<'ast> for CallEdgeCollector<'_> {
         );
         visit::visit_expr_method_call(self, expr);
     }
+
+    fn visit_macro(&mut self, mac: &'ast syn::Macro) {
+        if let Some(seg) = mac.path.segments.last() {
+            let name = seg.ident.to_string();
+            if matches!(
+                name.as_str(),
+                "panic" | "bail" | "anyhow" | "format_err" | "unreachable"
+            ) && let Some(msg) = extract_first_string_literal_from_tokens(&mac.tokens)
+            {
+                self.record_error_literal(msg);
+            }
+        }
+        visit::visit_macro(self, mac);
+    }
 }
 
 fn collect_block_call_edges(
@@ -284,14 +396,16 @@ fn collect_block_call_edges(
     source: &str,
     block: &syn::Block,
     edges: &mut Vec<WireAstSemanticEdge>,
-) {
+) -> Vec<String> {
     let mut visitor = CallEdgeCollector {
         caller_locator,
         source,
         seen: BTreeSet::new(),
         edges,
+        error_literals: Vec::new(),
     };
     visitor.visit_block(block);
+    visitor.error_literals
 }
 
 fn collect_use_tree_targets(prefix: &str, tree: &syn::UseTree, out: &mut Vec<String>) {
@@ -434,7 +548,11 @@ fn push_fn_item(
     let inner_start = item_inner_start(outer.start, &item_fn.attrs, vis_start);
     let name = item_fn.sig.ident.to_string();
     let locator = build_locator(path, parent, "fn", &name);
-    collect_block_call_edges(&locator, source, &item_fn.block, edges);
+    let err_lits = collect_block_call_edges(&locator, source, &item_fn.block, edges);
+    let mut node_attrs = fn_sig_attrs(&item_fn.vis, &item_fn.sig, &item_fn.attrs);
+    for msg in err_lits {
+        push_attr(&mut node_attrs, "error_literal", msg);
+    }
     out.push(WireAstNodeSpanRecord {
         locator,
         kind: "function",
@@ -451,7 +569,7 @@ fn push_fn_item(
         },
         body_span: block_interior_span(&item_fn.block),
         parent: parent.map(str::to_owned),
-        attrs: vis_attrs(&item_fn.vis),
+        attrs: node_attrs,
     });
 }
 
@@ -475,6 +593,8 @@ fn push_simple_item(
         v => v.span().byte_range().start,
     };
     let inner_start = item_inner_start(outer.start, attrs, vis_start);
+    let mut node_attrs = vis_attrs(vis);
+    collect_syn_item_meta_attrs(attrs, &mut node_attrs);
     out.push(WireAstNodeSpanRecord {
         locator: build_locator(path, parent, tag, name),
         kind,
@@ -491,7 +611,7 @@ fn push_simple_item(
         },
         body_span: None,
         parent: parent.map(str::to_owned),
-        attrs: vis_attrs(vis),
+        attrs: node_attrs,
     });
 }
 
@@ -520,6 +640,9 @@ fn push_impl_item(
     });
     let line = line_of_offset(source, inner_start);
     let mut attrs = Vec::new();
+    if item_impl.unsafety.is_some() {
+        push_attr(&mut attrs, "unsafe", "true");
+    }
     if let Some((trait_path, _)) = &item_impl.trait_
         && let Some(seg) = trait_path.segments.last()
     {
@@ -563,7 +686,11 @@ fn push_impl_item(
             let m_inner = item_inner_start(m_outer.start, &method.attrs, m_vis_start);
             let m_name = method.sig.ident.to_string();
             let m_locator = format!("{locator}#fn:{m_name}");
-            collect_block_call_edges(&m_locator, source, &method.block, edges);
+            let m_errs = collect_block_call_edges(&m_locator, source, &method.block, edges);
+            let mut m_attrs = fn_sig_attrs(&method.vis, &method.sig, &method.attrs);
+            for msg in m_errs {
+                push_attr(&mut m_attrs, "error_literal", msg);
+            }
             out.push(WireAstNodeSpanRecord {
                 locator: m_locator,
                 kind: "method",
@@ -580,7 +707,7 @@ fn push_impl_item(
                 },
                 body_span: block_interior_span(&method.block),
                 parent: Some(locator.clone()),
-                attrs: vis_attrs(&method.vis),
+                attrs: m_attrs,
             });
         }
     }
@@ -703,4 +830,50 @@ fn push_macro_item(
         parent: parent.map(str::to_owned),
         attrs: Vec::new(),
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inspect_emits_rich_visibility_async_unsafe_derive_test_and_error_literal_attrs() {
+        let src = r#"
+#[derive(Clone, Debug)]
+pub struct Engine;
+
+#[derive(Debug)]
+pub(crate) enum GateErr {
+    #[error("continuation blocked")]
+    Blocked,
+}
+
+pub async unsafe fn dispatch(x: bool) -> Result<(), &'static str> {
+    if !x {
+        return Err("missing trace context");
+    }
+    helper();
+    Ok(())
+}
+
+#[test]
+fn smoke() {}
+"#;
+        let resp = inspect_rust_source("src/lib.rs", src);
+        assert!(resp.accepted);
+        let engine = resp.nodes.iter().find(|n| n.name == "Engine").expect("Engine");
+        assert!(engine.attrs.iter().any(|a| a.key == "visibility" && a.value == "pub"));
+        assert!(engine.attrs.iter().any(|a| a.key == "derive" && a.value == "Clone"));
+        let gate_err = resp.nodes.iter().find(|n| n.name == "GateErr").expect("GateErr");
+        assert!(gate_err.attrs.iter().any(|a| a.key == "visibility" && a.value == "pub(crate)"));
+        let dispatch = resp.nodes.iter().find(|n| n.name == "dispatch").expect("dispatch");
+        assert!(dispatch.attrs.iter().any(|a| a.key == "visibility" && a.value == "pub"));
+        assert!(dispatch.attrs.iter().any(|a| a.key == "async" && a.value == "true"));
+        assert!(dispatch.attrs.iter().any(|a| a.key == "unsafe" && a.value == "true"));
+        assert!(dispatch.attrs.iter().any(|a| a.key == "error_literal" && a.value == "missing trace context"));
+        let smoke = resp.nodes.iter().find(|n| n.name == "smoke").expect("smoke");
+        assert!(smoke.attrs.iter().any(|a| a.key == "is_test" && a.value == "true"));
+        assert!(smoke.attrs.iter().any(|a| a.key == "visibility" && a.value == "private"));
+        assert!(resp.edges.iter().any(|e| e.relation == "calls" && e.dst == "helper"));
+    }
 }
