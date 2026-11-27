@@ -138,6 +138,16 @@ fn runtime_contract_operations() -> Vec<ProviderRuntimeContractOperation> {
             "agent.semantic-protocols.provider-project-resolution-request",
             "agent.semantic-protocols.provider-project-resolution-response",
         ),
+        (
+            "ast-inspect",
+            "agent.semantic-protocols.ast-inspect-request",
+            "agent.semantic-protocols.ast-inspect-response",
+        ),
+        (
+            "ast-verify",
+            "agent.semantic-protocols.ast-verify-request",
+            "agent.semantic-protocols.ast-verify-response",
+        ),
     ]
     .into_iter()
     .map(
@@ -198,6 +208,8 @@ fn handle_request(request: ProviderRuntimeRequestFrame) -> Result<Vec<u8>, Strin
                 super::project_resolution::handle_project_resolution_request_value(&request.payload)
                     .map(|(response, _)| response)
             }
+            "ast-inspect" => super::ast_ops::handle_ast_inspect_value(&request.payload),
+            "ast-verify" => super::ast_ops::handle_ast_verify_value(&request.payload),
             operation => Err(format!(
                 "provider runtime operation is not admitted: {operation}"
             )),

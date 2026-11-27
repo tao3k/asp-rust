@@ -1,0 +1,82 @@
+{
+  "schemaId": "agent.semantic-protocols.provider-core-manifest",
+  "schemaVersion": "1",
+  "languageId": "rust",
+  "providerId": "asp-rust",
+  "displayName": "Rust",
+  "extensions": [".rs"],
+  "projectMarkers": ["Cargo.toml"],
+  "project": {
+    "markers": ["Cargo.toml"],
+    "entryFiles": ["src/lib.rs", "src/main.rs", "build.rs"],
+    "workspaceFiles": ["Cargo.toml", "Cargo.lock"],
+    "configFiles": ["rustfmt.toml", "clippy.toml", "rust-toolchain.toml"]
+  },
+  "syntaxSurface": {
+    "lineComment": "//",
+    "blockComment": ["/*", "*/"],
+    "delimiterPairs": [["(", ")"], ["[", "]"], ["{", "}"]],
+    "statementTerminator": ";",
+    "stringDelimiters": ["\""]
+  },
+  "transport": {
+    "transport": "http-json",
+    "command": ["serve"],
+    "healthPath": "/health",
+    "requestPath": "/v1/provider-runtime",
+    "shutdownPath": "/shutdown"
+  },
+  "capabilities": {
+    "astInspect": true,
+    "astVerify": true,
+    "openEdb": true,
+    "projectResolution": true
+  },
+  "special": {
+    "kindMappings": [
+      { "nativeLanguageKind": "fn_item", "generalKind": "function", "description": "Rust free function item" },
+      { "nativeLanguageKind": "impl_fn", "generalKind": "method", "description": "Rust inherent or trait impl method" },
+      { "nativeLanguageKind": "struct_item", "generalKind": "struct", "description": "Rust struct declaration" },
+      { "nativeLanguageKind": "enum_item", "generalKind": "enum", "description": "Rust enum declaration" },
+      { "nativeLanguageKind": "trait_item", "generalKind": "trait", "description": "Rust trait declaration" },
+      { "nativeLanguageKind": "type_item", "generalKind": "type", "description": "Rust type alias" },
+      { "nativeLanguageKind": "impl_item", "generalKind": "item", "description": "Rust impl block (special extension)" },
+      { "nativeLanguageKind": "macro_rules", "generalKind": "macro", "description": "Rust macro_rules! definition" },
+      { "nativeLanguageKind": "mod_item", "generalKind": "module", "description": "Rust inline or external module" },
+      { "nativeLanguageKind": "use_item", "generalKind": "import", "description": "Rust use import declaration" }
+    ],
+    "specialRelations": [
+      "rust_fn",
+      "rust_method",
+      "rust_struct",
+      "rust_enum",
+      "rust_trait",
+      "rust_type",
+      "rust_impl",
+      "rust_macro",
+      "rust_mod"
+    ],
+    "schema": {
+      "type": "object",
+      "properties": {
+        "visibility": {
+          "type": "string",
+          "enum": ["pub", "pub(crate)", "pub(super)", "private"],
+          "description": "Rust item visibility qualifier"
+        },
+        "async": {
+          "type": "boolean",
+          "description": "Filter Rust async functions and methods"
+        },
+        "unsafe": {
+          "type": "boolean",
+          "description": "Filter Rust unsafe functions, traits, or impl blocks"
+        },
+        "derive": {
+          "type": "string",
+          "description": "Filter Rust types carrying a #[derive(...)] macro"
+        }
+      }
+    }
+  }
+}
